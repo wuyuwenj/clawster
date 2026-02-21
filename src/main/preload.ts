@@ -54,6 +54,12 @@ contextBridge.exposeInMainWorld('clawster', {
   onPetMoving: (callback: (data: { moving: boolean }) => void) => {
     ipcRenderer.on('pet-moving', (_event, data) => callback(data));
   },
+  onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => {
+    ipcRenderer.on('idle-behavior', (_event, data) => callback(data));
+  },
+
+  // Pet interactions
+  petClicked: () => ipcRenderer.send('pet-clicked'),
 
   // Cleanup
   removeAllListeners: () => {
@@ -62,6 +68,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('clawbot-mood');
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
+    ipcRenderer.removeAllListeners('idle-behavior');
   },
 });
 
@@ -106,6 +113,8 @@ export interface ClawsterAPI {
   onClawbotMood: (callback: (data: unknown) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
+  onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
+  petClicked: () => void;
   removeAllListeners: () => void;
 }
 
