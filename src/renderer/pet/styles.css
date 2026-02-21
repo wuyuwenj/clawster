@@ -1,0 +1,361 @@
+.pet-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: grab;
+  position: relative;
+}
+
+.pet-container:active {
+  cursor: grabbing;
+}
+
+/* Suggestion bubble */
+.suggestion-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  max-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: bubble-in 0.3s ease-out;
+  margin-bottom: 8px;
+}
+
+.suggestion-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #1a1a2e;
+}
+
+.suggestion-text {
+  flex: 1;
+}
+
+.suggestion-dismiss {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  line-height: 1;
+}
+
+.suggestion-dismiss:hover {
+  color: #fff;
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Lobster color variables */
+.lobster-container {
+  --salmon: #FF8C69;
+  --dark-red: #8B3A3A;
+  --teal: #008080;
+  --teal-dark: #004D4D;
+  --ink: #1A1A1A;
+
+  width: 120px;
+  height: 120px;
+  position: relative;
+}
+
+.lobster-container svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lobster-container:hover {
+  transform: scale(1.05);
+}
+
+/* Base element styles */
+.lobster-container .body-group {
+  transform-origin: 64px 100px;
+  transition: all 0.3s;
+}
+
+.lobster-container .left-claw,
+.lobster-container .right-claw {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lobster-container .left-claw {
+  transform-origin: 30px 70px;
+}
+
+.lobster-container .right-claw {
+  transform-origin: 98px 70px;
+}
+
+.lobster-container .eye-open {
+  transform-origin: 50% 50%;
+  animation: blink 5s infinite;
+}
+
+.lobster-container .eye-closed {
+  opacity: 0;
+}
+
+.lobster-container .pupils {
+  animation: dart 6s infinite;
+}
+
+.lobster-container .mouth-neutral {
+  opacity: 1;
+}
+
+.lobster-container .mouth-happy {
+  opacity: 0;
+}
+
+.lobster-container .mouth-worried {
+  opacity: 0;
+}
+
+.lobster-container .fx-zzz,
+.lobster-container .fx-sweat {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* IDLE STATE */
+.lobster-container.state-idle .body-group {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.lobster-container.state-idle .left-claw {
+  animation: bobLeft 3s ease-in-out infinite;
+}
+
+.lobster-container.state-idle .right-claw {
+  animation: bobRight 3s ease-in-out infinite 0.5s;
+}
+
+/* HAPPY STATE */
+.lobster-container.state-happy {
+  animation: bounce 0.8s ease-in-out infinite;
+}
+
+.lobster-container.state-happy .left-claw {
+  transform: translateY(-15px) rotate(-30deg);
+}
+
+.lobster-container.state-happy .right-claw {
+  transform: translateY(-15px) rotate(30deg);
+}
+
+.lobster-container.state-happy .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-happy .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.state-happy .pupils {
+  transform: scale(1.2);
+}
+
+/* SLEEP STATE */
+.lobster-container.state-sleep .body-group {
+  animation: breathe 5s ease-in-out infinite;
+}
+
+.lobster-container.state-sleep .left-claw {
+  transform: translateY(10px) rotate(10deg);
+}
+
+.lobster-container.state-sleep .right-claw {
+  transform: translateY(10px) rotate(-10deg);
+}
+
+.lobster-container.state-sleep .eye-open {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-sleep .eye-closed {
+  opacity: 1;
+}
+
+.lobster-container.state-sleep .pupils {
+  opacity: 0;
+}
+
+.lobster-container.state-sleep .fx-zzz {
+  opacity: 1;
+  animation: floatUp 2s linear infinite;
+}
+
+/* WORRIED STATE */
+.lobster-container.state-worried {
+  animation: shiver 0.2s infinite;
+}
+
+.lobster-container.state-worried .body-group {
+  transform: scale(0.9) translateY(10px);
+}
+
+.lobster-container.state-worried .left-claw {
+  transform: translateX(10px) rotate(40deg);
+}
+
+.lobster-container.state-worried .right-claw {
+  transform: translateX(-10px) rotate(-40deg);
+}
+
+.lobster-container.state-worried .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-worried .mouth-worried {
+  opacity: 1;
+}
+
+.lobster-container.state-worried .fx-sweat {
+  opacity: 1;
+  animation: drip 1.5s infinite;
+}
+
+/* SNIP STATE (curious) */
+.lobster-container.state-snip .right-claw {
+  animation: snip 0.3s ease-in-out infinite;
+}
+
+.lobster-container.state-snip .body-group {
+  animation: none;
+}
+
+/* Keyframe Animations */
+@keyframes breathe {
+  0%, 100% {
+    transform: scaleY(1) scaleX(1);
+  }
+  50% {
+    transform: scaleY(0.92) scaleX(1.03);
+  }
+}
+
+@keyframes bobLeft {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-8deg);
+  }
+}
+
+@keyframes bobRight {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(8deg);
+  }
+}
+
+@keyframes blink {
+  0%, 94%, 100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes dart {
+  0%, 20%, 100% {
+    transform: translateX(0);
+  }
+  10%, 15% {
+    transform: translateX(-3px);
+  }
+  80%, 85% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes shiver {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes snip {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(-25deg) scale(1.1);
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(15px, -30px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes drip {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(15px);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
