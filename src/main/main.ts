@@ -10,9 +10,13 @@ import {
 } from 'electron';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import { config } from 'dotenv';
 import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
+
+// Load environment variables
+config();
 
 // Windows
 let petWindow: BrowserWindow | null = null;
@@ -25,6 +29,7 @@ let clawbot: ClawBotClient | null = null;
 const store = createStore();
 
 const isDev = !app.isPackaged;
+const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
 
 // Idle detection state
 let lastActivityTime = Date.now();
@@ -339,7 +344,7 @@ function createPetWindow() {
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   if (isDev) {
-    petWindow.loadURL('http://localhost:5173/pet.html');
+    petWindow.loadURL(`http://localhost:${DEV_PORT}/pet.html`);
   } else {
     petWindow.loadFile(path.join(__dirname, '../renderer/pet.html'));
   }
@@ -377,7 +382,7 @@ function createAssistantWindow() {
   });
 
   if (isDev) {
-    assistantWindow.loadURL('http://localhost:5173/assistant.html');
+    assistantWindow.loadURL(`http://localhost:${DEV_PORT}/assistant.html`);
   } else {
     assistantWindow.loadFile(path.join(__dirname, '../renderer/assistant.html'));
   }
@@ -436,7 +441,7 @@ function createChatbarWindow() {
   chatbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   if (isDev) {
-    chatbarWindow.loadURL('http://localhost:5173/chatbar.html');
+    chatbarWindow.loadURL(`http://localhost:${DEV_PORT}/chatbar.html`);
   } else {
     chatbarWindow.loadFile(path.join(__dirname, '../renderer/chatbar.html'));
   }
