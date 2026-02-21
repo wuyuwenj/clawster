@@ -21,10 +21,20 @@ contextBridge.exposeInMainWorld('clawster', {
 
   // Screen capture
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
+  captureScreenWithContext: () => ipcRenderer.invoke('capture-screen-with-context'),
+  getScreenContext: () => ipcRenderer.invoke('get-screen-context'),
 
   // ClawBot
-  sendToClawbot: (message: string) => ipcRenderer.invoke('send-to-clawbot', message),
+  sendToClawbot: (message: string, includeScreen?: boolean) =>
+    ipcRenderer.invoke('send-to-clawbot', message, includeScreen),
   getClawbotStatus: () => ipcRenderer.invoke('clawbot-status'),
+
+  // Pet actions
+  executePetAction: (action: { type: string; value?: string; x?: number; y?: number; duration?: number }) =>
+    ipcRenderer.invoke('execute-pet-action', action),
+  movePetTo: (x: number, y: number, duration?: number) =>
+    ipcRenderer.invoke('move-pet-to', x, y, duration),
+  movePetToCursor: () => ipcRenderer.invoke('move-pet-to-cursor'),
 
   // Events from main process
   onActivityEvent: (callback: (event: unknown) => void) => {
@@ -36,16 +46,39 @@ contextBridge.exposeInMainWorld('clawster', {
   onClawbotMood: (callback: (data: unknown) => void) => {
     ipcRenderer.on('clawbot-mood', (_event, data) => callback(data));
   },
+  onChatPopup: (callback: (data: unknown) => void) => {
+    ipcRenderer.on('chat-popup', (_event, data) => callback(data));
+  },
+  onPetMoving: (callback: (data: { moving: boolean }) => void) => {
+    ipcRenderer.on('pet-moving', (_event, data) => callback(data));
+  },
 
   // Cleanup
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('activity-event');
     ipcRenderer.removeAllListeners('clawbot-suggestion');
     ipcRenderer.removeAllListeners('clawbot-mood');
+    ipcRenderer.removeAllListeners('chat-popup');
+    ipcRenderer.removeAllListeners('pet-moving');
   },
 });
 
 // TypeScript types for the exposed API
+export interface PetAction {
+  type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave' | 'look_at';
+  value?: string;
+  x?: number;
+  y?: number;
+  duration?: number;
+}
+
+export interface ScreenContext {
+  cursor: { x: number; y: number };
+  petPosition: { x: number; y: number };
+  screenSize: { width: number; height: number };
+  image?: string;
+}
+
 export interface ClawsterAPI {
   toggleAssistant: () => void;
   closeAssistant: () => void;
@@ -57,11 +90,18 @@ export interface ClawsterAPI {
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   captureScreen: () => Promise<string | null>;
-  sendToClawbot: (message: string) => Promise<unknown>;
+  captureScreenWithContext: () => Promise<ScreenContext | null>;
+  getScreenContext: () => Promise<ScreenContext>;
+  sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
   getClawbotStatus: () => Promise<boolean>;
+  executePetAction: (action: PetAction) => Promise<void>;
+  movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
+  movePetToCursor: () => Promise<void>;
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;
+  onChatPopup: (callback: (data: unknown) => void) => void;
+  onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   removeAllListeners: () => void;
 }
 

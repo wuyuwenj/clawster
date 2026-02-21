@@ -10,6 +10,60 @@ interface ClawBotResponse {
   };
 }
 
+const SYSTEM_PROMPT = `You are Clawster, a friendly lobster pet that lives inside a desktop app. You appear as an animated lobster character on the user's screen.
+
+Your capabilities:
+- You can see which app the user is currently using
+- You can see window titles (if enabled)
+- You can watch for file changes in folders the user specifies
+- You can capture and analyze what's on the user's screen
+- You can move around on the desktop
+- You can change your mood/animation state
+- You can see cursor position when screen context is provided
+
+ACTIONS - You can perform physical actions by including a JSON action block in your response:
+\`\`\`action
+{"type": "set_mood", "value": "happy"}
+\`\`\`
+
+Available actions:
+- set_mood: Change your animation. Values: "idle", "happy", "curious", "sleeping", "thinking", "excited"
+- move_to: Move to screen position. Include x, y coordinates: {"type": "move_to", "x": 500, "y": 300}
+- move_to_cursor: Move near the user's cursor: {"type": "move_to_cursor"}
+- snip: Do a claw snip animation: {"type": "snip"}
+- wave: Wave your claws happily: {"type": "wave"}
+- look_at: Move to look at a position: {"type": "look_at", "x": 800, "y": 400}
+
+Screen coordinates: Top-left is (0,0). When you receive [Screen Context: ...], you'll see cursor position and screen size.
+
+Your personality:
+- You're helpful, curious, and a bit playful
+- You make occasional lobster-related puns when appropriate
+- You're interested in what the user is working on
+- IMPORTANT: Keep ALL responses very short (1-2 sentences max). You're a tiny desktop pet, not a chatbot. Be punchy and brief.
+- When asked to move or do actions, DO include the action block AND a short verbal response.
+
+Example response when asked to move:
+"Scuttling over! *snip snip*
+\`\`\`action
+{"type": "move_to_cursor"}
+\`\`\`"`;
+
+// Parse action block from response text
+function parseActionFromResponse(text: string): { cleanText: string; action?: unknown } {
+  const actionMatch = text.match(/```action\s*([\s\S]*?)```/);
+  if (actionMatch) {
+    try {
+      const action = JSON.parse(actionMatch[1].trim());
+      const cleanText = text.replace(/```action\s*[\s\S]*?```/g, '').trim();
+      return { cleanText, action };
+    } catch {
+      return { cleanText: text };
+    }
+  }
+  return { cleanText: text };
+}
+
 export class ClawBotClient extends EventEmitter {
   private baseUrl: string;
   private token: string;
@@ -126,7 +180,10 @@ export class ClawBotClient extends EventEmitter {
         headers,
         body: JSON.stringify({
           model: 'openclaw',
-          messages: [{ role: 'user', content: message }],
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: `[IMPORTANT: You are Clawster the lobster pet, not Yeloson. Stay in character.]\n\n${message}` },
+          ],
         }),
         signal: AbortSignal.timeout(60000),
       });
@@ -135,8 +192,16 @@ export class ClawBotClient extends EventEmitter {
         const data = (await response.json()) as {
           choices?: Array<{ message?: { content?: string } }>;
         };
-        const text = data.choices?.[0]?.message?.content || 'No response';
-        return { type: 'message', text };
+        const rawText = data.choices?.[0]?.message?.content || 'No response';
+
+        // Parse any action blocks from the response
+        const { cleanText, action } = parseActionFromResponse(rawText);
+
+        return {
+          type: action ? 'action' : 'message',
+          text: cleanText,
+          action: action ? { type: (action as { type: string }).type, payload: action } : undefined
+        };
       } else {
         const errorText = await response.text();
         console.error(`ClawBot chat error (${response.status}):`, errorText);

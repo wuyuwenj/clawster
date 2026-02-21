@@ -2,10 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited';
 
-interface Suggestion {
-  text: string;
+interface ChatMessage {
   id: string;
+  text: string;
+  trigger: 'app_switch' | 'idle' | 'proactive' | 'suggestion';
+  quickReplies?: string[];
 }
+
+const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
 
 // Map internal moods to lobster animation states
 const moodToState = (mood: Mood): string => {
@@ -147,9 +151,73 @@ const LobsterSvg: React.FC = () => (
 
 export const Pet: React.FC = () => {
   const [mood, setMood] = useState<Mood>('idle');
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [chatMessage, setChatMessage] = useState<ChatMessage | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isWalking, setIsWalking] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear dismiss timeout
+  const clearDismissTimeout = useCallback(() => {
+    if (dismissTimeoutRef.current) {
+      clearTimeout(dismissTimeoutRef.current);
+      dismissTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Set auto-dismiss timeout
+  const setAutoDismiss = useCallback((id: string, delay: number = 15000) => {
+    clearDismissTimeout();
+    dismissTimeoutRef.current = setTimeout(() => {
+      setChatMessage((current) => (current?.id === id ? null : current));
+    }, delay);
+  }, [clearDismissTimeout]);
+
+  // Handle quick reply
+  const handleQuickReply = useCallback(async (reply: string) => {
+    if (!chatMessage) return;
+
+    clearDismissTimeout();
+
+    if (reply === 'Not now') {
+      setChatMessage(null);
+      return;
+    }
+
+    if (reply === 'Tell me more') {
+      setIsLoading(true);
+      setMood('thinking');
+
+      try {
+        const response = await window.clawster.sendToClawbot(
+          `Tell me more about: ${chatMessage.text}`
+        ) as { text?: string };
+
+        if (response.text) {
+          const newMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            text: response.text,
+            trigger: 'proactive',
+            quickReplies: ['Thanks!', 'Not now'],
+          };
+          setChatMessage(newMessage);
+          setAutoDismiss(newMessage.id);
+        }
+      } catch {
+        setChatMessage(null);
+      } finally {
+        setIsLoading(false);
+        setMood('idle');
+      }
+      return;
+    }
+
+    // "Thanks!" or other positive replies
+    setMood('happy');
+    setChatMessage(null);
+    setTimeout(() => setMood('idle'), 2000);
+  }, [chatMessage, clearDismissTimeout, setAutoDismiss]);
 
   // Handle mood updates from ClawBot
   useEffect(() => {
@@ -158,16 +226,30 @@ export const Pet: React.FC = () => {
       setMood(moodData.state);
     });
 
+    // Handle chat messages from main process
+    window.clawster.onChatPopup((data: unknown) => {
+      const messageData = data as ChatMessage;
+      const message: ChatMessage = {
+        ...messageData,
+        id: messageData.id || crypto.randomUUID(),
+        quickReplies: messageData.quickReplies || DEFAULT_QUICK_REPLIES,
+      };
+      setChatMessage(message);
+      setMood('curious');
+      setAutoDismiss(message.id);
+    });
+
+    // Legacy suggestion support - convert to chat popup
     window.clawster.onClawbotSuggestion((data: unknown) => {
       const suggestionData = data as { text: string; id: string };
-      setSuggestion(suggestionData);
-
-      // Auto-hide suggestion after 10 seconds
-      setTimeout(() => {
-        setSuggestion((current) =>
-          current?.id === suggestionData.id ? null : current
-        );
-      }, 10000);
+      const message: ChatMessage = {
+        id: suggestionData.id,
+        text: suggestionData.text,
+        trigger: 'suggestion',
+        quickReplies: DEFAULT_QUICK_REPLIES,
+      };
+      setChatMessage(message);
+      setAutoDismiss(message.id);
     });
 
     window.clawster.onActivityEvent((event: unknown) => {
@@ -179,10 +261,16 @@ export const Pet: React.FC = () => {
       }
     });
 
+    // Listen for pet movement events
+    window.clawster.onPetMoving((data) => {
+      setIsWalking(data.moving);
+    });
+
     return () => {
+      clearDismissTimeout();
       window.clawster.removeAllListeners();
     };
-  }, []);
+  }, [setAutoDismiss, clearDismissTimeout]);
 
   // Handle dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -215,11 +303,6 @@ export const Pet: React.FC = () => {
     }
   }, [isDragging]);
 
-  // Dismiss suggestion
-  const dismissSuggestion = useCallback(() => {
-    setSuggestion(null);
-  }, []);
-
   return (
     <div
       className="pet-container"
@@ -229,18 +312,37 @@ export const Pet: React.FC = () => {
       onMouseLeave={handleMouseUp}
       onClick={handleClick}
     >
-      {/* Suggestion bubble */}
-      {suggestion && (
-        <div className="suggestion-bubble" onClick={(e) => e.stopPropagation()}>
-          <span className="suggestion-text">{suggestion.text}</span>
-          <button className="suggestion-dismiss" onClick={dismissSuggestion}>
-            ×
-          </button>
+      {/* Chat popup */}
+      {chatMessage && (
+        <div className="chat-popup" onClick={(e) => e.stopPropagation()}>
+          <div className="chat-popup-content">
+            {isLoading ? (
+              <div className="chat-loading">
+                <span>•</span><span>•</span><span>•</span>
+              </div>
+            ) : (
+              <p className="chat-text">{chatMessage.text}</p>
+            )}
+          </div>
+          {!isLoading && chatMessage.quickReplies && (
+            <div className="chat-quick-replies">
+              {chatMessage.quickReplies.map((reply) => (
+                <button
+                  key={reply}
+                  className={`quick-reply-btn ${reply === 'Not now' ? 'dismiss' : ''}`}
+                  onClick={() => handleQuickReply(reply)}
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="chat-popup-arrow" />
         </div>
       )}
 
       {/* Animated Lobster Pet */}
-      <div className={`lobster-container ${moodToState(mood)}`}>
+      <div className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''}`}>
         <LobsterSvg />
       </div>
     </div>
