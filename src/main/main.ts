@@ -500,8 +500,8 @@ function setupIPC() {
     const response = await clawbot.chat(fullMessage);
 
     // Handle any actions in the response
-    if (response.action) {
-      await executePetAction(response.action as PetAction);
+    if (response.action?.payload) {
+      await executePetAction(response.action.payload as PetAction);
     }
 
     // Also show response as speech bubble on pet
