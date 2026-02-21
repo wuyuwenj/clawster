@@ -827,6 +827,15 @@ function setupIPC() {
 
     resetInteractionTimer(); // User is chatting
 
+    // Get chat history for context (filter to user/assistant only)
+    const chatHistory = (store.get('chatHistory') || []) as Array<{
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+    }>;
+    const history = chatHistory
+      .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+      .map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
+
     // Get screen context
     const context = await getScreenContext();
     let fullMessage = message;
@@ -841,7 +850,7 @@ function setupIPC() {
       }
     }
 
-    const response = await clawbot.chat(fullMessage);
+    const response = await clawbot.chat(fullMessage, history);
 
     // Handle any actions in the response
     if (response.action?.payload) {

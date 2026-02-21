@@ -199,7 +199,10 @@ export class ClawBotClient extends EventEmitter {
   }
 
   // Send a chat message to ClawBot (OpenAI-compatible API)
-  async chat(message: string): Promise<ClawBotResponse> {
+  async chat(
+    message: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  ): Promise<ClawBotResponse> {
     if (!this.connected) {
       return { type: 'message', text: 'ClawBot is not connected. Check if it\'s running.' };
     }
@@ -213,15 +216,20 @@ export class ClawBotClient extends EventEmitter {
         headers['Authorization'] = `Bearer ${this.token}`;
       }
 
+      // Build messages array with history (last 20 messages for context)
+      const recentHistory = history.slice(-20);
+      const messages: Array<{ role: string; content: string }> = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...recentHistory,
+        { role: 'user', content: message },
+      ];
+
       const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           model: 'openclaw',
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `[IMPORTANT: You are Clawster the lobster pet, not Yeloson. Stay in character.]\n\n${message}` },
-          ],
+          messages,
         }),
         signal: AbortSignal.timeout(60000),
       });
