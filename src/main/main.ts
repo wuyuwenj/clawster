@@ -36,6 +36,9 @@ const APP_SWITCH_CHAT_COOLDOWN = 60 * 1000; // 1 minute between app switch chats
 // Pet movement animation state
 let moveAnimation: NodeJS.Timeout | null = null;
 
+// Attention seeker state
+let attentionInterval: NodeJS.Timeout | null = null;
+
 // Pet action types that ClawBot can trigger
 interface PetAction {
   type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave' | 'look_at';
@@ -80,6 +83,67 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       }
     }, 16); // ~60fps
   });
+}
+
+// Attention seeker behavior - periodically moves pet toward cursor
+function seekAttention() {
+  const enabled = store.get('pet.attentionSeeker') ?? true; // Default to true
+  if (!enabled || !petWindow) {
+    console.log(`[AttentionSeeker] Skipped: enabled=${enabled}, petWindow=${!!petWindow}`);
+    return;
+  }
+
+  const cursor = screen.getCursorScreenPoint();
+  const [petX, petY] = petWindow.getPosition();
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
+  // Calculate position near cursor (offset so pet doesn't cover cursor)
+  const offset = 80;
+  let targetX = cursor.x + offset;
+  let targetY = cursor.y + offset;
+
+  // Keep within screen bounds
+  targetX = Math.max(0, Math.min(targetX, width - 300));
+  targetY = Math.max(0, Math.min(targetY, height - 300));
+
+  // Only move if far enough away (> 200px)
+  const distance = Math.sqrt(Math.pow(cursor.x - petX, 2) + Math.pow(cursor.y - petY, 2));
+  console.log(`[AttentionSeeker] Distance: ${Math.round(distance)}px, cursor: (${cursor.x}, ${cursor.y}), pet: (${petX}, ${petY})`);
+
+  if (distance > 200) {
+    console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
+    // Set excited mood before moving
+    petWindow.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
+    animateMoveTo(targetX, targetY, 1500);
+  } else {
+    console.log('[AttentionSeeker] Too close, not moving');
+  }
+}
+
+function startAttentionSeeker() {
+  const minDelay = isDev ? 5000 : 30000;   // 5s in dev, 30s in prod
+  const maxDelay = isDev ? 15000 : 120000; // 15s in dev, 2min in prod
+
+  function scheduleNext() {
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
+    console.log(`[AttentionSeeker] Next seek in ${Math.round(delay / 1000)}s`);
+
+    attentionInterval = setTimeout(() => {
+      console.log('[AttentionSeeker] Seeking attention...');
+      seekAttention();
+      scheduleNext();
+    }, delay);
+  }
+
+  console.log('[AttentionSeeker] Started');
+  scheduleNext();
+}
+
+function stopAttentionSeeker() {
+  if (attentionInterval) {
+    clearTimeout(attentionInterval);
+    attentionInterval = null;
+  }
 }
 
 // Get current screen context for ClawBot
@@ -554,6 +618,19 @@ function setupIPC() {
       petWindow.setPosition(x + deltaX, y + deltaY);
     }
   });
+
+  // Pet movement (legacy API)
+  ipcMain.handle('pet-move-to', (_event, x: number, y: number, duration?: number) => {
+    animateMoveTo(x, y, duration ?? 1000);
+  });
+
+  ipcMain.handle('get-cursor-position', () => {
+    return screen.getCursorScreenPoint();
+  });
+
+  ipcMain.handle('get-pet-position', () => {
+    return petWindow?.getPosition() ?? [0, 0];
+  });
 }
 
 // App lifecycle
@@ -608,6 +685,9 @@ app.whenReady().then(() => {
   // Start idle detection
   startIdleDetection();
 
+  // Start attention seeker behavior
+  startAttentionSeeker();
+
   // Listen for ClawBot responses
   clawbot.on('suggestion', (data) => {
     petWindow?.webContents.send('clawbot-suggestion', data);
@@ -637,6 +717,7 @@ app.on('will-quit', () => {
   if (idleCheckInterval) {
     clearInterval(idleCheckInterval);
   }
+  stopAttentionSeeker();
   if (moveAnimation) {
     clearInterval(moveAnimation);
   }

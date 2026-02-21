@@ -11,6 +11,15 @@ contextBridge.exposeInMainWorld('clawster', {
   // Pet dragging
   dragPet: (deltaX: number, deltaY: number) => ipcRenderer.send('pet-drag', deltaX, deltaY),
 
+  // Pet movement
+  movePetTo: (x: number, y: number, duration?: number) =>
+    ipcRenderer.invoke('pet-move-to', x, y, duration),
+  getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
+  getPetPosition: () => ipcRenderer.invoke('get-pet-position'),
+  onPetMoving: (callback: (data: { moving: boolean }) => void) => {
+    ipcRenderer.on('pet-moving', (_event, data) => callback(data));
+  },
+
   // External actions
   openExternal: (url: string) => ipcRenderer.send('open-external', url),
   openPath: (path: string) => ipcRenderer.send('open-path', path),
@@ -85,6 +94,10 @@ export interface ClawsterAPI {
   toggleChatbar: () => void;
   closeChatbar: () => void;
   dragPet: (deltaX: number, deltaY: number) => void;
+  movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
+  getCursorPosition: () => Promise<{ x: number; y: number }>;
+  getPetPosition: () => Promise<[number, number]>;
+  onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
   getSettings: () => Promise<unknown>;
