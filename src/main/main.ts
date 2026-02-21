@@ -44,6 +44,26 @@ let moveAnimation: NodeJS.Timeout | null = null;
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
 
+// Idle behavior system
+let idleBehaviorInterval: NodeJS.Timeout | null = null;
+let lastInteractionTime = Date.now();
+let isPerformingIdleBehavior = false;
+const IDLE_BEHAVIOR_MIN_INTERVAL = 15000; // Minimum 15 seconds between behaviors
+const IDLE_BEHAVIOR_MAX_INTERVAL = 45000; // Maximum 45 seconds between behaviors
+const INTERACTION_COOLDOWN = 5000; // Wait 5 seconds after interaction before idle behaviors
+
+type IdleBehavior = 'look_around' | 'snip_claws' | 'yawn' | 'wander' | 'stretch' | 'blink' | 'wiggle';
+
+const IDLE_BEHAVIORS: { type: IdleBehavior; weight: number }[] = [
+  { type: 'blink', weight: 25 },        // Most common
+  { type: 'look_around', weight: 20 },
+  { type: 'snip_claws', weight: 15 },
+  { type: 'wiggle', weight: 15 },
+  { type: 'stretch', weight: 10 },
+  { type: 'yawn', weight: 10 },
+  { type: 'wander', weight: 5 },        // Least common
+];
+
 // Pet action types that ClawBot can trigger
 interface PetAction {
   type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave' | 'look_at';
@@ -150,6 +170,119 @@ function stopAttentionSeeker() {
     attentionInterval = null;
   }
 }
+
+// Pick a random idle behavior based on weights
+function pickRandomIdleBehavior(): IdleBehavior {
+  const totalWeight = IDLE_BEHAVIORS.reduce((sum, b) => sum + b.weight, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const behavior of IDLE_BEHAVIORS) {
+    random -= behavior.weight;
+    if (random <= 0) return behavior.type;
+  }
+  return 'blink';
+}
+
+// Execute an idle behavior
+async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
+  if (!petWindow || isPerformingIdleBehavior) return;
+
+  isPerformingIdleBehavior = true;
+
+  try {
+    switch (behavior) {
+      case 'blink':
+        // Quick blink animation
+        petWindow.webContents.send('idle-behavior', { type: 'blink' });
+        break;
+
+      case 'look_around':
+        // Look left, then right
+        petWindow.webContents.send('idle-behavior', { type: 'look_around' });
+        break;
+
+      case 'snip_claws':
+        // Snip claws a couple times
+        petWindow.webContents.send('idle-behavior', { type: 'snip_claws' });
+        break;
+
+      case 'yawn':
+        // Yawn and look sleepy
+        petWindow.webContents.send('idle-behavior', { type: 'yawn' });
+        break;
+
+      case 'stretch':
+        // Stretch animation
+        petWindow.webContents.send('idle-behavior', { type: 'stretch' });
+        break;
+
+      case 'wiggle':
+        // Happy little wiggle
+        petWindow.webContents.send('idle-behavior', { type: 'wiggle' });
+        break;
+
+      case 'wander':
+        // Move to a random nearby position
+        const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+        const [currentX, currentY] = petWindow.getPosition();
+
+        // Wander within 200px of current position
+        const wanderX = Math.max(0, Math.min(
+          currentX + (Math.random() - 0.5) * 400,
+          screenWidth - 300
+        ));
+        const wanderY = Math.max(0, Math.min(
+          currentY + (Math.random() - 0.5) * 200,
+          screenHeight - 300
+        ));
+
+        petWindow.webContents.send('idle-behavior', { type: 'wander', direction: wanderX > currentX ? 'right' : 'left' });
+        await animateMoveTo(wanderX, wanderY, 2000);
+        break;
+    }
+  } finally {
+    // Reset after behavior completes
+    setTimeout(() => {
+      isPerformingIdleBehavior = false;
+    }, 2000);
+  }
+}
+
+// Schedule next idle behavior
+function scheduleNextIdleBehavior(): void {
+  const delay = IDLE_BEHAVIOR_MIN_INTERVAL + Math.random() * (IDLE_BEHAVIOR_MAX_INTERVAL - IDLE_BEHAVIOR_MIN_INTERVAL);
+
+  idleBehaviorInterval = setTimeout(async () => {
+    // Only perform if not recently interacted
+    const timeSinceInteraction = Date.now() - lastInteractionTime;
+    if (timeSinceInteraction > INTERACTION_COOLDOWN && !isPerformingIdleBehavior) {
+      const behavior = pickRandomIdleBehavior();
+      await performIdleBehavior(behavior);
+    }
+
+    // Schedule next one
+    scheduleNextIdleBehavior();
+  }, delay);
+}
+
+// Start idle behavior system
+function startIdleBehaviors(): void {
+  scheduleNextIdleBehavior();
+}
+
+// Stop idle behavior system
+function stopIdleBehaviors(): void {
+  if (idleBehaviorInterval) {
+    clearTimeout(idleBehaviorInterval);
+    idleBehaviorInterval = null;
+  }
+}
+
+// Reset interaction timer (call this when user interacts)
+function resetInteractionTimer(): void {
+  lastInteractionTime = Date.now();
+}
+
 
 // Get current screen context for ClawBot
 async function getScreenContext(): Promise<{
@@ -552,6 +685,8 @@ function setupIPC() {
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
     if (!clawbot) return { error: 'ClawBot not connected' };
 
+    resetInteractionTimer(); // User is chatting
+
     // Get screen context
     const context = await getScreenContext();
     let fullMessage = message;
@@ -621,10 +756,11 @@ function setupIPC() {
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
       petWindow.setPosition(x + deltaX, y + deltaY);
+      resetInteractionTimer(); // User is interacting
     }
   });
 
-  // Pet movement (legacy API)
+// Pet movement (legacy API)
   ipcMain.handle('pet-move-to', (_event, x: number, y: number, duration?: number) => {
     animateMoveTo(x, y, duration ?? 1000);
   });
@@ -635,6 +771,11 @@ function setupIPC() {
 
   ipcMain.handle('get-pet-position', () => {
     return petWindow?.getPosition() ?? [0, 0];
+  });
+
+  // Pet was clicked
+  ipcMain.on('pet-clicked', () => {
+    resetInteractionTimer();
   });
 }
 
@@ -690,8 +831,11 @@ app.whenReady().then(() => {
   // Start idle detection
   startIdleDetection();
 
-  // Start attention seeker behavior
+// Start attention seeker behavior
   startAttentionSeeker();
+
+  // Start idle behavior system (makes pet feel alive)
+  startIdleBehaviors();
 
   // Listen for ClawBot responses
   clawbot.on('suggestion', (data) => {
@@ -719,6 +863,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   watchers?.stop();
+  stopIdleBehaviors();
   if (idleCheckInterval) {
     clearInterval(idleCheckInterval);
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited';
+type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
 
 interface ChatMessage {
   id: string;
@@ -155,8 +156,10 @@ export const Pet: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isWalking, setIsWalking] = useState(false);
+  const [idleBehavior, setIdleBehavior] = useState<IdleBehavior>(null);
   const dragStart = useRef({ x: 0, y: 0 });
   const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clear dismiss timeout
   const clearDismissTimeout = useCallback(() => {
@@ -266,8 +269,40 @@ export const Pet: React.FC = () => {
       setIsWalking(data.moving);
     });
 
+    // Listen for idle behaviors
+    window.clawster.onIdleBehavior((data: { type: IdleBehavior; direction?: string }) => {
+      // Clear any existing behavior timeout
+      if (idleBehaviorTimeoutRef.current) {
+        clearTimeout(idleBehaviorTimeoutRef.current);
+      }
+
+      // Set the idle behavior
+      setIdleBehavior(data.type);
+
+      // Duration varies by behavior type
+      const durations: Record<string, number> = {
+        blink: 400,
+        look_around: 2000,
+        snip_claws: 1500,
+        yawn: 2500,
+        stretch: 2000,
+        wiggle: 1200,
+        wander: 2500,
+      };
+
+      const duration = data.type ? durations[data.type] || 1500 : 1500;
+
+      // Clear the behavior after animation completes
+      idleBehaviorTimeoutRef.current = setTimeout(() => {
+        setIdleBehavior(null);
+      }, duration);
+    });
+
     return () => {
       clearDismissTimeout();
+      if (idleBehaviorTimeoutRef.current) {
+        clearTimeout(idleBehaviorTimeoutRef.current);
+      }
       window.clawster.removeAllListeners();
     };
   }, [setAutoDismiss, clearDismissTimeout]);
@@ -342,7 +377,7 @@ export const Pet: React.FC = () => {
       )}
 
       {/* Animated Lobster Pet */}
-      <div className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''}`}>
+      <div className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''}`}>
         <LobsterSvg />
       </div>
     </div>
