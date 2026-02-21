@@ -18,6 +18,9 @@ interface ClawsterAPI {
   openPath: (path: string) => void;
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
+  getChatHistory: () => Promise<unknown[]>;
+  saveChatHistory: (messages: unknown[]) => Promise<boolean>;
+  clearChatHistory: () => Promise<boolean>;
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<unknown>;

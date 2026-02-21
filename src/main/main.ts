@@ -797,6 +797,25 @@ function setupIPC() {
     return store.store;
   });
 
+  // Get chat history
+  ipcMain.handle('get-chat-history', () => {
+    return store.get('chatHistory') || [];
+  });
+
+  // Save chat history
+  ipcMain.handle('save-chat-history', (_event, messages: unknown[]) => {
+    // Keep only last 100 messages to prevent storage bloat
+    const trimmed = messages.slice(-100);
+    store.set('chatHistory', trimmed);
+    return true;
+  });
+
+  // Clear chat history
+  ipcMain.handle('clear-chat-history', () => {
+    store.set('chatHistory', []);
+    return true;
+  });
+
   // Screen capture
   ipcMain.handle('capture-screen', async () => {
     return await captureScreen();

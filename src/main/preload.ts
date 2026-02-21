@@ -23,6 +23,11 @@ contextBridge.exposeInMainWorld('clawster', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   updateSettings: (key: string, value: unknown) => ipcRenderer.invoke('update-settings', key, value),
 
+  // Chat history
+  getChatHistory: () => ipcRenderer.invoke('get-chat-history'),
+  saveChatHistory: (messages: unknown[]) => ipcRenderer.invoke('save-chat-history', messages),
+  clearChatHistory: () => ipcRenderer.invoke('clear-chat-history'),
+
   // Screen capture
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
   captureScreenWithContext: () => ipcRenderer.invoke('capture-screen-with-context'),
@@ -105,6 +110,9 @@ export interface ClawsterAPI {
   openPath: (path: string) => void;
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
+  getChatHistory: () => Promise<unknown[]>;
+  saveChatHistory: (messages: unknown[]) => Promise<boolean>;
+  clearChatHistory: () => Promise<boolean>;
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<ScreenContext>;

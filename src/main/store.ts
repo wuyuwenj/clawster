@@ -1,5 +1,12 @@
 import Store from 'electron-store';
 
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+}
+
 interface StoreSchema {
   clawbot: {
     url: string;
@@ -19,6 +26,7 @@ interface StoreSchema {
     enabled: boolean;
     autoAnalyze: boolean;
   };
+  chatHistory: ChatMessage[];
 }
 
 const defaults: StoreSchema = {
@@ -40,6 +48,7 @@ const defaults: StoreSchema = {
     enabled: false,
     autoAnalyze: false,
   },
+  chatHistory: [],
 };
 
 export function createStore(): Store<StoreSchema> {
