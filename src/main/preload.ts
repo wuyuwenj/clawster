@@ -11,15 +11,6 @@ contextBridge.exposeInMainWorld('clawster', {
   // Pet dragging
   dragPet: (deltaX: number, deltaY: number) => ipcRenderer.send('pet-drag', deltaX, deltaY),
 
-  // Pet movement
-  movePetTo: (x: number, y: number, duration?: number) =>
-    ipcRenderer.invoke('pet-move-to', x, y, duration),
-  getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
-  getPetPosition: () => ipcRenderer.invoke('get-pet-position'),
-  onPetMoving: (callback: (data: { moving: boolean }) => void) => {
-    ipcRenderer.on('pet-moving', (_event, data) => callback(data));
-  },
-
   // External actions
   openExternal: (url: string) => ipcRenderer.send('open-external', url),
   openPath: (path: string) => ipcRenderer.send('open-path', path),
@@ -44,6 +35,8 @@ contextBridge.exposeInMainWorld('clawster', {
   movePetTo: (x: number, y: number, duration?: number) =>
     ipcRenderer.invoke('move-pet-to', x, y, duration),
   movePetToCursor: () => ipcRenderer.invoke('move-pet-to-cursor'),
+  getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
+  getPetPosition: () => ipcRenderer.invoke('get-pet-position'),
 
   // Events from main process
   onActivityEvent: (callback: (event: unknown) => void) => {
@@ -94,10 +87,6 @@ export interface ClawsterAPI {
   toggleChatbar: () => void;
   closeChatbar: () => void;
   dragPet: (deltaX: number, deltaY: number) => void;
-  movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
-  getCursorPosition: () => Promise<{ x: number; y: number }>;
-  getPetPosition: () => Promise<[number, number]>;
-  onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
   getSettings: () => Promise<unknown>;
@@ -110,6 +99,8 @@ export interface ClawsterAPI {
   executePetAction: (action: PetAction) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
   movePetToCursor: () => Promise<void>;
+  getCursorPosition: () => Promise<{ x: number; y: number }>;
+  getPetPosition: () => Promise<[number, number]>;
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;
