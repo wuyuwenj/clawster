@@ -22,6 +22,7 @@ config();
 let petWindow: BrowserWindow | null = null;
 let assistantWindow: BrowserWindow | null = null;
 let chatbarWindow: BrowserWindow | null = null;
+let screenshotQuestionWindow: BrowserWindow | null = null;
 
 // Services
 let watchers: Watchers | null = null;
@@ -601,6 +602,82 @@ function toggleChatbarWindow() {
   }
 }
 
+function createScreenshotQuestionWindow() {
+  console.log('[ScreenshotQuestion] Creating window...');
+  if (screenshotQuestionWindow) {
+    console.log('[ScreenshotQuestion] Window exists, showing and refocusing');
+    screenshotQuestionWindow.show();
+    screenshotQuestionWindow.focus();
+    // Trigger a fresh screenshot capture
+    screenshotQuestionWindow.webContents.send('retake-screenshot');
+    return;
+  }
+
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor);
+  const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+
+  const windowWidth = 520;
+  const windowHeight = 280;
+
+  // Position near cursor, but keep within screen bounds
+  let x = Math.round(cursor.x - windowWidth / 2);
+  let y = Math.round(cursor.y - windowHeight - 20);
+
+  // Clamp to screen bounds
+  x = Math.max(display.workArea.x, Math.min(x, display.workArea.x + screenWidth - windowWidth));
+  y = Math.max(display.workArea.y, Math.min(y, display.workArea.y + screenHeight - windowHeight));
+
+  screenshotQuestionWindow = new BrowserWindow({
+    width: windowWidth,
+    height: windowHeight,
+    x,
+    y,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  screenshotQuestionWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  if (isDev) {
+    screenshotQuestionWindow.loadURL(`http://localhost:${DEV_PORT}/screenshot-question.html`);
+  } else {
+    screenshotQuestionWindow.loadFile(path.join(__dirname, '../renderer/screenshot-question.html'));
+  }
+
+  screenshotQuestionWindow.once('ready-to-show', () => {
+    console.log('[ScreenshotQuestion] Window ready, showing...');
+    screenshotQuestionWindow?.show();
+  });
+
+  // Hide on blur (click outside)
+  screenshotQuestionWindow.on('blur', () => {
+    screenshotQuestionWindow?.hide();
+  });
+
+  screenshotQuestionWindow.on('closed', () => {
+    screenshotQuestionWindow = null;
+  });
+}
+
+function toggleScreenshotQuestionWindow() {
+  if (screenshotQuestionWindow && screenshotQuestionWindow.isVisible()) {
+    screenshotQuestionWindow.hide();
+  } else {
+    createScreenshotQuestionWindow();
+  }
+}
+
 // Screen capture
 async function captureScreen(): Promise<string | null> {
   try {
@@ -640,6 +717,50 @@ function setupIPC() {
   // Close chatbar window
   ipcMain.on('close-chatbar', () => {
     chatbarWindow?.hide();
+  });
+
+  // Toggle screenshot question window
+  ipcMain.on('toggle-screenshot-question', () => {
+    toggleScreenshotQuestionWindow();
+  });
+
+  // Close screenshot question window
+  ipcMain.on('close-screenshot-question', () => {
+    screenshotQuestionWindow?.hide();
+  });
+
+  // Ask about screen (screenshot + question)
+  ipcMain.handle('ask-about-screen', async (_event, question: string, imageDataUrl: string) => {
+    console.log('[ScreenshotQuestion] ask-about-screen called');
+    console.log('[ScreenshotQuestion] Question:', question);
+    console.log('[ScreenshotQuestion] Image size:', imageDataUrl?.length || 0, 'chars');
+
+    if (!clawbot) {
+      console.log('[ScreenshotQuestion] ClawBot not connected!');
+      return { error: 'ClawBot not connected' };
+    }
+
+    try {
+      console.log('[ScreenshotQuestion] Calling analyzeScreen...');
+      // First try the dedicated analyze-screen endpoint
+      const response = await clawbot.analyzeScreen(imageDataUrl, question);
+      console.log('[ScreenshotQuestion] Response:', response);
+
+      // If that fails or returns an error, fall back to chat with vision context
+      if (response.text?.includes('failed') || response.text?.includes('error')) {
+        // Use regular chat with context about what they're asking
+        const chatResponse = await clawbot.chat(
+          `[The user is asking about their screen. They captured a screenshot and want to know: "${question}". ` +
+          `Please help them as best you can based on this question.]`
+        );
+        return chatResponse;
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Failed to analyze screen:', error);
+      return { error: 'Failed to analyze screenshot' };
+    }
   });
 
   // Open external URL
@@ -793,6 +914,13 @@ app.whenReady().then(() => {
   globalShortcut.register('CommandOrControl+Shift+Space', () => {
     toggleChatbarWindow();
   });
+
+  // Register global hotkey: Cmd + Shift + / for screenshot question
+  const registered = globalShortcut.register('CommandOrControl+Shift+/', () => {
+    console.log('[ScreenshotQuestion] Hotkey Cmd+Shift+/ triggered');
+    toggleScreenshotQuestionWindow();
+  });
+  console.log(`[ScreenshotQuestion] Hotkey Cmd+Shift+/ registered: ${registered}`);
 
   // Initialize ClawBot client
   const clawbotUrl = store.get('clawbot.url') as string;
