@@ -49,19 +49,18 @@ Example response when asked to move:
 {"type": "move_to_cursor"}
 \`\`\`"`;
 
-// Clean response text by removing internal tags
-function cleanResponseText(text: string): string {
-  // Remove Claude thinking tags
-  let cleaned = text.replace(/
+// Parse action block from response text
+function parseActionFromResponse(text: string): { cleanText: string; action?: unknown } {
+  // Match ```action followed by JSON (flexible whitespace)
+  const actionMatch = text.match(/```action\s*(\{[\s\S]*?\})\s*```/);
   if (actionMatch) {
     try {
       const jsonStr = actionMatch[1].trim();
       const action = JSON.parse(jsonStr);
       const cleanText = text.replace(/```action\s*\{[\s\S]*?\}\s*```/g, '').trim();
       return { cleanText, action };
-    } catch {
-      // Model returned malformed JSON, try fallback parser
-      console.log('[ClawBot] Parsing malformed action JSON with fallback:', actionMatch[1]);
+    } catch (e) {
+      console.error('Failed to parse action JSON:', e, actionMatch[1]);
       // Try to extract action type and value from malformed JSON
       const typeMatch = actionMatch[1].match(/"type"\s*:\s*"([^"]+)"/);
       const valueMatch = actionMatch[1].match(/"value"\s*:\s*"([^"]+)"/);
@@ -208,7 +207,7 @@ export class ClawBotClient extends EventEmitter {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-openclaw-agent-id': 'main',
+        'x-openclaw-agent-id': 'clawster',
       };
       if (this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
@@ -252,88 +251,31 @@ export class ClawBotClient extends EventEmitter {
     }
   }
 
-  // Hybrid approach: Use OpenAI GPT-4 Vision to describe screenshot, then send to OpenClaw
-  // This works around OpenClaw's bug that drops image inputs from /v1/chat/completions
+  // Send a screen capture to ClawBot for analysis
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ClawBotResponse> {
-    console.log('[ClawBot] analyzeScreen called (hybrid approach)');
-    console.log('[ClawBot] Question:', question);
-    console.log('[ClawBot] Image length:', imageDataUrl?.length || 0);
-
-    const userQuestion = question || 'What do you see? How can you help?';
-
-    // Step 1: Get screenshot description from OpenAI GPT-4 Vision
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
-      console.error('[ClawBot] OPENAI_API_KEY not set!');
-      return { type: 'message', text: 'Screenshot analysis not configured. Add OPENAI_API_KEY to .env' };
+    if (!this.connected) {
+      return { type: 'message', text: 'ClawBot is not connected.' };
     }
 
-    let screenDescription = '';
     try {
-      console.log('[ClawBot] Step 1: Calling OpenAI GPT-4 Vision for description...');
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${this.baseUrl}/analyze-screen`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiKey}`,
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Describe this screenshot concisely (2-3 sentences). Focus on: what app/website is shown, what the user appears to be doing, and any notable UI elements. The user's question is: "${userQuestion}"`
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: imageDataUrl,
-                    detail: 'low'  // Use low detail to save tokens
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 300,
+          image: imageDataUrl,
+          question: question || 'What am I looking at? How can you help?',
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(60000),
       });
 
-      if (openaiResponse.ok) {
-        const data = await openaiResponse.json() as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        screenDescription = data.choices?.[0]?.message?.content || '';
-        console.log('[ClawBot] Screenshot description:', screenDescription);
+      if (response.ok) {
+        return (await response.json()) as ClawBotResponse;
       } else {
-        const errorText = await openaiResponse.text();
-        console.error('[ClawBot] OpenAI error:', errorText);
-        return { type: 'message', text: 'Failed to analyze screenshot with OpenAI.' };
+        return { type: 'message', text: 'Screen analysis failed.' };
       }
     } catch (error) {
-      console.error('[ClawBot] OpenAI vision failed:', error);
-      return { type: 'message', text: 'Failed to connect to OpenAI for screenshot analysis.' };
-    }
-
-    // Step 2: Send description + question to OpenClaw/ClawBot
-    if (!this.connected) {
-      console.log('[ClawBot] Not connected to OpenClaw!');
-      return { type: 'message', text: screenDescription };  // At least return the description
-    }
-
-    try {
-      console.log('[ClawBot] Step 2: Sending to OpenClaw with description...');
-      const clawbotPrompt = `[SCREENSHOT CONTEXT: ${screenDescription}]\n\nThe user is looking at their screen and asks: "${userQuestion}"\n\nRespond helpfully based on what you can see in the screenshot description. You can use actions like move_to_cursor or set_mood if appropriate.`;
-
-      const response = await this.chat(clawbotPrompt);
-      return response;
-    } catch (error) {
-      console.error('[ClawBot] Failed to send to OpenClaw:', error);
-      // Fallback: return just the OpenAI description
-      return { type: 'message', text: screenDescription };
+      console.error('Failed to analyze screen:', error);
+      return { type: 'message', text: 'Failed to analyze screen.' };
     }
   }
 
