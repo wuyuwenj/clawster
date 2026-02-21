@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('clawster', {
   closeAssistant: () => ipcRenderer.send('close-assistant'),
   toggleChatbar: () => ipcRenderer.send('toggle-chatbar'),
   closeChatbar: () => ipcRenderer.send('close-chatbar'),
+  toggleScreenshotQuestion: () => ipcRenderer.send('toggle-screenshot-question'),
+  closeScreenshotQuestion: () => ipcRenderer.send('close-screenshot-question'),
+  askAboutScreen: (question: string, imageDataUrl: string) =>
+    ipcRenderer.invoke('ask-about-screen', question, imageDataUrl),
 
   // Pet dragging
   dragPet: (deltaX: number, deltaY: number) => ipcRenderer.send('pet-drag', deltaX, deltaY),
@@ -86,6 +90,9 @@ export interface ClawsterAPI {
   closeAssistant: () => void;
   toggleChatbar: () => void;
   closeChatbar: () => void;
+  toggleScreenshotQuestion: () => void;
+  closeScreenshotQuestion: () => void;
+  askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
   dragPet: (deltaX: number, deltaY: number) => void;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;

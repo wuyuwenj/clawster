@@ -5,10 +5,18 @@ interface Message {
   content: string;
 }
 
+interface Screenshot {
+  image: string;
+  cursor: { x: number; y: number };
+  screenSize: { width: number; height: number };
+}
+
 export const ChatBar: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<Message | null>(null);
+  const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input on mount
@@ -29,6 +37,29 @@ export const ChatBar: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Capture screenshot
+  const handleCapture = async () => {
+    if (isCapturing) return;
+    setIsCapturing(true);
+    try {
+      const result = await window.clawster.captureScreenWithContext();
+      if (result) {
+        setScreenshot(result as Screenshot);
+      }
+    } catch (error) {
+      console.error('Failed to capture screen:', error);
+    } finally {
+      setIsCapturing(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  // Clear screenshot
+  const handleClearScreenshot = () => {
+    setScreenshot(null);
+    inputRef.current?.focus();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -39,9 +70,21 @@ export const ChatBar: React.FC = () => {
     setResponse(null);
 
     try {
-      const result = await window.clawster.sendToClawbot(message) as { response?: string; error?: string };
+      let result: { response?: string; text?: string; error?: string };
+
+      if (screenshot) {
+        // Send with screenshot
+        result = await window.clawster.askAboutScreen(message, screenshot.image) as typeof result;
+        setScreenshot(null); // Clear after sending
+      } else {
+        // Regular message
+        result = await window.clawster.sendToClawbot(message) as typeof result;
+      }
+
       if (result.response) {
         setResponse({ role: 'assistant', content: result.response });
+      } else if (result.text) {
+        setResponse({ role: 'assistant', content: result.text });
       } else if (result.error) {
         setResponse({ role: 'assistant', content: `Error: ${result.error}` });
       }
@@ -89,6 +132,36 @@ export const ChatBar: React.FC = () => {
           </svg>
         </div>
 
+        {/* Screenshot thumbnail (if captured) */}
+        {screenshot && (
+          <div className="chatbar-screenshot">
+            <img src={screenshot.image} alt="Screenshot" />
+            <button
+              className="chatbar-screenshot-clear"
+              onClick={handleClearScreenshot}
+              title="Remove screenshot"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Screenshot button */}
+        <button
+          className="chatbar-capture-btn"
+          onClick={handleCapture}
+          disabled={isCapturing || isLoading}
+          title="Capture screenshot"
+        >
+          {isCapturing ? (
+            <div className="chatbar-capture-spinner" />
+          ) : (
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M4 4h4l2-2h4l2 2h4a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm8 3a5 5 0 100 10 5 5 0 000-10zm0 2a3 3 0 110 6 3 3 0 010-6z"/>
+            </svg>
+          )}
+        </button>
+
         {/* Input form */}
         <form onSubmit={handleSubmit} className="chatbar-form">
           <input
@@ -96,7 +169,7 @@ export const ChatBar: React.FC = () => {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Clawster anything..."
+            placeholder={screenshot ? "Ask about this screenshot..." : "Ask Clawster anything..."}
             className="chatbar-input"
             disabled={isLoading}
           />
