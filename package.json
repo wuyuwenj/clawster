@@ -16,6 +16,7 @@
   "dependencies": {
     "active-win": "^8.1.0",
     "chokidar": "^3.5.3",
+    "dotenv": "^17.3.1",
     "electron-store": "^8.1.0"
   },
   "devDependencies": {

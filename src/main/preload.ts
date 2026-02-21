@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld('clawster', {
   movePetTo: (x: number, y: number, duration?: number) =>
     ipcRenderer.invoke('move-pet-to', x, y, duration),
   movePetToCursor: () => ipcRenderer.invoke('move-pet-to-cursor'),
+  getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
+  getPetPosition: () => ipcRenderer.invoke('get-pet-position'),
 
   // Events from main process
   onActivityEvent: (callback: (event: unknown) => void) => {
@@ -97,6 +99,8 @@ export interface ClawsterAPI {
   executePetAction: (action: PetAction) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
   movePetToCursor: () => Promise<void>;
+  getCursorPosition: () => Promise<{ x: number; y: number }>;
+  getPetPosition: () => Promise<[number, number]>;
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;

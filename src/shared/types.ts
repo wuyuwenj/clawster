@@ -30,6 +30,7 @@ export interface StoreSchema {
   pet: {
     position: { x: number; y: number } | null;
     mood: string;
+    attentionSeeker: boolean;
   };
   screenCapture: {
     enabled: boolean;

@@ -13,6 +13,7 @@ interface StoreSchema {
   pet: {
     position: { x: number; y: number } | null;
     mood: string;
+    attentionSeeker: boolean;
   };
   screenCapture: {
     enabled: boolean;
@@ -33,6 +34,7 @@ const defaults: StoreSchema = {
   pet: {
     position: null,
     mood: 'idle',
+    attentionSeeker: true,
   },
   screenCapture: {
     enabled: false,
