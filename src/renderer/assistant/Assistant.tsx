@@ -354,6 +354,20 @@ export const Assistant: React.FC = () => {
             </div>
 
             <div className="setting-group">
+              <h3>Pet Behavior</h3>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={(settings.pet as { attentionSeeker: boolean })?.attentionSeeker ?? true}
+                  onChange={(e) =>
+                    updateSetting('pet.attentionSeeker', e.target.checked)
+                  }
+                />
+                <span>Seek attention (move toward cursor periodically)</span>
+              </label>
+            </div>
+
+            <div className="setting-group">
               <h3>Watched Folders</h3>
               <p className="setting-hint">
                 Files in these folders will be monitored for changes.
