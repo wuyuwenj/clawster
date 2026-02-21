@@ -35,6 +35,13 @@ export const Assistant: React.FC = () => {
       setSettings(s as Record<string, unknown>);
     });
 
+    // Load chat history
+    window.clawster.getChatHistory().then((history) => {
+      if (Array.isArray(history) && history.length > 0) {
+        setMessages(history as Message[]);
+      }
+    });
+
     // Check ClawBot status
     window.clawster.getClawbotStatus().then(setClawbotConnected);
 
@@ -75,6 +82,13 @@ export const Assistant: React.FC = () => {
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Save chat history when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      window.clawster.saveChatHistory(messages);
+    }
   }, [messages]);
 
   // Send message
