@@ -24,7 +24,9 @@
   color: #fff;
   border-radius: 16px;
   font-size: 13px;
-  width: 260px;
+  min-width: 200px;
+  max-width: 320px;
+  width: max-content;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 140, 105, 0.2);
   animation: popup-in 0.3s ease-out;
   overflow: hidden;
@@ -33,7 +35,7 @@
 
 .chat-popup-content {
   padding: 12px 14px;
-  max-height: 150px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
@@ -461,4 +463,419 @@
   100% {
     opacity: 0;
   }
+}
+
+/* Additional eye and mouth states */
+.lobster-container .eye-squint,
+.lobster-container .eye-wide,
+.lobster-container .fx-steam,
+.lobster-container .fx-alert {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.lobster-container .mouth-mad,
+.lobster-container .mouth-o {
+  opacity: 0;
+}
+
+/* SETTLE STATE - bounce landing */
+.lobster-container.state-settle .body-group {
+  animation: settle 0.5s ease-out forwards;
+}
+
+/* SCOOT STATE */
+.lobster-container.state-scoot {
+  animation: scootHop 0.5s ease-in-out;
+}
+
+.lobster-container.state-scoot .left-claw {
+  transform: rotate(20deg);
+}
+
+.lobster-container.state-scoot .right-claw {
+  transform: rotate(-20deg);
+}
+
+/* TURN STATE - flip direction */
+.lobster-container.state-turn {
+  transform: scaleX(-1);
+}
+
+.lobster-container.state-turn .body-group {
+  animation: settle 0.4s ease-out;
+}
+
+/* STARTLE STATE */
+.lobster-container.state-startle .body-group {
+  animation: jump 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.lobster-container.state-startle .eye-open,
+.lobster-container.state-startle .eye-squint,
+.lobster-container.state-startle .eye-closed {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-startle .eye-wide {
+  opacity: 1;
+}
+
+.lobster-container.state-startle .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-startle .mouth-o {
+  opacity: 1;
+}
+
+.lobster-container.state-startle .left-claw {
+  transform: translateY(-20px) rotate(-45deg);
+}
+
+.lobster-container.state-startle .right-claw {
+  transform: translateY(-20px) rotate(45deg);
+}
+
+.lobster-container.state-startle .fx-alert {
+  opacity: 1;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* PEEK STATE */
+.lobster-container.state-peek .body-group {
+  transform: rotate(15deg) translateX(10px);
+}
+
+.lobster-container.state-peek .pupils {
+  transform: translateX(4px);
+}
+
+.lobster-container.state-peek .left-claw {
+  transform: translateY(-10px) rotate(-20deg);
+}
+
+/* DOZE STATE */
+.lobster-container.state-doze .body-group {
+  animation: headBob 4s infinite;
+}
+
+.lobster-container.state-doze .eye-open {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-doze .eye-squint {
+  opacity: 1;
+}
+
+/* SLEEP-SHIFT STATE */
+.lobster-container.state-sleep-shift .body-group {
+  animation: sleepRoll 6s ease-in-out infinite;
+}
+
+.lobster-container.state-sleep-shift .eye-open {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-sleep-shift .eye-closed {
+  opacity: 1;
+}
+
+.lobster-container.state-sleep-shift .fx-zzz {
+  opacity: 1;
+  animation: zzzRise 3s infinite;
+}
+
+.lobster-container.state-sleep-shift .left-claw {
+  transform: translate(10px, 10px) rotate(20deg);
+}
+
+.lobster-container.state-sleep-shift .right-claw {
+  transform: translate(-10px, 10px) rotate(-20deg);
+}
+
+/* SIDE-EYE STATE */
+.lobster-container.state-side-eye .pupils {
+  transform: translateX(-5px);
+  animation: none;
+}
+
+.lobster-container.state-side-eye .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-side-eye .mouth-mad {
+  opacity: 1;
+}
+
+/* TAP STATE - impatient claw tapping */
+.lobster-container.state-tap .right-claw {
+  animation: tap 0.4s infinite;
+}
+
+.lobster-container.state-tap .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-tap .mouth-mad {
+  opacity: 1;
+}
+
+/* CROSSED STATE - arms crossed, annoyed */
+.lobster-container.state-crossed .left-claw {
+  transform: translate(18px, 15px) rotate(55deg);
+}
+
+.lobster-container.state-crossed .right-claw {
+  transform: translate(-18px, 15px) rotate(-55deg);
+}
+
+.lobster-container.state-crossed .eye-open {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-crossed .eye-squint {
+  opacity: 1;
+}
+
+.lobster-container.state-crossed .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-crossed .mouth-mad {
+  opacity: 1;
+}
+
+/* HUFF STATE - steaming mad */
+.lobster-container.state-huff .body-group {
+  transform: scale(0.95);
+  animation: huff 1s infinite;
+}
+
+.lobster-container.state-huff .face {
+  transform: translateX(-22px);
+}
+
+.lobster-container.state-huff .fx-steam {
+  opacity: 1;
+  animation: steamRise 0.8s infinite;
+}
+
+.lobster-container.state-huff .eye-open {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-huff .eye-squint {
+  opacity: 1;
+}
+
+/* PROUD STATE */
+.lobster-container.state-proud .body-group {
+  transform: scaleY(1.1) scaleX(1.05);
+}
+
+.lobster-container.state-proud .left-claw {
+  transform: translate(-10px, 10px) rotate(-30deg);
+}
+
+.lobster-container.state-proud .right-claw {
+  transform: translate(10px, 10px) rotate(30deg);
+}
+
+.lobster-container.state-proud .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-proud .mouth-mad {
+  opacity: 1;
+  transform: scaleY(-1) translateY(-140px);
+}
+
+/* SPIN STATE */
+.lobster-container.state-spin .body-group {
+  animation: spin360 0.8s ease-in-out;
+}
+
+.lobster-container.state-spin .left-claw {
+  transform: translateY(-30px);
+}
+
+.lobster-container.state-spin .right-claw {
+  transform: translateY(-30px);
+}
+
+/* Additional keyframes */
+@keyframes settle {
+  0% { transform: scaleY(0.8) scaleX(1.1); }
+  50% { transform: scaleY(1.05) scaleX(0.95); }
+  100% { transform: scaleY(1) scaleX(1); }
+}
+
+@keyframes scootHop {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(15px) translateY(-15px); }
+}
+
+@keyframes jump {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-25px) scaleY(1.1); }
+}
+
+@keyframes headBob {
+  0%, 100% { transform: rotate(0deg); }
+  80% { transform: rotate(15deg) translateY(5px); }
+  85% { transform: rotate(-5deg); }
+}
+
+@keyframes sleepRoll {
+  0%, 100% { transform: rotate(0deg) scaleY(0.95) scaleX(1.02); }
+  50% { transform: rotate(8deg) scaleY(0.95) scaleX(1.02); }
+}
+
+@keyframes tap {
+  0%, 100% { transform: translateY(5px) rotate(10deg); }
+  50% { transform: translateY(12px) rotate(25deg); }
+}
+
+@keyframes huff {
+  0%, 100% { transform: scale(0.95); }
+  50% { transform: scale(0.98); }
+}
+
+@keyframes steamRise {
+  0% { transform: translateY(5px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-15px); opacity: 0; }
+}
+
+@keyframes spin360 {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0) translateY(10px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes zzzRise {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translate(15px, -20px) scale(1.2); opacity: 0; }
+}
+
+/* IDLE BEHAVIORS */
+/* Blink */
+.lobster-container.idle-blink .eye-open {
+  animation: quickBlink 0.4s ease-in-out;
+}
+
+@keyframes quickBlink {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.1); }
+}
+
+/* Look around */
+.lobster-container.idle-look_around .pupils {
+  animation: lookAround 2s ease-in-out;
+}
+
+@keyframes lookAround {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Snip claws */
+.lobster-container.idle-snip_claws .right-claw {
+  animation: snipSnip 1.5s ease-in-out;
+}
+
+@keyframes snipSnip {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-25deg) scale(1.1); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(-25deg) scale(1.1); }
+}
+
+/* Yawn */
+.lobster-container.idle-yawn .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.idle-yawn .mouth-o {
+  opacity: 1;
+  animation: yawnMouth 2.5s ease-in-out;
+}
+
+.lobster-container.idle-yawn .eye-open {
+  animation: squintYawn 2.5s ease-in-out;
+}
+
+@keyframes yawnMouth {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+}
+
+@keyframes squintYawn {
+  0%, 100% { transform: scaleY(1); }
+  30%, 70% { transform: scaleY(0.5); }
+}
+
+/* Stretch */
+.lobster-container.idle-stretch .body-group {
+  animation: stretchBody 2s ease-in-out;
+}
+
+.lobster-container.idle-stretch .left-claw {
+  animation: stretchLeft 2s ease-in-out;
+}
+
+.lobster-container.idle-stretch .right-claw {
+  animation: stretchRight 2s ease-in-out;
+}
+
+@keyframes stretchBody {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  50% { transform: scaleY(1.15) scaleX(0.9); }
+}
+
+@keyframes stretchLeft {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(-40deg); }
+}
+
+@keyframes stretchRight {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(40deg); }
+}
+
+/* Wiggle */
+.lobster-container.idle-wiggle .body-group {
+  animation: wiggleBody 1.2s ease-in-out;
+}
+
+@keyframes wiggleBody {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+/* Wander */
+.lobster-container.idle-wander {
+  animation: wanderMove 2.5s ease-in-out;
+}
+
+.lobster-container.idle-wander .body-group {
+  animation: waddle 0.3s ease-in-out infinite;
+}
+
+@keyframes wanderMove {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(20px); }
 }

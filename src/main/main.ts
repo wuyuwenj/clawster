@@ -49,8 +49,8 @@ let attentionInterval: NodeJS.Timeout | null = null;
 let idleBehaviorInterval: NodeJS.Timeout | null = null;
 let lastInteractionTime = Date.now();
 let isPerformingIdleBehavior = false;
-const IDLE_BEHAVIOR_MIN_INTERVAL = 15000; // Minimum 15 seconds between behaviors
-const IDLE_BEHAVIOR_MAX_INTERVAL = 45000; // Maximum 45 seconds between behaviors
+const IDLE_BEHAVIOR_MIN_INTERVAL = 3000; // Minimum 3 seconds between behaviors (demo mode)
+const IDLE_BEHAVIOR_MAX_INTERVAL = 8000; // Maximum 8 seconds between behaviors (demo mode)
 const INTERACTION_COOLDOWN = 5000; // Wait 5 seconds after interaction before idle behaviors
 
 type IdleBehavior = 'look_around' | 'snip_claws' | 'yawn' | 'wander' | 'stretch' | 'blink' | 'wiggle';
@@ -136,7 +136,7 @@ function seekAttention() {
   const distance = Math.sqrt(Math.pow(cursor.x - petX, 2) + Math.pow(cursor.y - petY, 2));
   console.log(`[AttentionSeeker] Distance: ${Math.round(distance)}px, cursor: (${cursor.x}, ${cursor.y}), pet: (${petX}, ${petY})`);
 
-  if (distance > 200) {
+  if (distance > 600) {
     console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
     // Set excited mood before moving
     petWindow.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
@@ -279,9 +279,64 @@ function stopIdleBehaviors(): void {
   }
 }
 
+// Sleep system
+let isSleeping = false;
+let sleepCheckInterval: NodeJS.Timeout | null = null;
+const SLEEP_AFTER_IDLE = 60000; // Fall asleep after 1 minute of no interaction
+
+function fallAsleep(): void {
+  if (isSleeping || !petWindow) return;
+  isSleeping = true;
+  console.log('[Sleep] Falling asleep - showing doze state');
+  petWindow.webContents.send('clawbot-mood', { state: 'doze' });
+
+  // After 5 seconds of dozing, go to full sleep
+  setTimeout(() => {
+    if (isSleeping && petWindow) {
+      console.log('[Sleep] Now fully asleep');
+      petWindow.webContents.send('clawbot-mood', { state: 'sleeping' });
+    }
+  }, 5000);
+}
+
+function wakeUp(): void {
+  if (!isSleeping || !petWindow) return;
+  isSleeping = false;
+  console.log('[Sleep] Waking up - showing startle state');
+  petWindow.webContents.send('clawbot-mood', { state: 'startle' });
+
+  // After startle animation, return to idle
+  setTimeout(() => {
+    if (!isSleeping && petWindow) {
+      console.log('[Sleep] Now idle');
+      petWindow.webContents.send('clawbot-mood', { state: 'idle' });
+    }
+  }, 1000);
+}
+
+function startSleepCheck(): void {
+  if (sleepCheckInterval) return;
+  sleepCheckInterval = setInterval(() => {
+    const timeSinceInteraction = Date.now() - lastInteractionTime;
+    if (!isSleeping && timeSinceInteraction >= SLEEP_AFTER_IDLE) {
+      fallAsleep();
+    }
+  }, 10000); // Check every 10 seconds
+}
+
+function stopSleepCheck(): void {
+  if (sleepCheckInterval) {
+    clearInterval(sleepCheckInterval);
+    sleepCheckInterval = null;
+  }
+}
+
 // Reset interaction timer (call this when user interacts)
 function resetInteractionTimer(): void {
   lastInteractionTime = Date.now();
+  if (isSleeping) {
+    wakeUp();
+  }
 }
 
 
@@ -926,6 +981,18 @@ function setupIPC() {
   ipcMain.on('pet-clicked', () => {
     resetInteractionTimer();
   });
+
+  // Chat sync - broadcast to all windows when chat history changes
+  ipcMain.on('chat-sync', () => {
+    // Notify assistant window to refresh its chat history
+    if (assistantWindow && !assistantWindow.isDestroyed()) {
+      assistantWindow.webContents.send('chat-sync');
+    }
+    // Notify chatbar window as well (in case it's open)
+    if (chatbarWindow && !chatbarWindow.isDestroyed()) {
+      chatbarWindow.webContents.send('chat-sync');
+    }
+  });
 }
 
 // App lifecycle
@@ -992,6 +1059,9 @@ app.whenReady().then(() => {
 
   // Start idle behavior system (makes pet feel alive)
   startIdleBehaviors();
+
+  // Start sleep check (pet falls asleep after 1 minute of no interaction)
+  startSleepCheck();
 
   // Listen for ClawBot responses
   clawbot.on('suggestion', (data) => {

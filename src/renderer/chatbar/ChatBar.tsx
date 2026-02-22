@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface Message {
-  role: 'user' | 'assistant';
+  id: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
+  timestamp: number;
 }
 
 interface Screenshot {
@@ -14,10 +16,33 @@ interface Screenshot {
 export const ChatBar: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<Message | null>(null);
+  const [response, setResponse] = useState<string | null>(null);
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Helper to save messages to shared history
+  const saveMessageToHistory = async (userMsg: string, assistantMsg: string) => {
+    const history = (await window.clawster.getChatHistory()) as Message[];
+    const newMessages: Message[] = [
+      ...history,
+      {
+        id: crypto.randomUUID(),
+        role: 'user' as const,
+        content: userMsg,
+        timestamp: Date.now(),
+      },
+      {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: assistantMsg,
+        timestamp: Date.now(),
+      },
+    ];
+    await window.clawster.saveChatHistory(newMessages);
+    // Notify other windows about the sync
+    window.clawster.notifyChatSync?.();
+  };
 
   // Focus input on mount
   useEffect(() => {
@@ -81,15 +106,25 @@ export const ChatBar: React.FC = () => {
         result = await window.clawster.sendToClawbot(message) as typeof result;
       }
 
+      let responseText = '';
       if (result.response) {
-        setResponse({ role: 'assistant', content: result.response });
+        responseText = result.response;
       } else if (result.text) {
-        setResponse({ role: 'assistant', content: result.text });
+        responseText = result.text;
       } else if (result.error) {
-        setResponse({ role: 'assistant', content: `Error: ${result.error}` });
+        responseText = `Error: ${result.error}`;
+      }
+
+      setResponse(responseText);
+
+      // Save to shared history so it appears in Assistant panel
+      if (responseText) {
+        await saveMessageToHistory(message, responseText);
       }
     } catch (error) {
-      setResponse({ role: 'assistant', content: 'Failed to connect to ClawBot' });
+      const errorMsg = 'Failed to connect to ClawBot';
+      setResponse(errorMsg);
+      await saveMessageToHistory(message, errorMsg);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
@@ -185,7 +220,7 @@ export const ChatBar: React.FC = () => {
       {/* Response bubble */}
       {response && (
         <div className="chatbar-response">
-          <p>{response.content}</p>
+          <p>{response}</p>
         </div>
       )}
     </div>
