@@ -10,17 +10,17 @@ Clawster has expressive animations for every mood:
 
 | Idle | Happy | Sleep | Startle |
 |:----:|:-----:|:-----:|:-------:|
-| ![Idle](assets/animations/idle.png) | ![Happy](assets/animations/happy.png) | ![Sleep](assets/animations/sleep.png) | ![Startle](assets/animations/startle.png) |
+| <img src="assets/animations/idle.svg" width="80"> | <img src="assets/animations/happy.svg" width="80"> | <img src="assets/animations/sleep.svg" width="80"> | <img src="assets/animations/startle.svg" width="80"> |
 | Breathing & blinking | Bouncing with joy | Zzz... | Surprised! |
 
 | Doze | Side-Eye | Crossed | Huff |
 |:----:|:--------:|:-------:|:----:|
-| ![Doze](assets/animations/doze.png) | ![Side-Eye](assets/animations/side-eye.png) | ![Crossed](assets/animations/crossed.png) | ![Huff](assets/animations/huff.png) |
+| <img src="assets/animations/doze.svg" width="80"> | <img src="assets/animations/side-eye.svg" width="80"> | <img src="assets/animations/crossed.svg" width="80"> | <img src="assets/animations/huff.svg" width="80"> |
 | Getting sleepy... | Judging you | Arms crossed | Steaming mad |
 
 | Proud | Peek | Spin | Walking |
 |:-----:|:----:|:----:|:-------:|
-| ![Proud](assets/animations/proud.png) | ![Peek](assets/animations/peek.png) | ![Spin](assets/animations/spin.png) | ![Walking](assets/animations/walking.png) |
+| <img src="assets/animations/proud.svg" width="80"> | <img src="assets/animations/peek.svg" width="80"> | <img src="assets/animations/spin.svg" width="80"> | <img src="assets/animations/walking.svg" width="80"> |
 | Feeling accomplished | Curious peek | Celebratory spin | Scuttling around |
 
 ## Features
