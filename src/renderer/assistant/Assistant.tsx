@@ -74,6 +74,15 @@ export const Assistant: React.FC = () => {
       setMessages((prev) => [...prev, assistantMsg]);
     });
 
+    // Listen for chat sync events (messages added from chatbar)
+    window.clawster.onChatSync(() => {
+      window.clawster.getChatHistory().then((history) => {
+        if (Array.isArray(history)) {
+          setMessages(history as Message[]);
+        }
+      });
+    });
+
     return () => {
       window.clawster.removeAllListeners();
     };

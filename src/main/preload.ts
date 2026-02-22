@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('clawster', {
   getChatHistory: () => ipcRenderer.invoke('get-chat-history'),
   saveChatHistory: (messages: unknown[]) => ipcRenderer.invoke('save-chat-history', messages),
   clearChatHistory: () => ipcRenderer.invoke('clear-chat-history'),
+  notifyChatSync: () => ipcRenderer.send('chat-sync'),
 
   // Screen capture
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
@@ -66,6 +67,9 @@ contextBridge.exposeInMainWorld('clawster', {
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => {
     ipcRenderer.on('idle-behavior', (_event, data) => callback(data));
   },
+  onChatSync: (callback: () => void) => {
+    ipcRenderer.on('chat-sync', () => callback());
+  },
 
   // Pet interactions
   petClicked: () => ipcRenderer.send('pet-clicked'),
@@ -78,6 +82,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
     ipcRenderer.removeAllListeners('idle-behavior');
+    ipcRenderer.removeAllListeners('chat-sync');
   },
 });
 
@@ -113,6 +118,7 @@ export interface ClawsterAPI {
   getChatHistory: () => Promise<unknown[]>;
   saveChatHistory: (messages: unknown[]) => Promise<boolean>;
   clearChatHistory: () => Promise<boolean>;
+  notifyChatSync: () => void;
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<ScreenContext>;
@@ -129,6 +135,7 @@ export interface ClawsterAPI {
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
+  onChatSync: (callback: () => void) => void;
   petClicked: () => void;
   removeAllListeners: () => void;
 }
