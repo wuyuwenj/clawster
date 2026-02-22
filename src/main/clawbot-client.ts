@@ -60,7 +60,9 @@ function parseActionFromResponse(text: string): { cleanText: string; action?: un
       const cleanText = text.replace(/```action\s*\{[\s\S]*?\}\s*```/g, '').trim();
       return { cleanText, action };
     } catch (e) {
-      console.error('Failed to parse action JSON:', e, actionMatch[1]);
+      // Model returned malformed JSON (e.g. {"type": "set_mood", "curious"} instead of {"type": "set_mood", "value": "curious"})
+      // This is expected - fallback parser will handle it
+      console.log('[ClawBot] Parsing malformed action JSON with fallback:', actionMatch[1]);
       // Try to extract action type and value from malformed JSON
       const typeMatch = actionMatch[1].match(/"type"\s*:\s*"([^"]+)"/);
       const valueMatch = actionMatch[1].match(/"value"\s*:\s*"([^"]+)"/);
@@ -332,11 +334,13 @@ export class ClawBotClient extends EventEmitter {
 
     try {
       console.log('[ClawBot] Step 2: Sending description to ClawBot...');
-      const clawbotPrompt = `[The user shared a screenshot of their screen. Here's what's on it: ${screenshotDescription}]
+      const clawbotPrompt = `[IMPORTANT: A screenshot has ALREADY been captured and analyzed. DO NOT try to capture the screen yourself. DO NOT mention Chrome extensions, nodes, or screenshot tools. The screenshot description is provided below - just use it directly.]
 
-The user asks: "${userQuestion}"
+SCREENSHOT CONTENT: ${screenshotDescription}
 
-Based on what you can see in the screenshot description, help the user with their question. Be specific about what you see.`;
+USER QUESTION: "${userQuestion}"
+
+Based on the screenshot content above, answer the user's question. Be helpful and specific about what's shown in the screenshot.`;
 
       return await this.chat(clawbotPrompt);
     } catch (error) {
