@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited';
+type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
 
 interface ChatMessage {
@@ -22,6 +22,16 @@ const moodToState = (mood: Mood): string => {
       return 'state-snip';
     case 'sleeping':
       return 'state-sleep';
+    case 'doze':
+      return 'state-doze';
+    case 'startle':
+      return 'state-startle';
+    case 'proud':
+      return 'state-proud';
+    case 'mad':
+      return 'state-crossed';
+    case 'spin':
+      return 'state-spin';
     case 'thinking':
       return 'state-worried';
     default:
@@ -336,14 +346,19 @@ export const Pet: React.FC = () => {
     // Happy reactions
     { mood: 'happy', duration: 1500 },
     { mood: 'excited', duration: 1500 },
+    { mood: 'proud', duration: 1800 },      // feeling smug
+    { mood: 'spin', duration: 1000 },       // celebratory spin!
     // Curious/playful
     { mood: 'curious', duration: 1200 },
     { behavior: 'snip_claws', duration: 1500 },
     { behavior: 'wiggle', duration: 1200 },
+    // Surprised reactions
+    { mood: 'startle', duration: 1200 },    // startled by the poke
     // Annoyed/grumpy reactions
-    { mood: 'thinking', duration: 1500 },  // worried/annoyed face
-    { mood: 'sleeping', duration: 2000 },  // "leave me alone" sleepy
-    { behavior: 'yawn', duration: 2500 },  // bored yawn
+    { mood: 'thinking', duration: 1500 },   // worried/annoyed face
+    { mood: 'mad', duration: 1500 },        // arms crossed, annoyed
+    { mood: 'sleeping', duration: 2000 },   // "leave me alone" sleepy
+    { behavior: 'yawn', duration: 2500 },   // bored yawn
     // Neutral
     { behavior: 'stretch', duration: 2000 },
     { behavior: 'look_around', duration: 2000 },
