@@ -1,0 +1,25 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .salmon { fill: #FF8C69; }
+    .teal { fill: #008080; }
+    .ink { fill: #1A1A1A; }
+  </style>
+  <!-- Tail -->
+  <path d="M 50 100 Q 64 125 78 100 Z" class="salmon" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Left Claw -->
+  <path d="M 40 55 A 24 24 0 1 1 10 85 Q 20 80 25 75 Q 20 65 30 70 Z" class="salmon" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Right Claw -->
+  <path d="M 88 55 A 24 24 0 1 0 118 85 Q 108 80 103 75 Q 108 65 98 70 Z" class="salmon" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Body - slightly tilted -->
+  <g transform="rotate(8, 64, 65)">
+    <rect x="34" y="28" width="60" height="75" rx="30" class="salmon" stroke="#8B3A3A" stroke-width="4"/>
+    <!-- Belt -->
+    <path d="M 34 82 Q 64 92 94 82 L 94 88 Q 64 98 34 88 Z" class="teal" stroke="#004D4D" stroke-width="2"/>
+    <path d="M 75 85 L 88 108 L 68 102 Z" class="teal" stroke="#004D4D" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Eyes - squint/sleepy -->
+    <path d="M 40 52 L 55 56 L 40 56 Z" class="ink"/>
+    <path d="M 88 52 L 73 56 L 88 56 Z" class="ink"/>
+    <!-- Mouth -->
+    <path d="M 60 68 Q 64 71 68 68" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>
