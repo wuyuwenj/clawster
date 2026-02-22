@@ -60,7 +60,9 @@ function parseActionFromResponse(text: string): { cleanText: string; action?: un
       const cleanText = text.replace(/```action\s*\{[\s\S]*?\}\s*```/g, '').trim();
       return { cleanText, action };
     } catch (e) {
-      console.error('Failed to parse action JSON:', e, actionMatch[1]);
+      // Model returned malformed JSON (e.g. {"type": "set_mood", "curious"} instead of {"type": "set_mood", "value": "curious"})
+      // This is expected - fallback parser will handle it
+      console.log('[ClawBot] Parsing malformed action JSON with fallback:', actionMatch[1]);
       // Try to extract action type and value from malformed JSON
       const typeMatch = actionMatch[1].match(/"type"\s*:\s*"([^"]+)"/);
       const valueMatch = actionMatch[1].match(/"value"\s*:\s*"([^"]+)"/);
