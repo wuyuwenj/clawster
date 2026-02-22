@@ -2,6 +2,8 @@
 
 A cute animated lobster desktop pet powered by [OpenClaw](https://openclaw.ai). Clawster lives on your screen, watches what you're working on, and helps you out with quick chat interactions.
 
+https://www.youtube.com/watch?v=geXxvEi9g9o
+
 ![Clawster Demo](https://img.shields.io/badge/status-beta-orange)
 
 ## Animations
