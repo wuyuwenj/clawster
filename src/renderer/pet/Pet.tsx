@@ -331,8 +331,46 @@ export const Pet: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  // Click to open assistant
+  // Poke reactions - random animations when clicked
+  const pokeReactions: Array<{ mood?: Mood; behavior?: IdleBehavior; duration: number }> = [
+    // Happy reactions
+    { mood: 'happy', duration: 1500 },
+    { mood: 'excited', duration: 1500 },
+    // Curious/playful
+    { mood: 'curious', duration: 1200 },
+    { behavior: 'snip_claws', duration: 1500 },
+    { behavior: 'wiggle', duration: 1200 },
+    // Annoyed/grumpy reactions
+    { mood: 'thinking', duration: 1500 },  // worried/annoyed face
+    { mood: 'sleeping', duration: 2000 },  // "leave me alone" sleepy
+    { behavior: 'yawn', duration: 2500 },  // bored yawn
+    // Neutral
+    { behavior: 'stretch', duration: 2000 },
+    { behavior: 'look_around', duration: 2000 },
+    { behavior: 'blink', duration: 400 },
+  ];
+
+  // Single click = poke animation
   const handleClick = useCallback(() => {
+    if (isDragging) return;
+
+    // Pick a random reaction
+    const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
+
+    if (reaction.mood) {
+      setMood(reaction.mood);
+      setTimeout(() => setMood('idle'), reaction.duration);
+    } else if (reaction.behavior) {
+      setIdleBehavior(reaction.behavior);
+      setTimeout(() => setIdleBehavior(null), reaction.duration);
+    }
+
+    // Notify main process (optional - for sound effects or other reactions)
+    window.clawster.petClicked?.();
+  }, [isDragging]);
+
+  // Double click = open assistant
+  const handleDoubleClick = useCallback(() => {
     if (!isDragging) {
       window.clawster.toggleAssistant();
     }
@@ -346,6 +384,7 @@ export const Pet: React.FC = () => {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
     >
       {/* Chat popup */}
       {chatMessage && (
