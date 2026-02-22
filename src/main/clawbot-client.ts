@@ -259,31 +259,90 @@ export class ClawBotClient extends EventEmitter {
     }
   }
 
-  // Send a screen capture to ClawBot for analysis
+  // Hybrid approach: Use OpenAI GPT-4 Vision to describe screenshot, then send to OpenClaw
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ClawBotResponse> {
+    console.log('[ClawBot] analyzeScreen called');
+    console.log('[ClawBot] Question:', question);
+    console.log('[ClawBot] Image length:', imageDataUrl?.length || 0);
+
+    const userQuestion = question || 'What do you see? How can you help?';
+
+    // Step 1: Get screenshot description from OpenAI GPT-4 Vision
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
+      console.error('[ClawBot] OPENAI_API_KEY not set!');
+      return { type: 'message', text: 'Screenshot analysis not configured. Add OPENAI_API_KEY to .env' };
+    }
+
+    let screenshotDescription = '';
+    try {
+      console.log('[ClawBot] Step 1: Calling OpenAI GPT-4 Vision for description...');
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Describe this screenshot concisely (2-3 sentences). Focus on what apps/windows are visible, what the user appears to be working on, and any relevant details. The user is asking: "${userQuestion}"`
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: imageDataUrl,
+                    detail: 'low'
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 300,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (openaiResponse.ok) {
+        const data = await openaiResponse.json() as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        screenshotDescription = data.choices?.[0]?.message?.content || 'Unable to describe screenshot.';
+        console.log('[ClawBot] Screenshot description:', screenshotDescription);
+      } else {
+        const errorText = await openaiResponse.text();
+        console.error('[ClawBot] OpenAI error:', errorText);
+        return { type: 'message', text: 'Failed to analyze screenshot with OpenAI.' };
+      }
+    } catch (error) {
+      console.error('[ClawBot] OpenAI vision failed:', error);
+      return { type: 'message', text: 'Failed to connect to OpenAI for screenshot analysis.' };
+    }
+
+    // Step 2: Send description to OpenClaw/ClawBot for response with personality
     if (!this.connected) {
-      return { type: 'message', text: 'ClawBot is not connected.' };
+      // Fallback: return just the OpenAI description
+      return { type: 'message', text: screenshotDescription };
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/analyze-screen`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({
-          image: imageDataUrl,
-          question: question || 'What am I looking at? How can you help?',
-        }),
-        signal: AbortSignal.timeout(60000),
-      });
+      console.log('[ClawBot] Step 2: Sending description to ClawBot...');
+      const clawbotPrompt = `[The user shared a screenshot of their screen. Here's what's on it: ${screenshotDescription}]
 
-      if (response.ok) {
-        return (await response.json()) as ClawBotResponse;
-      } else {
-        return { type: 'message', text: 'Screen analysis failed.' };
-      }
+The user asks: "${userQuestion}"
+
+Based on what you can see in the screenshot description, help the user with their question. Be specific about what you see.`;
+
+      return await this.chat(clawbotPrompt);
     } catch (error) {
-      console.error('Failed to analyze screen:', error);
-      return { type: 'message', text: 'Failed to analyze screen.' };
+      console.error('[ClawBot] ClawBot chat failed:', error);
+      // Fallback: return just the description
+      return { type: 'message', text: screenshotDescription };
     }
   }
 
