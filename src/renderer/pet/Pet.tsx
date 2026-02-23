@@ -164,7 +164,8 @@ export const Pet: React.FC = () => {
   const [mood, setMood] = useState<Mood>('idle');
   const [chatMessage, setChatMessage] = useState<ChatMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+  const didDragRef = useRef(false);
   const [isWalking, setIsWalking] = useState(false);
   const [idleBehavior, setIdleBehavior] = useState<IdleBehavior>(null);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -317,28 +318,36 @@ export const Pet: React.FC = () => {
     };
   }, [setAutoDismiss, clearDismissTimeout]);
 
-  // Handle dragging
+  // Handle dragging — uses window-level listeners so we never lose the cursor
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY };
-  }, []);
+    isDraggingRef.current = true;
+    didDragRef.current = false;
+    dragStart.current = { x: e.screenX, y: e.screenY };
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!isDragging) return;
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current) return;
 
-      const deltaX = e.clientX - dragStart.current.x;
-      const deltaY = e.clientY - dragStart.current.y;
+      const deltaX = ev.screenX - dragStart.current.x;
+      const deltaY = ev.screenY - dragStart.current.y;
 
-      window.clawster.dragPet(deltaX, deltaY);
+      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        didDragRef.current = true;
+      }
 
-      dragStart.current = { x: e.clientX, y: e.clientY };
-    },
-    [isDragging]
-  );
+      if (didDragRef.current) {
+        window.clawster.dragPet(deltaX, deltaY);
+        dragStart.current = { x: ev.screenX, y: ev.screenY };
+      }
+    };
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   }, []);
 
   // Poke reactions - random animations when clicked
@@ -367,7 +376,7 @@ export const Pet: React.FC = () => {
 
   // Single click = poke animation
   const handleClick = useCallback(() => {
-    if (isDragging) return;
+    if (didDragRef.current) return;
 
     // Pick a random reaction
     const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
@@ -382,22 +391,19 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [isDragging]);
+  }, []);
 
   // Double click = open assistant
   const handleDoubleClick = useCallback(() => {
-    if (!isDragging) {
+    if (!didDragRef.current) {
       window.clawster.toggleAssistant();
     }
-  }, [isDragging]);
+  }, []);
 
   return (
     <div
       className="pet-container"
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
