@@ -797,20 +797,8 @@ function setupIPC() {
 
     try {
       console.log('[ScreenshotQuestion] Calling analyzeScreen...');
-      // First try the dedicated analyze-screen endpoint
       const response = await clawbot.analyzeScreen(imageDataUrl, question);
       console.log('[ScreenshotQuestion] Response:', response);
-
-      // If that fails or returns an error, fall back to chat with vision context
-      if (response.text?.includes('failed') || response.text?.includes('error')) {
-        // Use regular chat with context about what they're asking
-        const chatResponse = await clawbot.chat(
-          `[The user is asking about their screen. They captured a screenshot and want to know: "${question}". ` +
-          `Please help them as best you can based on this question.]`
-        );
-        return chatResponse;
-      }
-
       return response;
     } catch (error) {
       console.error('Failed to analyze screen:', error);

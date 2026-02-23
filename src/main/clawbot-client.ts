@@ -1,4 +1,7 @@
 import { EventEmitter } from 'events';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import type { ActivityEvent } from './watchers';
 
 interface ClawBotResponse {
@@ -261,7 +264,7 @@ export class ClawBotClient extends EventEmitter {
     }
   }
 
-  // Hybrid approach: Use OpenAI GPT-4 Vision to describe screenshot, then send to OpenClaw
+  // Save screenshot to temp file and send path to OpenClaw for analysis
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ClawBotResponse> {
     console.log('[ClawBot] analyzeScreen called');
     console.log('[ClawBot] Question:', question);
@@ -269,84 +272,43 @@ export class ClawBotClient extends EventEmitter {
 
     const userQuestion = question || 'What do you see? How can you help?';
 
-    // Step 1: Get screenshot description from OpenAI GPT-4 Vision
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
-      console.error('[ClawBot] OPENAI_API_KEY not set!');
-      return { type: 'message', text: 'Screenshot analysis not configured. Add OPENAI_API_KEY to .env' };
-    }
-
-    let screenshotDescription = '';
-    try {
-      console.log('[ClawBot] Step 1: Calling OpenAI GPT-4 Vision for description...');
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Describe this screenshot concisely (2-3 sentences). Focus on what apps/windows are visible, what the user appears to be working on, and any relevant details. The user is asking: "${userQuestion}"`
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: imageDataUrl,
-                    detail: 'low'
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 300,
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-
-      if (openaiResponse.ok) {
-        const data = await openaiResponse.json() as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        screenshotDescription = data.choices?.[0]?.message?.content || 'Unable to describe screenshot.';
-        console.log('[ClawBot] Screenshot description:', screenshotDescription);
-      } else {
-        const errorText = await openaiResponse.text();
-        console.error('[ClawBot] OpenAI error:', errorText);
-        return { type: 'message', text: 'Failed to analyze screenshot with OpenAI.' };
-      }
-    } catch (error) {
-      console.error('[ClawBot] OpenAI vision failed:', error);
-      return { type: 'message', text: 'Failed to connect to OpenAI for screenshot analysis.' };
-    }
-
-    // Step 2: Send description to OpenClaw/ClawBot for response with personality
     if (!this.connected) {
-      // Fallback: return just the OpenAI description
-      return { type: 'message', text: screenshotDescription };
+      return { type: 'message', text: 'ClawBot is not connected. Check if it\'s running.' };
+    }
+
+    // Save screenshot to a temp file so OpenClaw can read it directly
+    let screenshotPath: string | null = null;
+    try {
+      const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, '');
+      const tmpDir = path.join(os.tmpdir(), 'clawster');
+      fs.mkdirSync(tmpDir, { recursive: true });
+      screenshotPath = path.join(tmpDir, `screenshot-${Date.now()}.png`);
+      fs.writeFileSync(screenshotPath, Buffer.from(base64Data, 'base64'));
+      console.log('[ClawBot] Screenshot saved to:', screenshotPath);
+    } catch (error) {
+      console.error('[ClawBot] Failed to save screenshot:', error);
+      return { type: 'message', text: 'Failed to save screenshot for analysis.' };
     }
 
     try {
-      console.log('[ClawBot] Step 2: Sending description to ClawBot...');
-      const clawbotPrompt = `[IMPORTANT: A screenshot has ALREADY been captured and analyzed. DO NOT try to capture the screen yourself. DO NOT mention Chrome extensions, nodes, or screenshot tools. The screenshot description is provided below - just use it directly.]
-
-SCREENSHOT CONTENT: ${screenshotDescription}
+      const clawbotPrompt = `[SCREENSHOT: The user has captured a screenshot. The image file is located at: ${screenshotPath}]
 
 USER QUESTION: "${userQuestion}"
 
-Based on the screenshot content above, answer the user's question. Be helpful and specific about what's shown in the screenshot.`;
+Please read the screenshot file and answer the user's question. Be helpful and specific about what's shown in the screenshot.`;
 
       return await this.chat(clawbotPrompt);
     } catch (error) {
       console.error('[ClawBot] ClawBot chat failed:', error);
-      // Fallback: return just the description
-      return { type: 'message', text: screenshotDescription };
+      return { type: 'message', text: 'Failed to analyze screenshot.' };
+    } finally {
+      // Clean up temp file after a delay to ensure OpenClaw has time to read it
+      if (screenshotPath) {
+        const filePath = screenshotPath;
+        setTimeout(() => {
+          try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+        }, 60000);
+      }
     }
   }
 
