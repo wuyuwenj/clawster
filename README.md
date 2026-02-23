@@ -66,7 +66,11 @@ Clawster has expressive animations for every mood:
    openclaw gateway restart
    ```
 
-4. **Configure the gateway token**
+4. **Enable chat completions**
+
+   Ask your OpenClaw to enable chat completions so Clawster can communicate with the gateway.
+
+5. **Configure the gateway token**
 
    Get your OpenClaw gateway token:
    ```bash
@@ -77,7 +81,7 @@ Clawster has expressive animations for every mood:
    - Server URL: `http://localhost:18789`
    - Gateway Token: (paste your token)
 
-5. **Run the app**
+6. **Run the app**
    ```bash
    npm run dev
    ```
