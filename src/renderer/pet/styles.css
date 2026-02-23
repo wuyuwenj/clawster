@@ -8,8 +8,8 @@
   cursor: grab;
   position: relative;
   padding-bottom: 10px;
-  -webkit-app-region: drag;
   user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .pet-container:active {
