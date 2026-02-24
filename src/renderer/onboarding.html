@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clawster Onboarding</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0a0a0a;
+        color: #ededed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Animations */
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateX(1.5rem); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      .step-enter {
+        animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes happyBounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-0.75rem) scale(1.02); }
+      }
+      .animate-happy-bounce {
+        animation: happyBounce 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      @keyframes chestPuff {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.08) scaleX(1.12); }
+      }
+      .animate-chest-puff {
+        animation: chestPuff 2.5s infinite ease-in-out;
+      }
+
+      /* Scrollbar hiding */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Custom input autocomplete styling for dark mode */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover,
+      input:-webkit-autofill:focus,
+      input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px #171717 inset !important;
+        -webkit-text-fill-color: #ededed !important;
+        transition: background-color 5000s ease-in-out 0s;
+      }
+
+      /* Electron window dragging */
+      .drag-region {
+        -webkit-app-region: drag;
+      }
+      .no-drag {
+        -webkit-app-region: no-drag;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./onboarding/main.tsx"></script>
+  </body>
+</html>

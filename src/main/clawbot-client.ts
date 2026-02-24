@@ -13,7 +13,8 @@ interface ClawBotResponse {
   };
 }
 
-const SYSTEM_PROMPT = `You are Clawster, a friendly lobster pet that lives inside a desktop app. You appear as an animated lobster character on the user's screen.
+// Desktop capabilities prompt - generic, no personality (identity comes from workspace files)
+const SYSTEM_PROMPT = `You are a desktop pet assistant running on the user's computer. You appear as an animated character on the user's screen.
 
 Your capabilities:
 - You can see which app the user is currently using
@@ -39,15 +40,12 @@ Available actions:
 
 Screen coordinates: Top-left is (0,0). When you receive [Screen Context: ...], you'll see cursor position and screen size.
 
-Your personality:
-- You're helpful, curious, and a bit playful
-- You make occasional lobster-related puns when appropriate
-- You're interested in what the user is working on
-- IMPORTANT: Keep ALL responses very short (1-2 sentences max). You're a tiny desktop pet, not a chatbot. Be punchy and brief.
+Interaction guidelines:
+- Keep ALL responses very short (1-2 sentences max). You're a tiny desktop pet, not a chatbot. Be punchy and brief.
 - When asked to move or do actions, DO include the action block AND a short verbal response.
 
 Example response when asked to move:
-"Scuttling over! *snip snip*
+"Coming over!
 \`\`\`action
 {"type": "move_to_cursor"}
 \`\`\`"`;
@@ -110,21 +108,26 @@ function parseActionFromResponse(text: string): { cleanText: string; action?: un
 export class ClawBotClient extends EventEmitter {
   private baseUrl: string;
   private token: string;
+  private agentId: string | null;
   private connected: boolean = false;
   private pollInterval: NodeJS.Timeout | null = null;
 
-  constructor(baseUrl: string, token: string = '') {
+  constructor(baseUrl: string, token: string = '', agentId: string | null = null) {
     super();
     this.baseUrl = baseUrl;
     this.token = token;
+    this.agentId = agentId;
     this.checkConnection();
     this.startPolling();
   }
 
   // Update configuration
-  updateConfig(baseUrl: string, token: string): void {
+  updateConfig(baseUrl: string, token: string, agentId?: string | null): void {
     this.baseUrl = baseUrl;
     this.token = token;
+    if (agentId !== undefined) {
+      this.agentId = agentId;
+    }
     this.checkConnection();
   }
 
@@ -135,6 +138,9 @@ export class ClawBotClient extends EventEmitter {
     };
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    if (this.agentId) {
+      headers['x-openclaw-agent-id'] = this.agentId;
     }
     return headers;
   }
@@ -213,25 +219,21 @@ export class ClawBotClient extends EventEmitter {
     }
 
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-openclaw-agent-id': 'clawster',
-      };
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
-      }
-
       // Build messages array with history (last 20 messages for context)
       const recentHistory = history.slice(-20);
-      const messages: Array<{ role: string; content: string }> = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...recentHistory,
-        { role: 'user', content: message },
-      ];
+      const messages: Array<{ role: string; content: string }> = [];
+
+      // Only send system prompt when using Clawster workspace (agentId is set)
+      // When using OpenClaw workspace, let the workspace files define the identity
+      if (this.agentId) {
+        messages.push({ role: 'system', content: SYSTEM_PROMPT });
+      }
+
+      messages.push(...recentHistory, { role: 'user', content: message });
 
       const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers,
+        headers: this.getHeaders(),
         body: JSON.stringify({
           model: 'openclaw',
           messages,
