@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { LinkifyText } from '../components/LinkifyText';
 
 interface Message {
   id: string;
@@ -250,7 +251,9 @@ export const Assistant: React.FC = () => {
               )}
               {messages.map((msg) => (
                 <div key={msg.id} className={`message ${msg.role}`}>
-                  <div className="message-content">{msg.content}</div>
+                  <div className="message-content">
+                    <LinkifyText text={msg.content} />
+                  </div>
                 </div>
               ))}
               {isLoading && (
