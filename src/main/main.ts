@@ -104,6 +104,8 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       const currentY = Math.round(startY + (targetY - startY) * eased);
 
       petWindow?.setPosition(currentX, currentY);
+      updatePetChatPosition();
+      updateAssistantPosition();
 
       if (progress >= 1) {
         clearInterval(moveAnimation!);
@@ -622,20 +624,57 @@ function updatePetChatPosition() {
   petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
 }
 
+function updateAssistantPosition() {
+  if (!petWindow || !assistantWindow || !assistantWindow.isVisible()) return;
+
+  const [petX, petY] = petWindow.getPosition();
+  const [petWidth] = petWindow.getSize();
+  const [assistantWidth, assistantHeight] = assistantWindow.getSize();
+  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+
+  // Center assistant above pet, with 15px gap
+  let assistantX = petX + (petWidth - assistantWidth) / 2;
+  const assistantY = petY - assistantHeight - 15;
+
+  // Keep within screen bounds
+  assistantX = Math.max(0, Math.min(assistantX, screenWidth - assistantWidth));
+
+  assistantWindow.setPosition(Math.round(assistantX), Math.max(0, Math.round(assistantY)));
+}
+
 function createAssistantWindow() {
   if (assistantWindow) {
     assistantWindow.show();
     assistantWindow.focus();
+    updateAssistantPosition();
     return;
   }
 
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
+  // Position above pet if pet window exists, otherwise bottom-right
+  let initialX = screenWidth - 420;
+  let initialY = screenHeight - 520;
+
+  if (petWindow) {
+    const [petX, petY] = petWindow.getPosition();
+    const [petWidth] = petWindow.getSize();
+    const assistantWidth = 400;
+    const assistantHeight = 500;
+
+    initialX = petX + (petWidth - assistantWidth) / 2;
+    initialY = petY - assistantHeight - 15;
+
+    // Keep within screen bounds
+    initialX = Math.max(0, Math.min(initialX, screenWidth - assistantWidth));
+    initialY = Math.max(0, initialY);
+  }
+
   assistantWindow = new BrowserWindow({
     width: 400,
     height: 500,
-    x: screenWidth - 420,
-    y: screenHeight - 520,
+    x: Math.round(initialX),
+    y: Math.round(initialY),
     frame: false,
     transparent: false,
     alwaysOnTop: true,
@@ -1174,8 +1213,9 @@ function setupIPC() {
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
       petWindow.setPosition(x + deltaX, y + deltaY);
-      // Also move the chat window if visible
+      // Also move the chat windows if visible
       updatePetChatPosition();
+      updateAssistantPosition();
       resetInteractionTimer(); // User is interacting
     }
   });
