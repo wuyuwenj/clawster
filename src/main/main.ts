@@ -9,6 +9,8 @@ import {
   nativeImage,
 } from 'electron';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { Watchers } from './watchers';
@@ -24,6 +26,7 @@ let petChatWindow: BrowserWindow | null = null;
 let assistantWindow: BrowserWindow | null = null;
 let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
+let onboardingWindow: BrowserWindow | null = null;
 
 // Services
 let watchers: Watchers | null = null;
@@ -812,6 +815,143 @@ function toggleScreenshotQuestionWindow() {
   }
 }
 
+function createOnboardingWindow(): Promise<void> {
+  return new Promise((resolve) => {
+    console.log('[Onboarding] createOnboardingWindow called');
+    if (onboardingWindow) {
+      console.log('[Onboarding] Window already exists, showing');
+      onboardingWindow.show();
+      onboardingWindow.focus();
+      resolve();
+      return;
+    }
+
+    const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+    const windowWidth = 600;
+    const windowHeight = 700;
+
+    console.log('[Onboarding] Creating new BrowserWindow');
+    onboardingWindow = new BrowserWindow({
+      width: windowWidth,
+      height: windowHeight,
+      x: Math.round((screenWidth - windowWidth) / 2),
+      y: Math.round((screenHeight - windowHeight) / 2),
+      frame: false,
+      transparent: false,
+      resizable: false,
+      show: false,
+      backgroundColor: '#1a1a2e',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    const loadUrl = isDev
+      ? `http://localhost:${DEV_PORT}/onboarding.html`
+      : path.join(__dirname, '../renderer/onboarding.html');
+    console.log('[Onboarding] Loading URL:', loadUrl);
+
+    if (isDev) {
+      onboardingWindow.loadURL(`http://localhost:${DEV_PORT}/onboarding.html`);
+      // Open DevTools in dev mode for debugging
+      onboardingWindow.webContents.openDevTools({ mode: 'detach' });
+    } else {
+      onboardingWindow.loadFile(path.join(__dirname, '../renderer/onboarding.html'));
+    }
+
+    onboardingWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+      console.error('[Onboarding] Failed to load:', errorCode, errorDescription);
+    });
+
+    onboardingWindow.once('ready-to-show', () => {
+      console.log('[Onboarding] Window ready to show');
+      onboardingWindow?.show();
+      resolve();
+    });
+
+    onboardingWindow.on('closed', () => {
+      console.log('[Onboarding] Window closed');
+      onboardingWindow = null;
+    });
+  });
+}
+
+function closeOnboardingAndStartApp() {
+  if (onboardingWindow) {
+    onboardingWindow.close();
+    onboardingWindow = null;
+  }
+  startMainApp();
+}
+
+function startMainApp() {
+  // Register global hotkeys
+  registerHotkeys();
+
+  createPetWindow();
+
+  // Initialize ClawBot client
+  const clawbotUrl = store.get('clawbot.url') as string;
+  const clawbotToken = store.get('clawbot.token') as string;
+  const workspaceType = store.get('onboarding.workspaceType') as string | null;
+  // Only use 'clawster' agent-id if user chose to create a Clawster workspace
+  const agentId = workspaceType === 'clawster' ? 'clawster' : null;
+  clawbot = new ClawBotClient(clawbotUrl, clawbotToken, agentId);
+
+  // Initialize watchers
+  watchers = new Watchers(store, (event) => {
+    // Reset idle timer on any activity
+    resetIdleTimer();
+
+    // Send events to ClawBot
+    clawbot?.sendEvent(event);
+
+    // Forward to pet window for reactions
+    petWindow?.webContents.send('activity-event', event);
+
+    // Forward to assistant window
+    assistantWindow?.webContents.send('activity-event', event);
+
+    // Trigger chat popup on app switch (with cooldown)
+    if (event.type === 'app_focus_changed' && event.app) {
+      const now = Date.now();
+      if (now - lastAppSwitchChat > APP_SWITCH_CHAT_COOLDOWN) {
+        lastAppSwitchChat = now;
+        // Random chance to show chat (30% of the time to not be annoying)
+        if (Math.random() < 0.3) {
+          sendChatPopup('app_switch', event.app);
+        }
+      }
+    }
+  });
+
+  watchers.start();
+
+  // Start idle detection
+  startIdleDetection();
+
+  // Start attention seeker behavior
+  startAttentionSeeker();
+
+  // Start idle behavior system (makes pet feel alive)
+  startIdleBehaviors();
+
+  // Start sleep check (pet falls asleep after 1 minute of no interaction)
+  startSleepCheck();
+
+  // Listen for ClawBot responses
+  clawbot.on('suggestion', (data) => {
+    petWindow?.webContents.send('clawbot-suggestion', data);
+    assistantWindow?.webContents.send('clawbot-suggestion', data);
+  });
+
+  clawbot.on('mood', (data) => {
+    petWindow?.webContents.send('clawbot-mood', data);
+  });
+}
+
 // Screen capture
 async function captureScreen(): Promise<string | null> {
   try {
@@ -1084,85 +1224,261 @@ function setupIPC() {
       chatbarWindow.webContents.send('chat-sync');
     }
   });
-}
 
-// App lifecycle
-app.whenReady().then(() => {
-  createPetWindow();
-  setupIPC();
-
-  // Register global hotkey: Option + Space for assistant
-  globalShortcut.register('Alt+Space', () => {
-    toggleAssistantWindow();
+  // Onboarding handlers
+  ipcMain.handle('onboarding-skip', () => {
+    store.set('onboarding.skipped', true);
+    closeOnboardingAndStartApp();
+    return true;
   });
 
-  // Register global hotkey: Cmd + Shift + Space for chatbar
-  globalShortcut.register('CommandOrControl+Shift+Space', () => {
-    toggleChatbarWindow();
+  ipcMain.handle('onboarding-complete', (_event, data: {
+    workspaceType: 'openclaw' | 'clawster';
+    migrateMemory: boolean;
+    gatewayUrl: string;
+    gatewayToken: string;
+    identity: string;
+    soul: string;
+    watchFolders: string[];
+    watchActiveApp: boolean;
+    watchWindowTitles: boolean;
+    hotkeyOpenChat: string;
+    hotkeyCaptureScreen: string;
+    hotkeyOpenAssistant: string;
+  }) => {
+    // Save onboarding data to store
+    store.set('onboarding.completed', true);
+    store.set('onboarding.workspaceType', data.workspaceType);
+    store.set('clawbot.url', data.gatewayUrl);
+    store.set('clawbot.token', data.gatewayToken);
+    store.set('watch.folders', data.watchFolders);
+    store.set('watch.activeApp', data.watchActiveApp);
+    store.set('watch.sendWindowTitles', data.watchWindowTitles);
+    store.set('hotkeys.openChat', data.hotkeyOpenChat);
+    store.set('hotkeys.captureScreen', data.hotkeyCaptureScreen);
+    store.set('hotkeys.openAssistant', data.hotkeyOpenAssistant);
+
+    // Update ClawBotClient with new config and agentId
+    const newAgentId = data.workspaceType === 'clawster' ? 'clawster' : null;
+    clawbot?.updateConfig(data.gatewayUrl, data.gatewayToken, newAgentId);
+
+    closeOnboardingAndStartApp();
+    return true;
   });
 
-  // Register global hotkey: Cmd + Shift + / for screenshot question
-  const registered = globalShortcut.register('CommandOrControl+Shift+/', () => {
-    console.log('[ScreenshotQuestion] Hotkey Cmd+Shift+/ triggered');
-    toggleScreenshotQuestionWindow();
+  // Read OpenClaw config file
+  ipcMain.handle('read-openclaw-config', () => {
+    const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+    try {
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        return JSON.parse(content);
+      }
+    } catch (error) {
+      console.error('Failed to read OpenClaw config:', error);
+    }
+    return null;
   });
-  console.log(`[ScreenshotQuestion] Hotkey Cmd+Shift+/ registered: ${registered}`);
 
-  // Initialize ClawBot client
-  const clawbotUrl = store.get('clawbot.url') as string;
-  const clawbotToken = store.get('clawbot.token') as string;
-  clawbot = new ClawBotClient(clawbotUrl, clawbotToken);
+  // Read OpenClaw workspace files
+  ipcMain.handle('read-openclaw-workspace', () => {
+    const workspacePath = path.join(os.homedir(), '.openclaw', 'workspace');
+    const result: {
+      exists: boolean;
+      identity: string | null;
+      soul: string | null;
+      hasMemory: boolean;
+    } = {
+      exists: false,
+      identity: null,
+      soul: null,
+      hasMemory: false,
+    };
 
-  // Initialize watchers
-  watchers = new Watchers(store, (event) => {
-    // Reset idle timer on any activity
-    resetIdleTimer();
+    try {
+      if (fs.existsSync(workspacePath)) {
+        result.exists = true;
 
-    // Send events to ClawBot
-    clawbot?.sendEvent(event);
+        const identityPath = path.join(workspacePath, 'IDENTITY.md');
+        if (fs.existsSync(identityPath)) {
+          result.identity = fs.readFileSync(identityPath, 'utf-8');
+        }
 
-    // Forward to pet window for reactions
-    petWindow?.webContents.send('activity-event', event);
+        const soulPath = path.join(workspacePath, 'SOUL.md');
+        if (fs.existsSync(soulPath)) {
+          result.soul = fs.readFileSync(soulPath, 'utf-8');
+        }
 
-    // Forward to assistant window
-    assistantWindow?.webContents.send('activity-event', event);
+        const memoryPath = path.join(workspacePath, 'memory.md');
+        result.hasMemory = fs.existsSync(memoryPath);
+      }
+    } catch (error) {
+      console.error('Failed to read OpenClaw workspace:', error);
+    }
 
-    // Trigger chat popup on app switch (with cooldown)
-    if (event.type === 'app_focus_changed' && event.app) {
-      const now = Date.now();
-      if (now - lastAppSwitchChat > APP_SWITCH_CHAT_COOLDOWN) {
-        lastAppSwitchChat = now;
-        // Random chance to show chat (30% of the time to not be annoying)
-        if (Math.random() < 0.3) {
-          sendChatPopup('app_switch', event.app);
+    return result;
+  });
+
+  // Create Clawster workspace
+  ipcMain.handle('create-clawster-workspace', (_event, options: {
+    identity: string;
+    soul: string;
+    migrateMemory: boolean;
+  }) => {
+    const clawsterWorkspace = path.join(os.homedir(), '.openclaw', 'workspace-clawster');
+
+    try {
+      // Create directory
+      fs.mkdirSync(clawsterWorkspace, { recursive: true });
+
+      // Write identity and soul files
+      fs.writeFileSync(path.join(clawsterWorkspace, 'IDENTITY.md'), options.identity);
+      fs.writeFileSync(path.join(clawsterWorkspace, 'SOUL.md'), options.soul);
+
+      // Handle memory migration
+      const destMemory = path.join(clawsterWorkspace, 'memory.md');
+      if (options.migrateMemory) {
+        const sourceMemory = path.join(os.homedir(), '.openclaw', 'workspace', 'memory.md');
+        if (fs.existsSync(sourceMemory)) {
+          fs.copyFileSync(sourceMemory, destMemory);
+          store.set('onboarding.memoryMigrated', true);
+        }
+      } else {
+        // Starting fresh - delete existing memory if present
+        if (fs.existsSync(destMemory)) {
+          fs.unlinkSync(destMemory);
         }
       }
+
+      store.set('onboarding.clawsterWorkspacePath', clawsterWorkspace);
+      return { success: true, path: clawsterWorkspace };
+    } catch (error) {
+      console.error('Failed to create Clawster workspace:', error);
+      return { success: false, error: String(error) };
     }
   });
 
-  watchers.start();
+  // Validate gateway connection by making a real chat completions request
+  ipcMain.handle('validate-gateway', async (_event, url: string, token: string) => {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
-  // Start idle detection
-  startIdleDetection();
+      // Make a minimal chat completions request to validate the connection and token
+      const response = await fetch(`${url}/v1/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages: [
+            { role: 'user', content: 'hi' }
+          ],
+          max_tokens: 5,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
 
-// Start attention seeker behavior
-  startAttentionSeeker();
-
-  // Start idle behavior system (makes pet feel alive)
-  startIdleBehaviors();
-
-  // Start sleep check (pet falls asleep after 1 minute of no interaction)
-  startSleepCheck();
-
-  // Listen for ClawBot responses
-  clawbot.on('suggestion', (data) => {
-    petWindow?.webContents.send('clawbot-suggestion', data);
-    assistantWindow?.webContents.send('clawbot-suggestion', data);
+      if (response.ok) {
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        return { success: false, error: `${response.status}: ${errorText.slice(0, 100)}` };
+      }
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  clawbot.on('mood', (data) => {
-    petWindow?.webContents.send('clawbot-mood', data);
+  // Get default identity and soul from app resources
+  ipcMain.handle('get-default-personality', () => {
+    try {
+      // In development, read from openclaw folder relative to project
+      // In production, read from resources
+      const basePath = isDev
+        ? path.join(__dirname, '../../openclaw')
+        : path.join(process.resourcesPath, 'openclaw');
+
+      const identity = fs.readFileSync(path.join(basePath, 'IDENTITY.md'), 'utf-8');
+      const soul = fs.readFileSync(path.join(basePath, 'SOUL.md'), 'utf-8');
+
+      return { identity, soul };
+    } catch (error) {
+      console.error('Failed to read default personality:', error);
+      return { identity: '', soul: '' };
+    }
   });
+
+  // Save personality files to workspace
+  ipcMain.handle('save-personality', (_event, workspacePath: string, identity: string, soul: string) => {
+    try {
+      fs.writeFileSync(path.join(workspacePath, 'IDENTITY.md'), identity);
+      fs.writeFileSync(path.join(workspacePath, 'SOUL.md'), soul);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save personality:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get onboarding status
+  ipcMain.handle('get-onboarding-status', () => {
+    return {
+      completed: store.get('onboarding.completed') as boolean,
+      skipped: store.get('onboarding.skipped') as boolean,
+    };
+  });
+}
+
+// Register global hotkeys from store
+function registerHotkeys() {
+  // Unregister all first (in case we're re-registering)
+  globalShortcut.unregisterAll();
+
+  const hotkeyOpenAssistant = store.get('hotkeys.openAssistant') as string || 'CommandOrControl+Shift+A';
+  const hotkeyOpenChat = store.get('hotkeys.openChat') as string || 'CommandOrControl+Shift+Space';
+  const hotkeyCaptureScreen = store.get('hotkeys.captureScreen') as string || 'CommandOrControl+Shift+/';
+
+  globalShortcut.register(hotkeyOpenAssistant, () => {
+    toggleAssistantWindow();
+  });
+  console.log(`[Hotkeys] Registered open assistant: ${hotkeyOpenAssistant}`);
+
+  globalShortcut.register(hotkeyOpenChat, () => {
+    toggleChatbarWindow();
+  });
+  console.log(`[Hotkeys] Registered open chat: ${hotkeyOpenChat}`);
+
+  globalShortcut.register(hotkeyCaptureScreen, () => {
+    console.log('[ScreenshotQuestion] Hotkey triggered');
+    toggleScreenshotQuestionWindow();
+  });
+  console.log(`[Hotkeys] Registered capture screen: ${hotkeyCaptureScreen}`);
+}
+
+// App lifecycle
+app.whenReady().then(async () => {
+  setupIPC();
+
+  // Check onboarding status
+  const onboardingCompleted = store.get('onboarding.completed') as boolean;
+  const onboardingSkipped = store.get('onboarding.skipped') as boolean;
+
+  console.log('[Onboarding] Status check:', { onboardingCompleted, onboardingSkipped });
+
+  if (!onboardingCompleted && !onboardingSkipped) {
+    // Show onboarding wizard
+    console.log('[Onboarding] Showing onboarding window...');
+    await createOnboardingWindow();
+    console.log('[Onboarding] Window created');
+  } else {
+    // Start main app directly
+    console.log('[Onboarding] Skipping onboarding, starting main app');
+    startMainApp();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
