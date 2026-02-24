@@ -20,6 +20,7 @@ config();
 
 // Windows
 let petWindow: BrowserWindow | null = null;
+let petChatWindow: BrowserWindow | null = null;
 let assistantWindow: BrowserWindow | null = null;
 let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
@@ -507,9 +508,9 @@ function resetIdleTimer() {
 function createPetWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
-  // Larger window to accommodate chat popup above the pet
-  const petWindowWidth = 300;
-  const petWindowHeight = 300;
+  // Small window just for the lobster
+  const petWindowWidth = 130;
+  const petWindowHeight = 130;
 
   petWindow = new BrowserWindow({
     width: petWindowWidth,
@@ -529,8 +530,9 @@ function createPetWindow() {
     },
   });
 
-  // Allow dragging
+  // Allow dragging and going above menu bar
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  petWindow.setAlwaysOnTop(true, 'screen-saver');
 
   if (isDev) {
     petWindow.loadURL(`http://localhost:${DEV_PORT}/pet.html`);
@@ -540,7 +542,81 @@ function createPetWindow() {
 
   petWindow.on('closed', () => {
     petWindow = null;
+    // Also close the chat window when pet is closed
+    petChatWindow?.close();
   });
+}
+
+// Show chat popup above the pet
+function showPetChat(message: { id: string; text: string; quickReplies?: string[] }) {
+  if (!petWindow) return;
+
+  const [petX, petY] = petWindow.getPosition();
+  const [petWidth] = petWindow.getSize();
+
+  const chatWidth = 320;
+  const chatHeight = 200;
+  const chatX = petX + (petWidth - chatWidth) / 2;
+  const chatY = petY - chatHeight - 10;
+
+  if (!petChatWindow) {
+    petChatWindow = new BrowserWindow({
+      width: chatWidth,
+      height: chatHeight,
+      x: Math.max(0, chatX),
+      y: Math.max(0, chatY),
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    petChatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+    if (isDev) {
+      petChatWindow.loadURL(`http://localhost:${DEV_PORT}/pet-chat.html`);
+    } else {
+      petChatWindow.loadFile(path.join(__dirname, '../renderer/pet-chat.html'));
+    }
+
+    petChatWindow.on('closed', () => {
+      petChatWindow = null;
+    });
+
+    petChatWindow.once('ready-to-show', () => {
+      petChatWindow?.webContents.send('chat-message', message);
+      petChatWindow?.show();
+    });
+  } else {
+    // Update position and message
+    petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
+    petChatWindow.webContents.send('chat-message', message);
+    petChatWindow.show();
+  }
+}
+
+function hidePetChat() {
+  petChatWindow?.hide();
+}
+
+function updatePetChatPosition() {
+  if (!petWindow || !petChatWindow || !petChatWindow.isVisible()) return;
+
+  const [petX, petY] = petWindow.getPosition();
+  const [petWidth] = petWindow.getSize();
+  const [chatWidth] = petChatWindow.getSize();
+
+  const chatX = petX + (petWidth - chatWidth) / 2;
+  const chatY = petY - 200 - 10;
+
+  petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
 }
 
 function createAssistantWindow() {
@@ -628,6 +704,9 @@ function createChatbarWindow() {
   });
 
   chatbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  // Make transparent areas click-through
+  chatbarWindow.setIgnoreMouseEvents(true, { forward: true });
 
   if (isDev) {
     chatbarWindow.loadURL(`http://localhost:${DEV_PORT}/chatbar.html`);
@@ -772,6 +851,13 @@ function setupIPC() {
   // Close chatbar window
   ipcMain.on('close-chatbar', () => {
     chatbarWindow?.hide();
+  });
+
+  // Control mouse events for chatbar (for click-through on transparent areas)
+  ipcMain.on('chatbar-set-ignore-mouse', (_event, ignore: boolean) => {
+    if (chatbarWindow) {
+      chatbarWindow.setIgnoreMouseEvents(ignore, { forward: true });
+    }
   });
 
   // Toggle screenshot question window
@@ -948,8 +1034,25 @@ function setupIPC() {
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
       petWindow.setPosition(x + deltaX, y + deltaY);
+      // Also move the chat window if visible
+      updatePetChatPosition();
       resetInteractionTimer(); // User is interacting
     }
+  });
+
+  // Show pet chat popup
+  ipcMain.on('show-pet-chat', (_event, message: { id: string; text: string; quickReplies?: string[] }) => {
+    showPetChat(message);
+  });
+
+  // Hide pet chat popup
+  ipcMain.on('hide-pet-chat', () => {
+    hidePetChat();
+  });
+
+  // Forward pet chat reply to pet window
+  ipcMain.on('pet-chat-reply', (_event, reply: string) => {
+    petWindow?.webContents.send('pet-chat-reply', reply);
   });
 
 // Pet movement (legacy API)
