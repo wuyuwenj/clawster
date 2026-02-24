@@ -5,8 +5,8 @@
     .ink { fill: #1A1A1A; }
   </style>
   <!-- Zzz -->
-  <text x="95" y="40" fill="white" font-weight="bold" font-size="14" font-family="sans-serif">Z</text>
-  <text x="105" y="30" fill="white" font-weight="bold" font-size="10" font-family="sans-serif">z</text>
+  <text x="95" y="40" fill="white" font-weight="bold" font-size="14" font-family="Satoshi, sans-serif">Z</text>
+  <text x="105" y="30" fill="white" font-weight="bold" font-size="10" font-family="Satoshi, sans-serif">z</text>
   <!-- Tail -->
   <path d="M 50 100 Q 64 125 78 100 Z" class="salmon" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
   <!-- Left Claw - relaxed down -->

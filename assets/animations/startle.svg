@@ -6,7 +6,7 @@
   </style>
   <!-- Alert ! -->
   <circle cx="100" cy="30" r="14" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
-  <text x="100" y="36" fill="#1A1A1A" font-weight="bold" font-size="18" text-anchor="middle" font-family="sans-serif">!</text>
+  <text x="100" y="36" fill="#1A1A1A" font-weight="bold" font-size="18" text-anchor="middle" font-family="Satoshi, sans-serif">!</text>
   <!-- Tail -->
   <path d="M 50 100 Q 64 125 78 100 Z" class="salmon" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
   <!-- Left Claw - raised startled -->
