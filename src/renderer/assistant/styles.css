@@ -21,10 +21,14 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
+  -webkit-app-region: no-drag;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .pet-icon {
   font-size: 20px;
+  -webkit-app-region: no-drag;
 }
 
 .status-dot {
@@ -91,6 +95,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  -webkit-app-region: no-drag;
 }
 
 /* Chat */
@@ -107,6 +112,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  -webkit-app-region: no-drag;
 }
 
 .empty-state {
@@ -125,6 +131,9 @@
   border-radius: 16px;
   font-size: 14px;
   line-height: 1.4;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 .message.user {
@@ -394,4 +403,27 @@
 .add-folder-btn:hover {
   background: #3a3a5e;
   color: #ccc;
+}
+
+/* Message links */
+.message-link {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-decoration-color: rgba(147, 197, 253, 0.4);
+  cursor: pointer;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.message-link:hover {
+  color: #bfdbfe;
+  text-decoration-color: rgba(191, 219, 254, 0.8);
+}
+
+.message.user .message-link {
+  color: #fff;
+  text-decoration-color: rgba(255, 255, 255, 0.5);
+}
+
+.message.user .message-link:hover {
+  text-decoration-color: rgba(255, 255, 255, 0.9);
 }

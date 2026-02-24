@@ -6,7 +6,8 @@ type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' 
 interface ChatMessage {
   id: string;
   text: string;
-  trigger: 'app_switch' | 'idle' | 'proactive' | 'suggestion';
+  content?: string;
+  trigger?: 'app_switch' | 'idle' | 'proactive' | 'suggestion';
   quickReplies?: string[];
 }
 
@@ -162,76 +163,12 @@ const LobsterSvg: React.FC = () => (
 
 export const Pet: React.FC = () => {
   const [mood, setMood] = useState<Mood>('idle');
-  const [chatMessage, setChatMessage] = useState<ChatMessage | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const isDraggingRef = useRef(false);
-  const didDragRef = useRef(false);
   const [isWalking, setIsWalking] = useState(false);
   const [idleBehavior, setIdleBehavior] = useState<IdleBehavior>(null);
   const dragStart = useRef({ x: 0, y: 0 });
-  const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isDraggingRef = useRef(false);
+  const didDragRef = useRef(false);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Clear dismiss timeout
-  const clearDismissTimeout = useCallback(() => {
-    if (dismissTimeoutRef.current) {
-      clearTimeout(dismissTimeoutRef.current);
-      dismissTimeoutRef.current = null;
-    }
-  }, []);
-
-  // Set auto-dismiss timeout
-  const setAutoDismiss = useCallback((id: string, delay: number = 15000) => {
-    clearDismissTimeout();
-    dismissTimeoutRef.current = setTimeout(() => {
-      setChatMessage((current) => (current?.id === id ? null : current));
-    }, delay);
-  }, [clearDismissTimeout]);
-
-  // Handle quick reply
-  const handleQuickReply = useCallback(async (reply: string) => {
-    if (!chatMessage) return;
-
-    clearDismissTimeout();
-
-    if (reply === 'Not now') {
-      setChatMessage(null);
-      return;
-    }
-
-    if (reply === 'Tell me more') {
-      setIsLoading(true);
-      setMood('thinking');
-
-      try {
-        const response = await window.clawster.sendToClawbot(
-          `Tell me more about: ${chatMessage.text}`
-        ) as { text?: string };
-
-        if (response.text) {
-          const newMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            text: response.text,
-            trigger: 'proactive',
-            quickReplies: ['Thanks!', 'Not now'],
-          };
-          setChatMessage(newMessage);
-          setAutoDismiss(newMessage.id);
-        }
-      } catch {
-        setChatMessage(null);
-      } finally {
-        setIsLoading(false);
-        setMood('idle');
-      }
-      return;
-    }
-
-    // "Thanks!" or other positive replies
-    setMood('happy');
-    setChatMessage(null);
-    setTimeout(() => setMood('idle'), 2000);
-  }, [chatMessage, clearDismissTimeout, setAutoDismiss]);
 
   // Handle mood updates from ClawBot
   useEffect(() => {
@@ -240,30 +177,41 @@ export const Pet: React.FC = () => {
       setMood(moodData.state);
     });
 
-    // Handle chat messages from main process
+    // Handle chat messages from main process - show in separate window
     window.clawster.onChatPopup((data: unknown) => {
       const messageData = data as ChatMessage;
-      const message: ChatMessage = {
-        ...messageData,
+      const message = {
         id: messageData.id || crypto.randomUUID(),
+        text: messageData.text || messageData.content || '',
         quickReplies: messageData.quickReplies || DEFAULT_QUICK_REPLIES,
       };
-      setChatMessage(message);
+      window.clawster.showPetChat(message);
       setMood('curious');
-      setAutoDismiss(message.id);
     });
 
-    // Legacy suggestion support - convert to chat popup
+    // Legacy suggestion support - show in separate window
     window.clawster.onClawbotSuggestion((data: unknown) => {
       const suggestionData = data as { text: string; id: string };
-      const message: ChatMessage = {
+      const message = {
         id: suggestionData.id,
         text: suggestionData.text,
-        trigger: 'suggestion',
         quickReplies: DEFAULT_QUICK_REPLIES,
       };
-      setChatMessage(message);
-      setAutoDismiss(message.id);
+      window.clawster.showPetChat(message);
+    });
+
+    // Handle chat reply reactions
+    window.clawster.onPetChatReply((reply: string) => {
+      if (reply === 'thanks') {
+        setMood('happy');
+        setTimeout(() => setMood('idle'), 2000);
+      } else if (reply === 'thinking') {
+        setMood('thinking');
+      } else if (reply === 'curious') {
+        setMood('curious');
+      } else if (reply === 'dismiss') {
+        setMood('idle');
+      }
     });
 
     window.clawster.onActivityEvent((event: unknown) => {
@@ -310,25 +258,25 @@ export const Pet: React.FC = () => {
     });
 
     return () => {
-      clearDismissTimeout();
       if (idleBehaviorTimeoutRef.current) {
         clearTimeout(idleBehaviorTimeoutRef.current);
       }
       window.clawster.removeAllListeners();
     };
-  }, [setAutoDismiss, clearDismissTimeout]);
+  }, []);
 
-  // Handle dragging — uses window-level listeners so we never lose the cursor
+  // Handle dragging - use document-level events to track fast mouse movements
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     isDraggingRef.current = true;
     didDragRef.current = false;
     dragStart.current = { x: e.screenX, y: e.screenY };
 
-    const onMouseMove = (ev: MouseEvent) => {
+    const handleDocumentMouseMove = (moveEvent: MouseEvent) => {
       if (!isDraggingRef.current) return;
 
-      const deltaX = ev.screenX - dragStart.current.x;
-      const deltaY = ev.screenY - dragStart.current.y;
+      const deltaX = moveEvent.screenX - dragStart.current.x;
+      const deltaY = moveEvent.screenY - dragStart.current.y;
 
       if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
         didDragRef.current = true;
@@ -336,18 +284,18 @@ export const Pet: React.FC = () => {
 
       if (didDragRef.current) {
         window.clawster.dragPet(deltaX, deltaY);
-        dragStart.current = { x: ev.screenX, y: ev.screenY };
+        dragStart.current = { x: moveEvent.screenX, y: moveEvent.screenY };
       }
     };
 
-    const onMouseUp = () => {
+    const handleDocumentMouseUp = () => {
       isDraggingRef.current = false;
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('mousemove', handleDocumentMouseMove);
+      document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('mousemove', handleDocumentMouseMove);
+    document.addEventListener('mouseup', handleDocumentMouseUp);
   }, []);
 
   // Poke reactions - random animations when clicked
@@ -407,37 +355,10 @@ export const Pet: React.FC = () => {
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
-      {/* Chat popup */}
-      {chatMessage && (
-        <div className="chat-popup" onClick={(e) => e.stopPropagation()}>
-          <div className="chat-popup-content">
-            {isLoading ? (
-              <div className="chat-loading">
-                <span>•</span><span>•</span><span>•</span>
-              </div>
-            ) : (
-              <p className="chat-text">{chatMessage.text}</p>
-            )}
-          </div>
-          {!isLoading && chatMessage.quickReplies && (
-            <div className="chat-quick-replies">
-              {chatMessage.quickReplies.map((reply) => (
-                <button
-                  key={reply}
-                  className={`quick-reply-btn ${reply === 'Not now' ? 'dismiss' : ''}`}
-                  onClick={() => handleQuickReply(reply)}
-                >
-                  {reply}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="chat-popup-arrow" />
-        </div>
-      )}
-
       {/* Animated Lobster Pet */}
-      <div className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''}`}>
+      <div
+        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''}`}
+      >
         <LobsterSvg />
       </div>
     </div>

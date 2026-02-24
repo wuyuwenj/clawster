@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { LinkifyText } from '../components/LinkifyText';
 
 interface Message {
   id: string;
@@ -131,9 +132,22 @@ export const ChatBar: React.FC = () => {
     }
   };
 
+  // Handle mouse enter/leave to toggle click-through behavior
+  const handleMouseEnter = () => {
+    window.clawster.setChatbarIgnoreMouse(false);
+  };
+
+  const handleMouseLeave = () => {
+    window.clawster.setChatbarIgnoreMouse(true);
+  };
+
   return (
     <div className="chatbar-container">
-      <div className="chatbar-wrapper">
+      <div
+        className="chatbar-wrapper"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         {/* Lobster icon */}
         <div className="chatbar-icon">
           <svg viewBox="0 0 128 128" width="32" height="32">
@@ -219,8 +233,14 @@ export const ChatBar: React.FC = () => {
 
       {/* Response bubble */}
       {response && (
-        <div className="chatbar-response">
-          <p>{response}</p>
+        <div
+          className="chatbar-response"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <p>
+            <LinkifyText text={response} />
+          </p>
         </div>
       )}
     </div>

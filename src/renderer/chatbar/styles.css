@@ -155,6 +155,9 @@
   line-height: 1.5;
   margin: 0;
   white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 /* Screenshot capture button */
@@ -236,4 +239,18 @@
 
 .chatbar-screenshot-clear:hover {
   background: #ff4444;
+}
+
+/* Message links */
+.message-link {
+  color: var(--salmon);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 140, 105, 0.4);
+  cursor: pointer;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.message-link:hover {
+  color: #ffb399;
+  text-decoration-color: rgba(255, 179, 153, 0.8);
 }
