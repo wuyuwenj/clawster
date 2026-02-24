@@ -1,0 +1,149 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    CLAWSTER LOBSTER - Master SVG for Rive Import
+    All elements in neutral/idle pose, no baked transforms.
+    All face variants and effects present as named groups.
+    Rive state machine should toggle visibility per state.
+    No CSS classes or custom properties - all inline attributes.
+
+    Color palette:
+      Salmon (body):    #FF8C69
+      Dark red (stroke): #8B3A3A
+      Teal (belt):      #008080
+      Teal dark:        #004D4D
+      Ink (features):   #1A1A1A
+      White (pupils):   #FFFFFF
+  -->
+
+  <!-- ========== EFFECTS - BACKGROUND ========== -->
+
+  <!-- Motion lines (spin/walking) - curved arcs on both sides -->
+  <g id="fx-motion-lines">
+    <path id="motion-line-left-1" d="M 15 50 Q 5 60 15 70" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <path id="motion-line-right-1" d="M 113 50 Q 123 60 113 70" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <!-- Horizontal walking lines -->
+    <path id="motion-line-left-2" d="M 5 80 L 20 80" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+    <path id="motion-line-left-3" d="M 10 90 L 25 90" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+  </g>
+
+  <!-- ========== BODY STRUCTURE ========== -->
+
+  <!-- Tail -->
+  <path id="tail" d="M 50 100 Q 64 125 78 100 Z" fill="#FF8C69" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- Left Claw -->
+  <g id="left-claw">
+    <path d="M 40 55 A 24 24 0 1 1 10 85 Q 20 80 25 75 Q 20 65 30 70 Z" fill="#FF8C69" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Right Claw -->
+  <g id="right-claw">
+    <path d="M 88 55 A 24 24 0 1 0 118 85 Q 108 80 103 75 Q 108 65 98 70 Z" fill="#FF8C69" stroke="#8B3A3A" stroke-width="4" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Body Group (body + belt + face) -->
+  <g id="body-group">
+
+    <!-- Body capsule -->
+    <rect id="body" x="34" y="28" width="60" height="75" rx="30" fill="#FF8C69" stroke="#8B3A3A" stroke-width="4"/>
+
+    <!-- Belt band -->
+    <path id="belt-band" d="M 34 82 Q 64 92 94 82 L 94 88 Q 64 98 34 88 Z" fill="#008080" stroke="#004D4D" stroke-width="2"/>
+
+    <!-- Belt buckle -->
+    <path id="belt-buckle" d="M 75 85 L 88 108 L 68 102 Z" fill="#008080" stroke="#004D4D" stroke-width="2" stroke-linejoin="round"/>
+
+    <!-- Face group - contains ALL eye/mouth variants -->
+    <g id="face">
+
+      <!-- ===== EYE VARIANTS ===== -->
+
+      <!-- Eyes: Open (idle, happy, proud, peek, spin, walking, side-eye) -->
+      <g id="eye-open">
+        <circle id="eye-left" cx="48" cy="55" r="7" fill="#1A1A1A"/>
+        <circle id="eye-right" cx="80" cy="55" r="7" fill="#1A1A1A"/>
+        <g id="pupils">
+          <circle id="pupil-left" cx="46" cy="53" r="2.5" fill="#FFFFFF"/>
+          <circle id="pupil-right" cx="78" cy="53" r="2.5" fill="#FFFFFF"/>
+        </g>
+      </g>
+
+      <!-- Eyes: Closed (sleeping) -->
+      <g id="eye-closed">
+        <path id="eye-closed-left" d="M 41 55 Q 48 60 55 55" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round"/>
+        <path id="eye-closed-right" d="M 73 55 Q 80 60 87 55" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round"/>
+      </g>
+
+      <!-- Eyes: Squint (crossed/mad, doze, huff) - triangular -->
+      <g id="eye-squint">
+        <path id="eye-squint-left" d="M 40 52 L 55 56 L 40 56 Z" fill="#1A1A1A"/>
+        <path id="eye-squint-right" d="M 88 52 L 73 56 L 88 56 Z" fill="#1A1A1A"/>
+      </g>
+
+      <!-- Eyes: Wide (startle) - larger radius -->
+      <g id="eye-wide">
+        <circle id="eye-wide-left" cx="48" cy="55" r="9" fill="#1A1A1A"/>
+        <circle id="eye-wide-left-pupil" cx="48" cy="55" r="3" fill="#FFFFFF"/>
+        <circle id="eye-wide-right" cx="80" cy="55" r="9" fill="#1A1A1A"/>
+        <circle id="eye-wide-right-pupil" cx="80" cy="55" r="3" fill="#FFFFFF"/>
+      </g>
+
+      <!-- ===== MOUTH VARIANTS ===== -->
+
+      <!-- Mouth: Neutral (idle, doze, sleep, peek, walking) -->
+      <path id="mouth-neutral" d="M 60 68 Q 64 71 68 68" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Mouth: Happy smile (happy, excited, spin) -->
+      <path id="mouth-happy" d="M 58 66 Q 64 74 70 66" fill="none" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+
+      <!-- Mouth: Smug smile (proud) - slightly lower than happy -->
+      <path id="mouth-smug" d="M 58 68 Q 64 74 70 68" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Mouth: Frown (crossed/mad, huff, side-eye) -->
+      <path id="mouth-frown" d="M 60 70 Q 64 68 68 70" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Mouth: O/surprised (startle) - filled circle -->
+      <circle id="mouth-o" cx="64" cy="70" r="3" fill="#1A1A1A"/>
+
+      <!-- Mouth: Worried (thinking) - smaller circle -->
+      <circle id="mouth-worried" cx="64" cy="70" r="2.5" fill="#1A1A1A"/>
+
+    </g>
+  </g>
+
+  <!-- ========== EFFECTS - FOREGROUND ========== -->
+
+  <!-- Sleep Zzz - two Z letters as paths (Rive doesn't support <text>) -->
+  <g id="fx-zzz">
+    <!-- Large Z -->
+    <g id="zzz-large" transform="translate(85, 28)">
+      <path d="M 0 0 L 8 0 L 0 10 L 8 10" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <!-- Small z -->
+    <g id="zzz-small" transform="translate(97, 18)">
+      <path d="M 0 0 L 6 0 L 0 7 L 6 7" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- Sweat drop (thinking/worried) -->
+  <g id="fx-sweat">
+    <path id="sweat-drop" d="M 35 35 Q 30 45 35 50 Q 40 45 35 35 Z" fill="#87CEFA" opacity="0.8"/>
+  </g>
+
+  <!-- Steam (huff/angry) - two curvy rising lines -->
+  <g id="fx-steam">
+    <path id="steam-1" d="M 45 25 Q 50 15 45 5" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+    <path id="steam-2" d="M 55 20 Q 60 10 55 0" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  </g>
+
+  <!-- Alert badge (startle) - yellow circle with ! -->
+  <g id="fx-alert">
+    <circle id="alert-bg" cx="100" cy="30" r="14" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <!-- Exclamation mark as paths (Rive doesn't support <text>) -->
+    <g id="alert-mark">
+      <rect x="98" y="21" width="4" height="10" rx="2" fill="#1A1A1A"/>
+      <circle cx="100" cy="36" r="2" fill="#1A1A1A"/>
+    </g>
+  </g>
+
+</svg>
