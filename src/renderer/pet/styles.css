@@ -4,10 +4,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   cursor: grab;
   position: relative;
-  padding-bottom: 10px;
   user-select: none;
   -webkit-app-region: no-drag;
 }
@@ -35,6 +34,7 @@
   animation: popup-in 0.3s ease-out;
   overflow: hidden;
   z-index: 100;
+  cursor: default;
 }
 
 .chat-popup-content {
@@ -48,6 +48,9 @@
   line-height: 1.5;
   color: #f0f0f0;
   word-wrap: break-word;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 .chat-loading {
