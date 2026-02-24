@@ -60,39 +60,42 @@ Clawster has expressive animations for every mood:
    npm install
    ```
 
-3. **Set up Clawster's personality in OpenClaw**
-   ```bash
-   cp openclaw/IDENTITY.md openclaw/SOUL.md ~/.openclaw/workspace/
-   openclaw gateway restart
-   ```
-
-4. **Enable chat completions**
-
-   Ask your OpenClaw to enable chat completions so Clawster can communicate with the gateway.
-
-5. **Configure the gateway token**
-
-   Get your OpenClaw gateway token:
-   ```bash
-   grep "token" ~/.openclaw/openclaw.json
-   ```
-
-   Launch Clawster, click on the lobster to open the Assistant panel, go to Settings, and enter:
-   - Server URL: `http://localhost:18789`
-   - Gateway Token: (paste your token)
-
-6. **Run the app**
+3. **Run the app**
    ```bash
    npm run dev
    ```
 
+4. **Complete the onboarding wizard** (see below)
+
+## First Launch
+
+On first launch, Clawster guides you through setup with an onboarding wizard:
+
+1. **Workspace Selection** — Choose between:
+   - **Use OpenClaw Workspace** — Keep your existing `~/.openclaw/workspace/` with your current identity and memory
+   - **Create Clawster Workspace** — Create a dedicated `~/.openclaw/workspace-clawster/` with Clawster's lobster personality
+
+2. **Memory Migration** — If creating a new workspace, optionally migrate your existing memory
+
+3. **Connection Setup** — Configure your OpenClaw gateway:
+   - Auto-detects URL and token from `~/.openclaw/openclaw.json`
+   - Validates connection before proceeding
+
+4. **Personality** — Customize IDENTITY.md and SOUL.md (when creating new workspace)
+
+5. **Watch Preferences** — Enable app tracking and window title sharing
+
+6. **Hotkeys** — Customize keyboard shortcuts for chat, screenshots, and assistant
+
 ## Keyboard Shortcuts
+
+Default shortcuts (customizable during onboarding):
 
 | Shortcut | Action |
 |----------|--------|
 | `Cmd+Shift+Space` | Open quick chat bar |
 | `Cmd+Shift+/` | Screenshot + question |
-| `Alt+Space` | Toggle full assistant panel |
+| `Cmd+Shift+A` | Toggle full assistant panel |
 | `Esc` | Close chat bar |
 
 ## Development
@@ -121,7 +124,8 @@ clawster/
 │   └── renderer/       # Frontend (React + Vite)
 │       ├── pet/        # Animated lobster component
 │       ├── chatbar/    # Quick chat overlay
-│       └── assistant/  # Full assistant panel
+│       ├── assistant/  # Full assistant panel
+│       └── onboarding/ # First-launch setup wizard
 ├── openclaw/           # Identity files for OpenClaw
 └── package.json
 ```
@@ -137,14 +141,25 @@ Clawster is an Electron app that connects to your local OpenClaw gateway. When y
 
 ## Customization
 
+### Workspace
+The onboarding wizard sets up your workspace on first launch. Your workspace location depends on your choice:
+- **OpenClaw workspace**: `~/.openclaw/workspace/`
+- **Clawster workspace**: `~/.openclaw/workspace-clawster/`
+
 ### Personality
-Edit `~/.openclaw/workspace/IDENTITY.md` and `SOUL.md` to customize Clawster's personality.
+Edit `IDENTITY.md` and `SOUL.md` in your workspace to customize Clawster's personality.
 
 ### Behaviors
 In the Assistant panel settings, you can:
 - Enable/disable attention seeking behavior
 - Configure watched folders for file change notifications
 - Toggle window title tracking
+
+### Reset Onboarding
+To re-run the onboarding wizard, delete the config file:
+```bash
+rm ~/Library/Application\ Support/clawster/clawster-config.json
+```
 
 ## License
 
