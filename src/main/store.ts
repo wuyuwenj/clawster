@@ -7,6 +7,14 @@ interface ChatMessage {
   timestamp: number;
 }
 
+interface OnboardingState {
+  completed: boolean;
+  skipped: boolean;
+  workspaceType: 'openclaw' | 'clawster' | null;
+  clawsterWorkspacePath: string | null;
+  memoryMigrated: boolean;
+}
+
 interface StoreSchema {
   clawbot: {
     url: string;
@@ -26,7 +34,13 @@ interface StoreSchema {
     enabled: boolean;
     autoAnalyze: boolean;
   };
+  hotkeys: {
+    openChat: string;
+    captureScreen: string;
+    openAssistant: string;
+  };
   chatHistory: ChatMessage[];
+  onboarding: OnboardingState;
 }
 
 const defaults: StoreSchema = {
@@ -36,7 +50,7 @@ const defaults: StoreSchema = {
   },
   watch: {
     activeApp: true,
-    sendWindowTitles: false,
+    sendWindowTitles: true,
     folders: [],
   },
   pet: {
@@ -48,7 +62,19 @@ const defaults: StoreSchema = {
     enabled: false,
     autoAnalyze: false,
   },
+  hotkeys: {
+    openChat: 'CommandOrControl+Shift+Space',
+    captureScreen: 'CommandOrControl+Shift+/',
+    openAssistant: 'CommandOrControl+Shift+A',
+  },
   chatHistory: [],
+  onboarding: {
+    completed: false,
+    skipped: false,
+    workspaceType: null,
+    clawsterWorkspacePath: null,
+    memoryMigrated: false,
+  },
 };
 
 export function createStore(): Store<StoreSchema> {
@@ -58,4 +84,4 @@ export function createStore(): Store<StoreSchema> {
   });
 }
 
-export type { StoreSchema };
+export type { StoreSchema, OnboardingState };

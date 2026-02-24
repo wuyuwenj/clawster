@@ -86,6 +86,33 @@ contextBridge.exposeInMainWorld('clawster', {
   // Pet interactions
   petClicked: () => ipcRenderer.send('pet-clicked'),
 
+  // Onboarding
+  onboardingSkip: () => ipcRenderer.invoke('onboarding-skip'),
+  onboardingComplete: (data: {
+    workspaceType: 'openclaw' | 'clawster';
+    migrateMemory: boolean;
+    gatewayUrl: string;
+    gatewayToken: string;
+    identity: string;
+    soul: string;
+    watchFolders: string[];
+    watchActiveApp: boolean;
+    watchWindowTitles: boolean;
+  }) => ipcRenderer.invoke('onboarding-complete', data),
+  readOpenClawConfig: () => ipcRenderer.invoke('read-openclaw-config'),
+  readOpenClawWorkspace: () => ipcRenderer.invoke('read-openclaw-workspace'),
+  createClawsterWorkspace: (options: {
+    identity: string;
+    soul: string;
+    migrateMemory: boolean;
+  }) => ipcRenderer.invoke('create-clawster-workspace', options),
+  validateGateway: (url: string, token: string) =>
+    ipcRenderer.invoke('validate-gateway', url, token),
+  getDefaultPersonality: () => ipcRenderer.invoke('get-default-personality'),
+  savePersonality: (workspacePath: string, identity: string, soul: string) =>
+    ipcRenderer.invoke('save-personality', workspacePath, identity, soul),
+  getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
+
   // Cleanup
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('activity-event');
@@ -112,6 +139,25 @@ export interface ScreenContext {
   petPosition: { x: number; y: number };
   screenSize: { width: number; height: number };
   image?: string;
+}
+
+export interface OnboardingData {
+  workspaceType: 'openclaw' | 'clawster';
+  migrateMemory: boolean;
+  gatewayUrl: string;
+  gatewayToken: string;
+  identity: string;
+  soul: string;
+  watchFolders: string[];
+  watchActiveApp: boolean;
+  watchWindowTitles: boolean;
+}
+
+export interface OpenClawWorkspace {
+  exists: boolean;
+  identity: string | null;
+  soul: string | null;
+  hasMemory: boolean;
 }
 
 export interface ClawsterAPI {
@@ -155,6 +201,20 @@ export interface ClawsterAPI {
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
   onChatSync: (callback: () => void) => void;
   petClicked: () => void;
+  // Onboarding
+  onboardingSkip: () => Promise<boolean>;
+  onboardingComplete: (data: OnboardingData) => Promise<boolean>;
+  readOpenClawConfig: () => Promise<{ gateway?: { port?: number; auth?: { token?: string } } } | null>;
+  readOpenClawWorkspace: () => Promise<OpenClawWorkspace>;
+  createClawsterWorkspace: (options: {
+    identity: string;
+    soul: string;
+    migrateMemory: boolean;
+  }) => Promise<{ success: boolean; path?: string; error?: string }>;
+  validateGateway: (url: string, token: string) => Promise<{ success: boolean; error?: string }>;
+  getDefaultPersonality: () => Promise<{ identity: string; soul: string }>;
+  savePersonality: (workspacePath: string, identity: string, soul: string) => Promise<{ success: boolean; error?: string }>;
+  getOnboardingStatus: () => Promise<{ completed: boolean; skipped: boolean }>;
   removeAllListeners: () => void;
 }
 
