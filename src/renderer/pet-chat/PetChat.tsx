@@ -65,31 +65,44 @@ export const PetChat: React.FC = () => {
   if (!message) return null;
 
   return (
-    <div className="pet-chat-container">
-      <div className="pet-chat-bubble">
-        <div className="pet-chat-content">
+    <div className="w-full h-full flex flex-col items-center justify-end pb-3">
+      <div className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.05)] min-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in">
+        {/* Content */}
+        <div className="p-3 max-h-[150px] overflow-y-auto">
           {isLoading ? (
-            <div className="pet-chat-loading">
-              <span>.</span><span>.</span><span>.</span>
+            <div className="flex gap-1 justify-center py-2">
+              <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
+              <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
+              <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
             </div>
           ) : (
-            <p className="pet-chat-text">{message.text}</p>
+            <p className="text-sm text-neutral-200 leading-relaxed break-words select-text cursor-text">
+              {message.text}
+            </p>
           )}
         </div>
+
+        {/* Quick Replies */}
         {!isLoading && message.quickReplies && (
-          <div className="pet-chat-replies">
+          <div className="flex gap-2 px-3 pb-3 pt-2 flex-wrap justify-center border-t border-white/5">
             {message.quickReplies.map((reply) => (
               <button
                 key={reply}
-                className={`pet-chat-reply-btn ${reply === 'Not now' ? 'dismiss' : ''}`}
                 onClick={() => handleQuickReply(reply)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  reply === 'Not now'
+                    ? 'bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:text-neutral-300'
+                    : 'bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[#FF8C69] hover:bg-[#FF8C69]/20 hover:border-[#FF8C69]/40'
+                }`}
               >
                 {reply}
               </button>
             ))}
           </div>
         )}
-        <div className="pet-chat-arrow" />
+
+        {/* Arrow pointing down to Clawster */}
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-[#0f0f0f]" />
       </div>
     </div>
   );
