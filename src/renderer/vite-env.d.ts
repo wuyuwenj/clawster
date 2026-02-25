@@ -94,6 +94,7 @@ interface ClawsterAPI {
   getDefaultPersonality: () => Promise<{ identity: string; soul: string }>;
   savePersonality: (workspacePath: string, identity: string, soul: string) => Promise<{ success: boolean; error?: string }>;
   getOnboardingStatus: () => Promise<{ completed: boolean; skipped: boolean }>;
+  resetOnboarding: () => Promise<boolean>;
 }
 
 interface Window {

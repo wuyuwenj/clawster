@@ -228,7 +228,7 @@ export const ChatBar: React.FC = () => {
               <div className="w-6 h-6 rounded bg-[#FF8C69]/20 flex items-center justify-center shrink-0 mt-0.5">
                 <Icon icon="solar:magic-stick-3-linear" className="text-xs text-[#FF8C69]" />
               </div>
-              <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap select-text cursor-text">
                 <LinkifyText text={response} />
               </p>
             </div>
