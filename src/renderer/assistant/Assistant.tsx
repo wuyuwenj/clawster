@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import { LinkifyText } from '../components/LinkifyText';
+import { HotkeyInput } from '../components/HotkeyInput';
 
 interface Message {
   id: string;
@@ -500,7 +501,34 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 4: Developer */}
+          {/* Group 4: Keyboard Shortcuts */}
+          <div className="pt-4 border-t border-white/5">
+            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+              Keyboard Shortcuts
+            </h3>
+            <div className="space-y-1 divide-y divide-white/5">
+              <HotkeyInput
+                label="Open Chat"
+                description="Summon the quick chat bar"
+                value={(settings.hotkeys as { openChat?: string })?.openChat || 'CommandOrControl+Shift+Space'}
+                onChange={(value) => updateSetting('hotkeys.openChat', value)}
+              />
+              <HotkeyInput
+                label="Capture Screen"
+                description="Take a screenshot and ask about it"
+                value={(settings.hotkeys as { captureScreen?: string })?.captureScreen || 'CommandOrControl+Shift+/'}
+                onChange={(value) => updateSetting('hotkeys.captureScreen', value)}
+              />
+              <HotkeyInput
+                label="Open Assistant"
+                description="Open the full assistant panel"
+                value={(settings.hotkeys as { openAssistant?: string })?.openAssistant || 'CommandOrControl+Shift+A'}
+                onChange={(value) => updateSetting('hotkeys.openAssistant', value)}
+              />
+            </div>
+          </div>
+
+          {/* Group 5: Developer */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Developer

@@ -1101,6 +1101,11 @@ function setupIPC() {
       watchers?.restart();
     }
 
+    // Re-register hotkeys if hotkey settings changed
+    if (key.startsWith('hotkeys.')) {
+      registerHotkeys();
+    }
+
     // Update ClawBot client if clawbot settings changed
     if (key.startsWith('clawbot.')) {
       const url = store.get('clawbot.url') as string;
