@@ -66,3 +66,14 @@
   color: #ffb399;
   text-decoration-color: rgba(255, 179, 153, 0.8);
 }
+
+/* Text selection styling */
+::selection {
+  background-color: rgba(255, 140, 105, 0.3);
+  color: inherit;
+}
+
+.select-text {
+  user-select: text;
+  -webkit-user-select: text;
+}
