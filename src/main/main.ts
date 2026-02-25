@@ -1165,8 +1165,9 @@ function setupIPC() {
       await executePetAction(response.action.payload as PetAction);
     }
 
-    // Also show response as speech bubble on pet
-    if (response.text && !response.text.includes('error') && petWindow) {
+    // Also show response as speech bubble on pet (but not if assistant window is active)
+    const assistantActive = assistantWindow && assistantWindow.isVisible();
+    if (response.text && !response.text.includes('error') && petWindow && !assistantActive) {
       petWindow.webContents.send('chat-popup', {
         id: randomUUID(),
         text: response.text,
