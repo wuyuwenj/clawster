@@ -7,12 +7,14 @@ import {
   shell,
   screen,
   nativeImage,
+  dialog,
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
+import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
@@ -1648,9 +1650,59 @@ function registerHotkeys() {
   console.log(`[Hotkeys] Registered capture screen: ${hotkeyCaptureScreen}`);
 }
 
+// Auto-updater setup
+function setupAutoUpdater() {
+  if (isDev) {
+    console.log('[AutoUpdater] Skipping in dev mode');
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[AutoUpdater] Checking for updates...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('[AutoUpdater] Update available:', info.version);
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[AutoUpdater] No updates available');
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[AutoUpdater] Update downloaded:', info.version);
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: `Clawster ${info.version} is ready to install.`,
+      detail: 'The update will be installed when you restart the app.',
+      buttons: ['Restart Now', 'Later'],
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    console.error('[AutoUpdater] Error:', error);
+  });
+
+  // Check for updates
+  autoUpdater.checkForUpdatesAndNotify();
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
   setupIPC();
+  setupAutoUpdater();
 
   // Check onboarding status
   const onboardingCompleted = store.get('onboarding.completed') as boolean;

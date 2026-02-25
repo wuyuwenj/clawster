@@ -1,6 +1,6 @@
 {
   "name": "clawster",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Desktop pet companion powered by ClawBot",
   "main": "dist/main/main.js",
   "scripts": {
@@ -11,6 +11,10 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
     "start": "electron ."
   },
   "dependencies": {
@@ -23,6 +27,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
@@ -30,10 +35,13 @@
     "autoprefixer": "^10.4.24",
     "concurrently": "^8.2.2",
     "electron": "^28.3.3",
-    "electron-builder": "^24.9.1",
+    "electron-builder": "^24.13.3",
+    "electron-icon-builder": "^2.0.1",
+    "electron-updater": "^6.8.3",
     "postcss": "^8.5.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.3.0",
     "vite": "^5.0.0"
@@ -41,13 +49,42 @@
   "build": {
     "appId": "com.clawster.app",
     "productName": "Clawster",
+    "icon": "assets/icons/png/512x512.png",
     "mac": {
       "category": "public.app-category.productivity",
-      "target": "dmg",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icons/mac/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": {
+        "teamId": "39428U49B4"
+      },
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "Clawster needs screen capture permission to help you with what's on your screen.",
         "NSAppleEventsUsageDescription": "Clawster needs this to detect which app you're using."
       }
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icons/win/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icons/png/512x512.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     },
     "files": [
       "dist/**/*",
@@ -55,6 +92,10 @@
     ],
     "directories": {
       "output": "release"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://clawster.pet/downloads"
     }
   }
 }
