@@ -500,53 +500,26 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 4: Watched Folders */}
+          {/* Group 4: Developer */}
           <div className="pt-4 border-t border-white/5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest">
-                Watched Folders
-              </h3>
+            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+              Developer
+            </h3>
+            <div className="space-y-3">
               <button
                 onClick={() => {
-                  const folder = prompt('Enter folder path:');
-                  if (folder) {
-                    const folders = (settings.watch as { folders: string[] })?.folders || [];
-                    updateSetting('watch.folders', [...folders, folder]);
+                  if (confirm('This will reset onboarding and restart the app. Continue?')) {
+                    window.clawster.resetOnboarding();
                   }
                 }}
-                className="text-[11px] font-medium text-[#FF8C69] hover:text-[#ff7a50] transition-colors flex items-center gap-1"
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
               >
-                <Icon icon="solar:add-circle-linear" />
-                Add folder
-              </button>
-            </div>
-            <div className="bg-black/30 rounded-lg border border-white/5 overflow-hidden">
-              {((settings.watch as { folders: string[] })?.folders || []).length === 0 && (
-                <div className="px-3 py-4 text-center text-xs text-neutral-500">
-                  No folders being watched
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:restart-linear" className="text-neutral-400 group-hover:text-neutral-300" />
+                  <span className="text-sm font-medium text-neutral-300">Reset Onboarding</span>
                 </div>
-              )}
-              {((settings.watch as { folders: string[] })?.folders || []).map(
-                (folder: string, i: number) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between px-3 py-2 border-b border-white/5 last:border-b-0 bg-white/5"
-                  >
-                    <span className="text-xs font-mono text-neutral-300 truncate">
-                      {folder}
-                    </span>
-                    <button
-                      onClick={() => {
-                        const folders = (settings.watch as { folders: string[] })?.folders || [];
-                        updateSetting('watch.folders', folders.filter((_: string, idx: number) => idx !== i));
-                      }}
-                      className="text-neutral-500 hover:text-red-400 transition-colors ml-2 shrink-0"
-                    >
-                      <Icon icon="solar:trash-bin-trash-linear" className="text-sm" />
-                    </button>
-                  </div>
-                )
-              )}
+                <span className="text-[10px] text-neutral-500">Restart required</span>
+              </button>
             </div>
           </div>
         </div>
