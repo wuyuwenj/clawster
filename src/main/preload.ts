@@ -86,6 +86,28 @@ contextBridge.exposeInMainWorld('clawster', {
   // Pet interactions
   petClicked: () => ipcRenderer.send('pet-clicked'),
 
+  // Tutorial
+  tutorialPetClicked: () => ipcRenderer.send('tutorial-pet-clicked'),
+  tutorialNext: () => ipcRenderer.send('tutorial-next'),
+  tutorialSkip: () => ipcRenderer.send('tutorial-skip'),
+  tutorialResume: () => ipcRenderer.send('tutorial-resume'),
+  tutorialStartOver: () => ipcRenderer.send('tutorial-start-over'),
+  tutorialOpenPanel: () => ipcRenderer.send('tutorial-open-panel'),
+  replayTutorial: () => ipcRenderer.invoke('replay-tutorial'),
+  getTutorialStatus: () => ipcRenderer.invoke('get-tutorial-status'),
+  onTutorialStep: (callback: (data: { step: number; copy: string; totalSteps: number }) => void) => {
+    ipcRenderer.on('tutorial-step', (_event, data) => callback(data));
+  },
+  onTutorialHint: (callback: (data: { step: number; hintType: string }) => void) => {
+    ipcRenderer.on('tutorial-hint', (_event, data) => callback(data));
+  },
+  onTutorialEnded: (callback: (data: { skipped: boolean }) => void) => {
+    ipcRenderer.on('tutorial-ended', (_event, data) => callback(data));
+  },
+  onTutorialResumePrompt: (callback: () => void) => {
+    ipcRenderer.on('tutorial-resume-prompt', () => callback());
+  },
+
   // Onboarding
   onboardingSkip: () => ipcRenderer.invoke('onboarding-skip'),
   onboardingComplete: (data: {
@@ -123,6 +145,10 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('pet-moving');
     ipcRenderer.removeAllListeners('idle-behavior');
     ipcRenderer.removeAllListeners('chat-sync');
+    ipcRenderer.removeAllListeners('tutorial-step');
+    ipcRenderer.removeAllListeners('tutorial-hint');
+    ipcRenderer.removeAllListeners('tutorial-ended');
+    ipcRenderer.removeAllListeners('tutorial-resume-prompt');
   },
 });
 
@@ -202,6 +228,19 @@ export interface ClawsterAPI {
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
   onChatSync: (callback: () => void) => void;
   petClicked: () => void;
+  // Tutorial
+  tutorialPetClicked: () => void;
+  tutorialNext: () => void;
+  tutorialSkip: () => void;
+  tutorialResume: () => void;
+  tutorialStartOver: () => void;
+  tutorialOpenPanel: () => void;
+  replayTutorial: () => Promise<boolean>;
+  getTutorialStatus: () => Promise<{ isActive: boolean; currentStep: number | null; completed: boolean }>;
+  onTutorialStep: (callback: (data: { step: number; copy: string; totalSteps: number }) => void) => void;
+  onTutorialHint: (callback: (data: { step: number; hintType: string }) => void) => void;
+  onTutorialEnded: (callback: (data: { skipped: boolean }) => void) => void;
+  onTutorialResumePrompt: (callback: () => void) => void;
   // Onboarding
   onboardingSkip: () => Promise<boolean>;
   onboardingComplete: (data: OnboardingData) => Promise<boolean>;

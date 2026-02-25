@@ -536,6 +536,19 @@ export const Assistant: React.FC = () => {
             <div className="space-y-3">
               <button
                 onClick={() => {
+                  window.clawster.replayTutorial();
+                  window.clawster.closeAssistant();
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:play-circle-linear" className="text-neutral-400 group-hover:text-neutral-300" />
+                  <span className="text-sm font-medium text-neutral-300">Replay Tutorial</span>
+                </div>
+                <span className="text-[10px] text-neutral-500">Interactive guide</span>
+              </button>
+              <button
+                onClick={() => {
                   if (confirm('This will reset onboarding and restart the app. Continue?')) {
                     window.clawster.resetOnboarding();
                   }
