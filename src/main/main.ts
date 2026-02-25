@@ -110,6 +110,7 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       if (progress >= 1) {
         clearInterval(moveAnimation!);
         moveAnimation = null;
+        store.set('pet.position', { x: targetX, y: targetY });
         petWindow?.webContents.send('pet-moving', { moving: false });
         resolve();
       }
@@ -517,11 +518,16 @@ function createPetWindow() {
   const petWindowWidth = 130;
   const petWindowHeight = 130;
 
+  // Use saved position or default to bottom-right
+  const savedPosition = store.get('pet.position') as { x: number; y: number } | null;
+  const startX = savedPosition ? savedPosition.x : screenWidth - petWindowWidth - 20;
+  const startY = savedPosition ? savedPosition.y : screenHeight - petWindowHeight - 20;
+
   petWindow = new BrowserWindow({
     width: petWindowWidth,
     height: petWindowHeight,
-    x: screenWidth - petWindowWidth - 20,
-    y: screenHeight - petWindowHeight - 20,
+    x: startX,
+    y: startY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -1213,7 +1219,10 @@ function setupIPC() {
   ipcMain.on('pet-drag', (_event, deltaX: number, deltaY: number) => {
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
-      petWindow.setPosition(x + deltaX, y + deltaY);
+      const newX = x + deltaX;
+      const newY = y + deltaY;
+      petWindow.setPosition(newX, newY);
+      store.set('pet.position', { x: newX, y: newY });
       // Also move the chat windows if visible
       updatePetChatPosition();
       updateAssistantPosition();
