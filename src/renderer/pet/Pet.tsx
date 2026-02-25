@@ -395,8 +395,9 @@ export const Pet: React.FC = () => {
     window.clawster.petClicked?.();
   }, []);
 
-  // Double click = open assistant
-  const handleDoubleClick = useCallback(() => {
+  // Right click = open assistant
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     if (!didDragRef.current) {
       window.clawster.toggleAssistant();
     }
@@ -407,7 +408,7 @@ export const Pet: React.FC = () => {
       className="pet-container"
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
     >
       {/* Animated Lobster Pet */}
       <div
