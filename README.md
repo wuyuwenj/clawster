@@ -33,7 +33,7 @@ Clawster has expressive animations for every mood:
 - **Screenshot Questions** — Press `Cmd+Shift+/` to capture your screen and ask questions about it
 - **Attention Seeking** — Clawster occasionally scuttles toward your cursor when feeling lonely
 - **Idle Behaviors** — Watch Clawster blink, yawn, stretch, and look around when idle
-- **Poke Reactions** — Click on Clawster for fun reactions, double-click to open the full assistant panel
+- **Poke Reactions** — Click on Clawster for fun reactions, right-click to open the full assistant panel
 
 ## Screenshots
 
