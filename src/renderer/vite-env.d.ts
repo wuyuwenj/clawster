@@ -49,9 +49,15 @@ interface ClawsterAPI {
   closeAssistant: () => void;
   toggleChatbar: () => void;
   closeChatbar: () => void;
+  setChatbarIgnoreMouse: (ignore: boolean) => void;
   toggleScreenshotQuestion: () => void;
   closeScreenshotQuestion: () => void;
   dragPet: (deltaX: number, deltaY: number) => void;
+  showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) => void;
+  hidePetChat: () => void;
+  onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => void;
+  petChatReply: (reply: string) => void;
+  onPetChatReply: (callback: (reply: string) => void) => void;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
   getSettings: () => Promise<unknown>;
@@ -80,6 +86,19 @@ interface ClawsterAPI {
   onChatSync: (callback: () => void) => void;
   petClicked: () => void;
   removeAllListeners: () => void;
+  // Tutorial
+  tutorialPetClicked: () => void;
+  tutorialNext: () => void;
+  tutorialSkip: () => void;
+  tutorialResume: () => void;
+  tutorialStartOver: () => void;
+  tutorialOpenPanel: () => void;
+  replayTutorial: () => Promise<boolean>;
+  getTutorialStatus: () => Promise<{ isActive: boolean; currentStep: number | null; completed: boolean }>;
+  onTutorialStep: (callback: (data: { step: number; copy: string; totalSteps: number }) => void) => void;
+  onTutorialHint: (callback: (data: { step: number; hintType: string }) => void) => void;
+  onTutorialEnded: (callback: (data: { skipped: boolean }) => void) => void;
+  onTutorialResumePrompt: (callback: () => void) => void;
   // Onboarding
   onboardingSkip: () => Promise<boolean>;
   onboardingComplete: (data: OnboardingData) => Promise<boolean>;
