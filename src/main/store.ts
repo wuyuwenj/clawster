@@ -15,6 +15,13 @@ interface OnboardingState {
   memoryMigrated: boolean;
 }
 
+interface TutorialState {
+  version: number;
+  completedAt: string | null;  // ISO timestamp
+  wasInterrupted: boolean;     // For resume prompt
+  lastStep: number;
+}
+
 interface StoreSchema {
   clawbot: {
     url: string;
@@ -41,6 +48,7 @@ interface StoreSchema {
   };
   chatHistory: ChatMessage[];
   onboarding: OnboardingState;
+  tutorial: TutorialState;
 }
 
 const defaults: StoreSchema = {
@@ -75,6 +83,12 @@ const defaults: StoreSchema = {
     clawsterWorkspacePath: null,
     memoryMigrated: false,
   },
+  tutorial: {
+    version: 1,
+    completedAt: null,
+    wasInterrupted: false,
+    lastStep: 0,
+  },
 };
 
 export function createStore(): Store<StoreSchema> {
@@ -84,4 +98,4 @@ export function createStore(): Store<StoreSchema> {
   });
 }
 
-export type { StoreSchema, OnboardingState };
+export type { StoreSchema, OnboardingState, TutorialState };
