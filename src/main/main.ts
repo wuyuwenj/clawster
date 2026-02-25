@@ -16,6 +16,7 @@ import { config } from 'dotenv';
 import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
+import { TutorialManager } from './tutorial';
 
 // Load environment variables
 config();
@@ -32,6 +33,7 @@ let onboardingWindow: BrowserWindow | null = null;
 let watchers: Watchers | null = null;
 let clawbot: ClawBotClient | null = null;
 const store = createStore();
+const tutorialManager = new TutorialManager(store);
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
@@ -45,6 +47,12 @@ const APP_SWITCH_CHAT_COOLDOWN = 60 * 1000; // 1 minute between app switch chats
 
 // Pet movement animation state
 let moveAnimation: NodeJS.Timeout | null = null;
+
+// Pet window size constants
+const PET_WINDOW_WIDTH = 130;
+const PET_WINDOW_HEIGHT = 130;
+const PET_WINDOW_TUTORIAL_WIDTH = 320;
+const PET_WINDOW_TUTORIAL_HEIGHT = 350;
 
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
@@ -461,6 +469,9 @@ async function sendChatPopup(
 ) {
   if (!petWindow || !clawbot?.isConnected()) return;
 
+  // Don't show chat popups during tutorial
+  if (tutorialManager?.getStatus().isActive) return;
+
   try {
     let prompt: string;
     switch (trigger) {
@@ -511,12 +522,50 @@ function resetIdleTimer() {
   lastActivityTime = Date.now();
 }
 
+// Expand pet window for tutorial (to show speech bubble)
+function expandPetWindowForTutorial(): void {
+  if (!petWindow) return;
+
+  const [currentX, currentY] = petWindow.getPosition();
+  const { height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+
+  // Calculate new position to keep pet at same visual location
+  // The pet will be at the bottom of the expanded window
+  const newY = currentY - (PET_WINDOW_TUTORIAL_HEIGHT - PET_WINDOW_HEIGHT);
+  const newX = currentX - (PET_WINDOW_TUTORIAL_WIDTH - PET_WINDOW_WIDTH) / 2;
+
+  // Ensure window stays on screen
+  const safeY = Math.max(0, newY);
+  const safeX = Math.max(0, newX);
+
+  petWindow.setSize(PET_WINDOW_TUTORIAL_WIDTH, PET_WINDOW_TUTORIAL_HEIGHT);
+  petWindow.setPosition(Math.round(safeX), Math.round(safeY));
+  petWindow.webContents.send('tutorial-window-expanded', true);
+  console.log('[Tutorial] Pet window expanded for tutorial');
+}
+
+// Contract pet window back to normal size
+function contractPetWindow(): void {
+  if (!petWindow) return;
+
+  const [currentX, currentY] = petWindow.getPosition();
+
+  // Calculate new position to keep pet at same visual location
+  const newY = currentY + (PET_WINDOW_TUTORIAL_HEIGHT - PET_WINDOW_HEIGHT);
+  const newX = currentX + (PET_WINDOW_TUTORIAL_WIDTH - PET_WINDOW_WIDTH) / 2;
+
+  petWindow.setSize(PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT);
+  petWindow.setPosition(Math.round(newX), Math.round(newY));
+  petWindow.webContents.send('tutorial-window-expanded', false);
+  console.log('[Tutorial] Pet window contracted to normal');
+}
+
 function createPetWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   // Small window just for the lobster
-  const petWindowWidth = 130;
-  const petWindowHeight = 130;
+  const petWindowWidth = PET_WINDOW_WIDTH;
+  const petWindowHeight = PET_WINDOW_HEIGHT;
 
   // Use saved position or default to bottom-right
   const savedPosition = store.get('pet.position') as { x: number; y: number } | null;
@@ -561,6 +610,9 @@ function createPetWindow() {
 // Show chat popup above the pet
 function showPetChat(message: { id: string; text: string; quickReplies?: string[] }) {
   if (!petWindow) return;
+
+  // Don't show chat popups during tutorial
+  if (tutorialManager?.getStatus().isActive) return;
 
   const [petX, petY] = petWindow.getPosition();
   const [petWidth] = petWindow.getSize();
@@ -937,6 +989,27 @@ function startMainApp() {
 
   createPetWindow();
 
+  // Set up tutorial manager with pet window
+  if (petWindow) {
+    tutorialManager.setPetWindow(petWindow);
+    tutorialManager.setAnimateMoveTo(animateMoveTo);
+    tutorialManager.setWindowResizeFunctions(expandPetWindowForTutorial, contractPetWindow);
+
+    // Start or resume tutorial after pet window content is loaded
+    petWindow.webContents.once('did-finish-load', () => {
+      setTimeout(() => {
+        if (tutorialManager.shouldShowResumePrompt()) {
+          hidePetChat(); // Hide any existing chat popup during tutorial
+          expandPetWindowForTutorial();
+          petWindow?.webContents.send('tutorial-resume-prompt');
+        } else if (tutorialManager.shouldStartTutorial()) {
+          hidePetChat(); // Hide any existing chat popup during tutorial
+          tutorialManager.start();
+        }
+      }, 500); // Small delay to let pet window settle
+    });
+  }
+
   // Initialize ClawBot client
   const clawbotUrl = store.get('clawbot.url') as string;
   const clawbotToken = store.get('clawbot.token') as string;
@@ -1176,9 +1249,9 @@ function setupIPC() {
       await executePetAction(response.action.payload as PetAction);
     }
 
-    // Also show response as speech bubble on pet (but not if assistant window is active)
+    // Also show response as speech bubble on pet (but not if assistant window is active or during tutorial)
     const assistantActive = assistantWindow && assistantWindow.isVisible();
-    if (response.text && !response.text.includes('error') && petWindow && !assistantActive) {
+    if (response.text && !response.text.includes('error') && petWindow && !assistantActive && !tutorialManager?.getStatus().isActive) {
       petWindow.webContents.send('chat-popup', {
         id: randomUUID(),
         text: response.text,
@@ -1291,6 +1364,10 @@ function setupIPC() {
   ipcMain.handle('reset-onboarding', () => {
     store.set('onboarding.completed', false);
     store.set('onboarding.skipped', false);
+    // Also reset tutorial so it starts fresh after onboarding
+    store.set('tutorial.completedAt', null);
+    store.set('tutorial.lastStep', 0);
+    store.set('tutorial.wasInterrupted', false);
     app.relaunch();
     app.exit(0);
     return true;
@@ -1312,6 +1389,11 @@ function setupIPC() {
   }) => {
     // Save onboarding data to store
     store.set('onboarding.completed', true);
+
+    // Reset tutorial state so it starts fresh after onboarding
+    store.set('tutorial.completedAt', null);
+    store.set('tutorial.lastStep', 0);
+    store.set('tutorial.wasInterrupted', false);
     store.set('onboarding.workspaceType', data.workspaceType);
     store.set('clawbot.url', data.gatewayUrl);
     store.set('clawbot.token', data.gatewayToken);
@@ -1495,6 +1577,43 @@ function setupIPC() {
       skipped: store.get('onboarding.skipped') as boolean,
     };
   });
+
+  // Tutorial handlers
+  ipcMain.on('tutorial-pet-clicked', () => {
+    tutorialManager.handlePetClicked();
+  });
+
+  ipcMain.on('tutorial-next', () => {
+    tutorialManager.handleNextClicked();
+  });
+
+  ipcMain.on('tutorial-skip', () => {
+    tutorialManager.skip();
+  });
+
+  ipcMain.on('tutorial-resume', () => {
+    hidePetChat(); // Hide any existing chat popup during tutorial
+    tutorialManager.resume();
+  });
+
+  ipcMain.on('tutorial-start-over', () => {
+    hidePetChat(); // Hide any existing chat popup during tutorial
+    tutorialManager.startOver();
+  });
+
+  ipcMain.on('tutorial-open-panel', () => {
+    tutorialManager.handleOpenPanelClicked();
+  });
+
+  ipcMain.handle('replay-tutorial', () => {
+    hidePetChat(); // Hide any existing chat popup during tutorial
+    tutorialManager.replay();
+    return true;
+  });
+
+  ipcMain.handle('get-tutorial-status', () => {
+    return tutorialManager.getStatus();
+  });
 }
 
 // Register global hotkeys from store
@@ -1507,11 +1626,15 @@ function registerHotkeys() {
   const hotkeyCaptureScreen = store.get('hotkeys.captureScreen') as string || 'CommandOrControl+Shift+/';
 
   globalShortcut.register(hotkeyOpenAssistant, () => {
+    // Notify tutorial if active
+    tutorialManager.handleHotkeyPressed('openAssistant');
     toggleAssistantWindow();
   });
   console.log(`[Hotkeys] Registered open assistant: ${hotkeyOpenAssistant}`);
 
   globalShortcut.register(hotkeyOpenChat, () => {
+    // Notify tutorial if active
+    tutorialManager.handleHotkeyPressed('openChat');
     toggleChatbarWindow();
   });
   console.log(`[Hotkeys] Registered open chat: ${hotkeyOpenChat}`);
@@ -1568,4 +1691,5 @@ app.on('will-quit', () => {
   if (moveAnimation) {
     clearInterval(moveAnimation);
   }
+  tutorialManager.destroy();
 });

@@ -1,0 +1,362 @@
+/* Tutorial Overlay Container */
+.tutorial-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 130px; /* Leave space for the pet at bottom */
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 15px;
+}
+
+/* Speech Bubble - matches .chat-popup style */
+.tutorial-bubble {
+  position: relative;
+  min-width: 200px;
+  max-width: 320px;
+  width: max-content;
+  background: #0a0a0a;
+  color: #fff;
+  border-radius: 16px;
+  font-size: 13px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 140, 105, 0.1);
+  animation: popup-in 0.3s ease-out;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* Bubble content area - matches .chat-popup-content */
+.tutorial-bubble-content {
+  padding: 12px 14px;
+}
+
+/* Bubble text - matches .chat-text */
+.tutorial-bubble-text {
+  margin: 0;
+  line-height: 1.5;
+  color: #f0f0f0;
+  word-wrap: break-word;
+}
+
+/* Arrow pointer - matches .chat-popup-arrow */
+.tutorial-bubble-arrow {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 12px solid #0a0a0a;
+}
+
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Progress Dots */
+.tutorial-progress {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.tutorial-dot.completed {
+  background: #ff8c69;
+}
+
+.tutorial-dot.active {
+  background: #ff8c69;
+  box-shadow: 0 0 8px rgba(255, 140, 105, 0.6);
+  transform: scale(1.2);
+}
+
+/* Skip Button - top right corner */
+.tutorial-skip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(128, 128, 128, 0.15);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+
+.tutorial-skip:hover {
+  background: rgba(128, 128, 128, 0.3);
+  border-color: #888;
+}
+
+/* Button container - matches .chat-quick-replies */
+.tutorial-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Next Button - matches .quick-reply-btn style with filled background */
+.tutorial-next-btn {
+  background: rgba(255, 140, 105, 0.2);
+  border: 1px solid rgba(255, 140, 105, 0.4);
+  color: #ff8c69;
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.tutorial-next-btn:hover {
+  background: rgba(255, 140, 105, 0.35);
+  border-color: #ff8c69;
+  transform: translateY(-1px);
+}
+
+/* Open Panel Button - same style as next button */
+.tutorial-panel-btn {
+  background: rgba(255, 140, 105, 0.2);
+  border: 1px solid rgba(255, 140, 105, 0.4);
+  color: #ff8c69;
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.tutorial-panel-btn:hover {
+  background: rgba(255, 140, 105, 0.35);
+  border-color: #ff8c69;
+  transform: translateY(-1px);
+}
+
+/* Skip Text Button - matches .quick-reply-btn.dismiss */
+.tutorial-skip-text {
+  background: rgba(128, 128, 128, 0.15);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  color: #888;
+  padding: 5px 10px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.tutorial-skip-text:hover {
+  background: rgba(128, 128, 128, 0.3);
+  border-color: #888;
+}
+
+/* Pulse Hint Animation (step 1) */
+.tutorial-pulse-hint {
+  position: fixed;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 120px;
+  pointer-events: none;
+}
+
+.pulse-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 140, 105, 0.6);
+  border-radius: 50%;
+  animation: pulse-expand 1.5s ease-out infinite;
+}
+
+.pulse-ring:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.pulse-ring:nth-child(3) {
+  animation-delay: 1s;
+}
+
+@keyframes pulse-expand {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Arrow Hint Animation (step 2) */
+.tutorial-arrow-hint {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  animation: arrow-bounce 1s ease-in-out infinite;
+}
+
+.arrow-text {
+  color: #ff8c69;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.arrow-icon {
+  color: #ff8c69;
+  font-size: 24px;
+}
+
+@keyframes arrow-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Resume Prompt - same style as tutorial bubble */
+.tutorial-resume-prompt {
+  position: relative;
+  min-width: 220px;
+  max-width: 320px;
+  background: #0a0a0a;
+  color: #fff;
+  border-radius: 16px;
+  font-size: 13px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 140, 105, 0.1);
+  animation: popup-in 0.3s ease-out;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.tutorial-resume-content {
+  padding: 12px 14px;
+}
+
+.tutorial-resume-title {
+  margin: 0 0 4px 0;
+  line-height: 1.5;
+  color: #f0f0f0;
+  font-weight: 500;
+}
+
+.tutorial-resume-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-resume-btn {
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.tutorial-resume-btn.primary {
+  background: rgba(255, 140, 105, 0.2);
+  border: 1px solid rgba(255, 140, 105, 0.4);
+  color: #ff8c69;
+}
+
+.tutorial-resume-btn.primary:hover {
+  background: rgba(255, 140, 105, 0.35);
+  border-color: #ff8c69;
+  transform: translateY(-1px);
+}
+
+.tutorial-resume-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tutorial-resume-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tutorial-resume-btn.skip {
+  background: rgba(128, 128, 128, 0.15);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  color: #888;
+}
+
+.tutorial-resume-btn.skip:hover {
+  background: rgba(128, 128, 128, 0.3);
+  border-color: #888;
+}
+
+/* Keyboard hint styling */
+.kbd {
+  display: inline-block;
+  padding: 2px 5px;
+  margin: 0 2px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: #ff8c69;
+}

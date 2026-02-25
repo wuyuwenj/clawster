@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { TutorialOverlay } from './TutorialOverlay';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
@@ -173,6 +174,7 @@ export const Pet: React.FC = () => {
   const [isWalking, setIsWalking] = useState(false);
   const [idleBehavior, setIdleBehavior] = useState<IdleBehavior>(null);
   const [pupilOffset, setPupilOffset] = useState<{ x: number; y: number } | null>(null);
+  const [tutorialActive, setTutorialActive] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
@@ -283,14 +285,15 @@ export const Pet: React.FC = () => {
     });
 
     // Listen for idle behaviors
-    window.clawster.onIdleBehavior((data: { type: IdleBehavior; direction?: string }) => {
+    window.clawster.onIdleBehavior((data) => {
+      const idleData = data as { type: IdleBehavior; direction?: string };
       // Clear any existing behavior timeout
       if (idleBehaviorTimeoutRef.current) {
         clearTimeout(idleBehaviorTimeoutRef.current);
       }
 
       // Set the idle behavior
-      setIdleBehavior(data.type);
+      setIdleBehavior(idleData.type);
 
       // Duration varies by behavior type
       const durations: Record<string, number> = {
@@ -303,12 +306,25 @@ export const Pet: React.FC = () => {
         wander: 2500,
       };
 
-      const duration = data.type ? durations[data.type] || 1500 : 1500;
+      const duration = idleData.type ? durations[idleData.type] || 1500 : 1500;
 
       // Clear the behavior after animation completes
       idleBehaviorTimeoutRef.current = setTimeout(() => {
         setIdleBehavior(null);
       }, duration);
+    });
+
+    // Listen for tutorial events
+    window.clawster.onTutorialStep(() => {
+      setTutorialActive(true);
+    });
+
+    window.clawster.onTutorialEnded(() => {
+      setTutorialActive(false);
+    });
+
+    window.clawster.onTutorialResumePrompt(() => {
+      setTutorialActive(true);
     });
 
     return () => {
@@ -380,6 +396,11 @@ export const Pet: React.FC = () => {
   const handleClick = useCallback(() => {
     if (didDragRef.current) return;
 
+    // Notify tutorial if active
+    if (tutorialActive) {
+      window.clawster.tutorialPetClicked();
+    }
+
     // Pick a random reaction
     const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
 
@@ -393,7 +414,7 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, []);
+  }, [tutorialActive]);
 
   // Right click = open assistant
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -405,7 +426,7 @@ export const Pet: React.FC = () => {
 
   return (
     <div
-      className="pet-container"
+      className={`pet-container ${tutorialActive ? 'tutorial-active' : ''}`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
@@ -416,6 +437,9 @@ export const Pet: React.FC = () => {
       >
         <LobsterSvg pupilOffset={pupilOffset} />
       </div>
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay />
     </div>
   );
 };

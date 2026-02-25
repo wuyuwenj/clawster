@@ -11,6 +11,12 @@
   -webkit-app-region: no-drag;
 }
 
+/* When tutorial is active, pet goes to bottom */
+.pet-container.tutorial-active {
+  justify-content: flex-end;
+  padding-bottom: 5px;
+}
+
 .pet-container:active {
   cursor: grabbing;
 }
