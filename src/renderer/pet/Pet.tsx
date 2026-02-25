@@ -40,7 +40,11 @@ const moodToState = (mood: Mood): string => {
   }
 };
 
-const LobsterSvg: React.FC = () => (
+interface LobsterSvgProps {
+  pupilOffset: { x: number; y: number } | null;
+}
+
+const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
   <svg viewBox="0 0 128 128">
     {/* Tail */}
     <path
@@ -104,7 +108,10 @@ const LobsterSvg: React.FC = () => (
         <g className="eye-open">
           <circle cx="48" cy="55" r="7" fill="var(--ink)" />
           <circle cx="80" cy="55" r="7" fill="var(--ink)" />
-          <g className="pupils">
+          <g
+            className="pupils"
+            style={pupilOffset ? { transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)` } : undefined}
+          >
             <circle cx="46" cy="53" r="2.5" fill="#FFF" />
             <circle cx="78" cy="53" r="2.5" fill="#FFF" />
           </g>
@@ -165,10 +172,57 @@ export const Pet: React.FC = () => {
   const [mood, setMood] = useState<Mood>('idle');
   const [isWalking, setIsWalking] = useState(false);
   const [idleBehavior, setIdleBehavior] = useState<IdleBehavior>(null);
+  const [pupilOffset, setPupilOffset] = useState<{ x: number; y: number } | null>(null);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cursor tracking for pupils
+  useEffect(() => {
+    const TRACKING_RANGE = 300;
+    const MAX_OFFSET = 3;
+    const POLL_MS = 100;
+    const PET_SIZE = 120;
+
+    const interval = setInterval(async () => {
+      // Only track when idle
+      if (mood !== 'idle') {
+        setPupilOffset(null);
+        return;
+      }
+
+      try {
+        const [cursor, petPos] = await Promise.all([
+          window.clawster.getCursorPosition(),
+          window.clawster.getPetPosition(),
+        ]);
+
+        const petCenterX = petPos[0] + PET_SIZE / 2;
+        const petCenterY = petPos[1] + PET_SIZE / 2;
+
+        const dx = cursor.x - petCenterX;
+        const dy = cursor.y - petCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < TRACKING_RANGE && distance > 0) {
+          const nx = dx / distance;
+          const ny = dy / distance;
+          setPupilOffset({
+            x: Math.round(nx * MAX_OFFSET * 10) / 10,
+            y: Math.round(ny * MAX_OFFSET * 10) / 10,
+          });
+        } else {
+          setPupilOffset(null);
+        }
+      } catch {
+        // IPC failure — fall back to idle animation
+        setPupilOffset(null);
+      }
+    }, POLL_MS);
+
+    return () => clearInterval(interval);
+  }, [mood]);
 
   // Handle mood updates from ClawBot
   useEffect(() => {
@@ -357,9 +411,9 @@ export const Pet: React.FC = () => {
     >
       {/* Animated Lobster Pet */}
       <div
-        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''}`}
+        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''}`}
       >
-        <LobsterSvg />
+        <LobsterSvg pupilOffset={pupilOffset} />
       </div>
     </div>
   );

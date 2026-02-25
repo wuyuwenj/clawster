@@ -205,6 +205,10 @@
   animation: dart 6s infinite;
 }
 
+.lobster-container.tracking-cursor .pupils {
+  animation: none;
+}
+
 .lobster-container .mouth-neutral {
   opacity: 1;
 }
