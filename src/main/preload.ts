@@ -112,6 +112,7 @@ contextBridge.exposeInMainWorld('clawster', {
   savePersonality: (workspacePath: string, identity: string, soul: string) =>
     ipcRenderer.invoke('save-personality', workspacePath, identity, soul),
   getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
+  resetOnboarding: () => ipcRenderer.invoke('reset-onboarding'),
 
   // Cleanup
   removeAllListeners: () => {
@@ -215,6 +216,7 @@ export interface ClawsterAPI {
   getDefaultPersonality: () => Promise<{ identity: string; soul: string }>;
   savePersonality: (workspacePath: string, identity: string, soul: string) => Promise<{ success: boolean; error?: string }>;
   getOnboardingStatus: () => Promise<{ completed: boolean; skipped: boolean }>;
+  resetOnboarding: () => Promise<boolean>;
   removeAllListeners: () => void;
 }
 

@@ -1272,6 +1272,15 @@ function setupIPC() {
     return true;
   });
 
+  // Reset onboarding (for testing)
+  ipcMain.handle('reset-onboarding', () => {
+    store.set('onboarding.completed', false);
+    store.set('onboarding.skipped', false);
+    app.relaunch();
+    app.exit(0);
+    return true;
+  });
+
   ipcMain.handle('onboarding-complete', (_event, data: {
     workspaceType: 'openclaw' | 'clawster';
     migrateMemory: boolean;
