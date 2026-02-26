@@ -7,12 +7,16 @@ import {
   shell,
   screen,
   nativeImage,
+  dialog,
+  Tray,
+  Menu,
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
+import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
@@ -28,6 +32,7 @@ let assistantWindow: BrowserWindow | null = null;
 let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 
 // Services
 let watchers: Watchers | null = null;
@@ -938,6 +943,7 @@ function createOnboardingWindow(): Promise<void> {
       frame: false,
       transparent: false,
       resizable: false,
+      movable: true,
       show: false,
       backgroundColor: '#1a1a2e',
       webPreferences: {
@@ -1648,9 +1654,159 @@ function registerHotkeys() {
   console.log(`[Hotkeys] Registered capture screen: ${hotkeyCaptureScreen}`);
 }
 
+// Auto-updater setup
+function setupAutoUpdater() {
+  if (isDev) {
+    console.log('[AutoUpdater] Skipping in dev mode');
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[AutoUpdater] Checking for updates...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('[AutoUpdater] Update available:', info.version);
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[AutoUpdater] No updates available');
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[AutoUpdater] Update downloaded:', info.version);
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: `Clawster ${info.version} is ready to install.`,
+      detail: 'The update will be installed when you restart the app.',
+      buttons: ['Restart Now', 'Later'],
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    console.error('[AutoUpdater] Error:', error);
+  });
+
+  // Check for updates
+  autoUpdater.checkForUpdatesAndNotify();
+}
+
+// Setup system tray
+function setupTray() {
+  // Create tray icon - use dedicated tray icon (black silhouette for template)
+  const iconPath = isDev
+    ? path.join(__dirname, '../../assets/tray-icon.png')
+    : path.join(process.resourcesPath, 'assets/tray-icon.png');
+
+  let trayIcon: Electron.NativeImage;
+
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath);
+    if (process.platform === 'darwin') {
+      // Template images adapt to light/dark menu bar automatically
+      trayIcon.setTemplateImage(true);
+    }
+  } catch {
+    // Fallback: create a simple colored icon
+    trayIcon = nativeImage.createEmpty();
+  }
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Clawster');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show Clawster',
+      click: () => {
+        petWindow?.show();
+        petWindow?.focus();
+      },
+    },
+    {
+      label: 'Open Assistant',
+      click: () => {
+        if (assistantWindow) {
+          assistantWindow.show();
+          assistantWindow.focus();
+        } else {
+          createAssistantWindow();
+        }
+      },
+    },
+    {
+      label: 'Settings',
+      click: () => {
+        if (assistantWindow) {
+          assistantWindow.show();
+          assistantWindow.focus();
+          assistantWindow.webContents.send('switch-to-settings');
+        } else {
+          createAssistantWindow();
+          // Wait for window to load then switch to settings
+          setTimeout(() => {
+            assistantWindow?.webContents.send('switch-to-settings');
+          }, 500);
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Restart Tutorial',
+      click: () => {
+        tutorialManager.startOver();
+      },
+    },
+    {
+      label: 'Reset Onboarding',
+      click: () => {
+        store.set('onboarding.completed', false);
+        store.set('onboarding.skipped', false);
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Onboarding Reset',
+          message: 'Onboarding has been reset. Restart Clawster to see the onboarding wizard.',
+          buttons: ['OK'],
+        });
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit Clawster',
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // On macOS, clicking the tray icon shows the menu
+  // On Windows/Linux, left-click can show the pet
+  if (process.platform !== 'darwin') {
+    tray.on('click', () => {
+      petWindow?.show();
+      petWindow?.focus();
+    });
+  }
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
   setupIPC();
+  setupAutoUpdater();
+  setupTray();
 
   // Check onboarding status
   const onboardingCompleted = store.get('onboarding.completed') as boolean;
