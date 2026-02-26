@@ -224,7 +224,7 @@ export const ChatBar: React.FC = () => {
 
           {/* Response Area */}
           {response && (
-            <div className="bg-[#0a0a0a]/50 border-t border-white/5 p-4 flex gap-4 items-start animate-fade-in">
+            <div className="bg-[#0a0a0a]/50 border-t border-white/5 p-4 flex gap-4 items-start animate-fade-in max-h-[200px] overflow-y-auto">
               <div className="w-6 h-6 rounded bg-[#FF8C69]/20 flex items-center justify-center shrink-0 mt-0.5">
                 <Icon icon="solar:magic-stick-3-linear" className="text-xs text-[#FF8C69]" />
               </div>

@@ -84,6 +84,7 @@ interface ClawsterAPI {
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
   onChatSync: (callback: () => void) => void;
+  onSwitchToSettings: (callback: () => void) => void;
   petClicked: () => void;
   removeAllListeners: () => void;
   // Tutorial
