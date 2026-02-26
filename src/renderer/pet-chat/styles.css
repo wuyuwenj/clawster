@@ -18,6 +18,24 @@
   animation: popupIn 0.25s ease-out;
 }
 
+/* Thin dark scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 /* Loading dots animation */
 .loading-dot {
   animation: loadingBounce 1.4s ease-in-out infinite;

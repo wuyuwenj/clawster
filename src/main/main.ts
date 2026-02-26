@@ -583,6 +583,7 @@ function createPetWindow() {
     resizable: false,
     skipTaskbar: true,
     hasShadow: false,
+    roundedCorners: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -618,7 +619,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
   const [petWidth] = petWindow.getSize();
 
   const chatWidth = 320;
-  const chatHeight = 200;
+  const chatHeight = 300;
   const chatX = petX + (petWidth - chatWidth) / 2;
   const chatY = petY - chatHeight - 10;
 
@@ -676,8 +677,9 @@ function updatePetChatPosition() {
   const [petWidth] = petWindow.getSize();
   const [chatWidth] = petChatWindow.getSize();
 
-  const chatX = petX + (petWidth - chatWidth) / 2;
-  const chatY = petY - 200 - 10;
+  const [cw, ch] = petChatWindow.getSize();
+  const chatX = petX + (petWidth - cw) / 2;
+  const chatY = petY - ch - 10;
 
   petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
 }

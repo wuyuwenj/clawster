@@ -12,6 +12,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         pet: resolve(__dirname, 'src/renderer/pet.html'),
+        'pet-chat': resolve(__dirname, 'src/renderer/pet-chat.html'),
         assistant: resolve(__dirname, 'src/renderer/assistant.html'),
         chatbar: resolve(__dirname, 'src/renderer/chatbar.html'),
         'screenshot-question': resolve(__dirname, 'src/renderer/screenshot-question.html'),
