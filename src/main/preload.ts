@@ -82,6 +82,9 @@ contextBridge.exposeInMainWorld('clawster', {
   onChatSync: (callback: () => void) => {
     ipcRenderer.on('chat-sync', () => callback());
   },
+  onSwitchToSettings: (callback: () => void) => {
+    ipcRenderer.on('switch-to-settings', () => callback());
+  },
 
   // Pet interactions
   petClicked: () => ipcRenderer.send('pet-clicked'),
