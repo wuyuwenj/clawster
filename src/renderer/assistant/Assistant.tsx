@@ -80,6 +80,10 @@ export const Assistant: React.FC = () => {
       });
     });
 
+    window.clawster.onSwitchToSettings(() => {
+      setActiveTab('settings');
+    });
+
     return () => {
       window.clawster.removeAllListeners();
     };

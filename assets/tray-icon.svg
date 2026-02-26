@@ -1,0 +1,21 @@
+<svg width="24" height="24" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <mask id="body-in-front">
+    <rect width="128" height="128" fill="white"/>
+
+    <circle cx="48" cy="55" r="8" fill="black"/>
+    <circle cx="80" cy="55" r="8" fill="black"/>
+    <path d="M 60 68 Q 64 72 68 68" fill="none" stroke="black" stroke-width="6" stroke-linecap="round"/>
+
+    <rect x="34" y="28" width="60" height="75" rx="30" fill="none" stroke="black" stroke-width="6"/>
+    <path d="M 50 100 Q 64 125 78 100 Z" fill="none" stroke="black" stroke-width="6" stroke-linejoin="round"/>
+  </mask>
+
+  <g mask="url(#body-in-front)" fill="black">
+    <path d="M 40 55 A 24 24 0 1 1 10 85 Q 20 80 25 75 Q 20 65 30 70 Z" />
+    <path d="M 88 55 A 24 24 0 1 0 118 85 Q 108 80 103 75 Q 108 65 98 70 Z" />
+    <path d="M 50 100 Q 64 125 78 100 Z" />
+    <rect x="34" y="28" width="60" height="75" rx="30" />
+  </g>
+
+</svg>
