@@ -67,7 +67,7 @@ export const PetChat: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-end pb-3">
-      <div className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.05)] min-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in">
+      <div className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-nonemin-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in">
         {/* Content */}
         <div className="p-3 max-h-[150px] overflow-y-auto">
           {isLoading ? (
@@ -85,7 +85,7 @@ export const PetChat: React.FC = () => {
 
         {/* Quick Replies */}
         {!isLoading && message.quickReplies && (
-          <div className="flex gap-2 px-3 pb-3 pt-2 flex-wrap justify-center border-t border-white/5">
+          <div className="flex gap-2 px-3 pb-2 pt-2 flex-wrap justify-center border-t border-white/5">
             {message.quickReplies.map((reply) => (
               <button
                 key={reply}
