@@ -77,3 +77,113 @@
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Markdown message styles */
+.markdown-message p {
+  margin-bottom: 0.5em;
+}
+
+.markdown-message p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-message h1 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 0.4em;
+}
+
+.markdown-message h2 {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin-bottom: 0.4em;
+}
+
+.markdown-message h3 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-bottom: 0.3em;
+}
+
+.markdown-message pre {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 0.85em;
+}
+
+.markdown-message pre code {
+  background: none;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: inherit;
+}
+
+.markdown-message .md-inline-code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-message ul,
+.markdown-message ol {
+  padding-left: 1.5em;
+  margin: 0.4em 0;
+}
+
+.markdown-message ul {
+  list-style-type: disc;
+}
+
+.markdown-message ol {
+  list-style-type: decimal;
+}
+
+.markdown-message li {
+  margin-bottom: 0.2em;
+}
+
+.markdown-message strong {
+  font-weight: 600;
+}
+
+.markdown-message em {
+  font-style: italic;
+}
+
+.markdown-message blockquote {
+  border-left: 3px solid rgba(255, 140, 105, 0.4);
+  padding-left: 0.75em;
+  margin: 0.4em 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.markdown-message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  font-size: 0.9em;
+}
+
+.markdown-message th,
+.markdown-message td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+
+.markdown-message th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+}
+
+.markdown-message hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.5em 0;
+}
