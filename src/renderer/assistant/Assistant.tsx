@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import { LinkifyText } from '../components/LinkifyText';
+import { MarkdownMessage } from '../components/MarkdownMessage';
 import { HotkeyInput } from '../components/HotkeyInput';
 
 interface Message {
@@ -283,7 +284,7 @@ export const Assistant: React.FC = () => {
                 {msg.role === 'assistant' && (
                   <div className="max-w-[85%] mr-auto">
                     <div className="bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-neutral-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed">
-                      <LinkifyText text={msg.content} />
+                      <MarkdownMessage content={msg.content} />
                     </div>
                   </div>
                 )}
@@ -352,7 +353,7 @@ export const Assistant: React.FC = () => {
               onKeyPress={handleKeyPress}
               placeholder="Ask Clawster anything..."
               disabled={isLoading}
-              className="flex-1 bg-neutral-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all resize-none min-h-[44px] max-h-[120px] scrollbar-hide disabled:opacity-50"
+              className="flex-1 bg-neutral-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all resize-none min-h-[44px] max-h-[120px] scrollbar-hide disabled:opacity-50 cursor-text"
             />
             <button
               onClick={sendMessage}

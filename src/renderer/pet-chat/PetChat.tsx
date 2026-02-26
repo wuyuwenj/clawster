@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { MarkdownMessage } from '../components/MarkdownMessage';
 
 interface ChatMessage {
   id: string;
@@ -76,9 +77,9 @@ export const PetChat: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
             </div>
           ) : (
-            <p className="text-sm text-neutral-200 leading-relaxed break-words select-text cursor-text">
-              {message.text}
-            </p>
+            <div className="text-sm text-neutral-200 leading-relaxed break-words select-text cursor-text">
+              <MarkdownMessage content={message.text} />
+            </div>
           )}
         </div>
 
