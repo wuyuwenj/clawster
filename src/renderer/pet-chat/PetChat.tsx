@@ -67,7 +67,7 @@ export const PetChat: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-end pb-3">
-      <div className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-nonemin-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in">
+      <div className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-none min-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in">
         {/* Content */}
         <div className="p-3 max-h-[150px] overflow-y-auto">
           {isLoading ? (
