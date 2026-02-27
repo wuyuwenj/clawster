@@ -995,8 +995,9 @@ function createOnboardingWindow(): Promise<void> {
       y: Math.round((screenHeight - windowHeight) / 2),
       frame: false,
       transparent: false,
-      resizable: false,
-      movable: true,
+      resizable: true,
+      minWidth: 500,
+      minHeight: 550,
       show: false,
       backgroundColor: '#1a1a2e',
       webPreferences: {
@@ -1078,6 +1079,14 @@ function startMainApp() {
   // Only use 'clawster' agent-id if user chose to create a Clawster workspace
   const agentId = workspaceType === 'clawster' ? 'clawster' : null;
   clawbot = new ClawBotClient(clawbotUrl, clawbotToken, agentId);
+
+  // Forward connection status changes to all renderer windows
+  clawbot.on('connection-changed', (status: { connected: boolean; error: string | null; gatewayUrl: string }) => {
+    petWindow?.webContents.send('clawbot-connection-changed', status);
+    assistantWindow?.webContents.send('clawbot-connection-changed', status);
+    petChatWindow?.webContents.send('clawbot-connection-changed', status);
+    chatbarWindow?.webContents.send('clawbot-connection-changed', status);
+  });
 
   // Initialize watchers
   watchers = new Watchers(store, (event) => {
@@ -1335,9 +1344,19 @@ function setupIPC() {
     await executePetAction({ type: 'move_to_cursor' });
   });
 
-  // Get ClawBot status
+  // Get ClawBot status (returns detailed status)
   ipcMain.handle('clawbot-status', () => {
-    return clawbot?.isConnected() ?? false;
+    if (clawbot) {
+      return clawbot.getConnectionStatus();
+    }
+    return { connected: false, error: 'ClawBot not initialized', gatewayUrl: '' };
+  });
+
+  // Copy text to clipboard
+  ipcMain.handle('copy-to-clipboard', (_event, text: string) => {
+    const { clipboard } = require('electron');
+    clipboard.writeText(text);
+    return true;
   });
 
   // Drag pet window

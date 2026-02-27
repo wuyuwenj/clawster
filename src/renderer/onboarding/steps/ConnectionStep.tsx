@@ -16,6 +16,13 @@ export const ConnectionStep: React.FC<Props> = ({ data, updateData, onNext }) =>
   const [errorMessage, setErrorMessage] = useState('');
   const [autoDetected, setAutoDetected] = useState(false);
   const [hasAutoTested, setHasAutoTested] = useState(false);
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+
+  const handleCopyCommand = async (command: string) => {
+    await window.clawster.copyToClipboard(command);
+    setCopiedCommand(command);
+    setTimeout(() => setCopiedCommand(null), 2000);
+  };
 
   const testConnection = async (autoAdvance: boolean) => {
     setStatus('testing');
@@ -65,7 +72,7 @@ export const ConnectionStep: React.FC<Props> = ({ data, updateData, onNext }) =>
   const handleTestConnection = () => testConnection(false);
 
   return (
-    <div className="h-full px-8 pt-8">
+    <div className="h-full px-8 pt-8 pb-4 overflow-y-auto scrollbar-hide">
       <h2 className="text-2xl font-medium tracking-tight text-white mb-2">Connect to OpenClaw</h2>
       <p className="text-sm text-neutral-400 mb-6">
         Clawster uses OpenClaw as its AI gateway. Configure the connection.
@@ -146,6 +153,55 @@ export const ConnectionStep: React.FC<Props> = ({ data, updateData, onNext }) =>
             </>
           )}
         </button>
+
+        {/* Gateway Setup Help - shows when connection fails */}
+        {status === 'error' && (
+          <div className="mt-5 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+            <div className="flex items-start gap-2 mb-3">
+              <iconify-icon icon="solar:lightbulb-linear" width="1rem" className="text-amber-400 mt-0.5 shrink-0"></iconify-icon>
+              <div>
+                <p className="text-sm font-medium text-amber-400">Gateway Not Running?</p>
+                <p className="text-xs text-neutral-400 mt-0.5">Start the OpenClaw gateway in your terminal:</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {/* Quick Start */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-1.5">Quick start (stops when terminal closes):</p>
+                <div className="flex items-center gap-2 bg-black/30 border border-white/10 rounded-lg px-3 py-2">
+                  <code className="flex-1 text-xs text-[#FF8C69] font-mono">openclaw gateway</code>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCommand('openclaw gateway')}
+                    className="px-2 py-0.5 text-[10px] bg-white/10 hover:bg-white/20 text-neutral-300 rounded transition-colors"
+                  >
+                    {copiedCommand === 'openclaw gateway' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Recommended */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <p className="text-xs text-neutral-500">Recommended (runs on startup):</p>
+                  <span className="px-1 py-0.5 text-[9px] bg-[#FF8C69]/20 text-[#FF8C69] rounded">Best</span>
+                </div>
+                <div className="flex items-center gap-2 bg-black/30 border border-[#FF8C69]/30 rounded-lg px-3 py-2">
+                  <code className="flex-1 text-xs text-[#FF8C69] font-mono">openclaw gateway install</code>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCommand('openclaw gateway install')}
+                    className="px-2 py-0.5 text-[10px] bg-[#FF8C69]/20 hover:bg-[#FF8C69]/30 text-[#FF8C69] rounded transition-colors"
+                  >
+                    {copiedCommand === 'openclaw gateway install' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-neutral-500 mt-1.5">Installs as a background service that starts with your Mac.</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

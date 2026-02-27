@@ -50,6 +50,12 @@ contextBridge.exposeInMainWorld('clawster', {
   sendToClawbot: (message: string, includeScreen?: boolean) =>
     ipcRenderer.invoke('send-to-clawbot', message, includeScreen),
   getClawbotStatus: () => ipcRenderer.invoke('clawbot-status'),
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => {
+    ipcRenderer.on('clawbot-connection-changed', (_event, status) => callback(status));
+  },
+
+  // Clipboard
+  copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
 
   // Pet actions
   executePetAction: (action: { type: string; value?: string; x?: number; y?: number; duration?: number }) =>
@@ -144,6 +150,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('activity-event');
     ipcRenderer.removeAllListeners('clawbot-suggestion');
     ipcRenderer.removeAllListeners('clawbot-mood');
+    ipcRenderer.removeAllListeners('clawbot-connection-changed');
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
     ipcRenderer.removeAllListeners('idle-behavior');
@@ -217,7 +224,9 @@ export interface ClawsterAPI {
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<ScreenContext>;
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
-  getClawbotStatus: () => Promise<boolean>;
+  getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
+  copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: PetAction) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
   movePetToCursor: () => Promise<void>;
