@@ -3,6 +3,8 @@ import { Icon } from '@iconify/react';
 import { LinkifyText } from '../components/LinkifyText';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { HotkeyInput } from '../components/HotkeyInput';
+import { GatewayConnectionBanner } from '../components/GatewayConnectionBanner';
+import { GatewaySetupModal } from '../components/GatewaySetupModal';
 
 interface Message {
   id: string;
@@ -28,7 +30,12 @@ export const Assistant: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
-  const [clawbotConnected, setClawbotConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; error: string | null; gatewayUrl: string }>({
+    connected: false,
+    error: null,
+    gatewayUrl: '',
+  });
+  const [showSetupModal, setShowSetupModal] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +51,10 @@ export const Assistant: React.FC = () => {
       }
     });
 
-    window.clawster.getClawbotStatus().then(setClawbotConnected);
+    window.clawster.getClawbotStatus().then(setConnectionStatus);
+
+    // Listen for connection status changes
+    window.clawster.onConnectionStatusChange(setConnectionStatus);
 
     window.clawster.onActivityEvent((event: unknown) => {
       const activityEvent = event as ActivityEvent;
@@ -226,9 +236,13 @@ export const Assistant: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <ClawsterIcon size={18} />
           <span className="text-sm font-medium tracking-tight text-white">Clawster</span>
-          <div className="relative flex items-center justify-center ml-1">
-            <div className={`w-2 h-2 rounded-full ${clawbotConnected ? 'bg-[#008080] status-pulse' : 'bg-red-400'}`}></div>
-          </div>
+          <button
+            className="no-drag relative flex items-center justify-center ml-1 cursor-pointer"
+            onClick={() => !connectionStatus.connected && setShowSetupModal(true)}
+            title={connectionStatus.connected ? 'Connected to gateway' : 'Gateway disconnected - Click for setup'}
+          >
+            <div className={`w-2 h-2 rounded-full ${connectionStatus.connected ? 'bg-[#008080] status-pulse' : 'bg-red-400'}`}></div>
+          </button>
         </div>
         <button
           className="no-drag text-neutral-500 hover:text-white transition-colors flex items-center justify-center w-6 h-6"
@@ -271,6 +285,15 @@ export const Assistant: React.FC = () => {
           Settings
         </button>
       </div>
+
+      {/* Connection Banner */}
+      {activeTab === 'chat' && (
+        <GatewayConnectionBanner
+          connected={connectionStatus.connected}
+          error={connectionStatus.error}
+          onShowSetupGuide={() => setShowSetupModal(true)}
+        />
+      )}
 
       {/* CONTENT: Chat */}
       {activeTab === 'chat' && (
@@ -570,6 +593,19 @@ export const Assistant: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Gateway Setup Modal */}
+      <GatewaySetupModal
+        isOpen={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        onCheckConnection={async () => {
+          const status = await window.clawster.getClawbotStatus();
+          setConnectionStatus(status);
+          if (status.connected) {
+            setShowSetupModal(false);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -21,7 +21,14 @@ export const ChatBar: React.FC = () => {
   const [response, setResponse] = useState<string | null>(null);
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check connection status on mount and listen for changes
+  useEffect(() => {
+    window.clawster.getClawbotStatus().then((status) => setIsConnected(status.connected));
+    window.clawster.onConnectionStatusChange((status) => setIsConnected(status.connected));
+  }, []);
 
   // Helper to save messages to shared history
   const saveMessageToHistory = async (userMsg: string, assistantMsg: string) => {
@@ -85,9 +92,19 @@ export const ChatBar: React.FC = () => {
     inputRef.current?.focus();
   };
 
+  const handleCopyCommand = async () => {
+    await window.clawster.copyToClipboard('openclaw gateway install');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    // Check connection status before submitting
+    if (!isConnected) {
+      setResponse('Gateway not connected. Run `openclaw gateway install` in your terminal to start the gateway.');
+      return;
+    }
 
     const message = input.trim();
     setInput('');
@@ -226,12 +243,23 @@ export const ChatBar: React.FC = () => {
 
           {/* Response Area */}
           {response && (
-            <div className="bg-[#0a0a0a]/50 border-t border-white/5 p-4 flex gap-4 items-start animate-fade-in max-h-[200px] overflow-y-auto">
-              <div className="w-6 h-6 rounded bg-[#FF8C69]/20 flex items-center justify-center shrink-0 mt-0.5">
-                <Icon icon="solar:magic-stick-3-linear" className="text-xs text-[#FF8C69]" />
+            <div className={`border-t border-white/5 p-4 flex gap-4 items-start animate-fade-in max-h-[200px] overflow-y-auto ${!isConnected ? 'bg-amber-500/5' : 'bg-[#0a0a0a]/50'}`}>
+              <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5 ${!isConnected ? 'bg-amber-500/20' : 'bg-[#FF8C69]/20'}`}>
+                <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className={`text-xs ${!isConnected ? 'text-amber-400' : 'text-[#FF8C69]'}`} />
               </div>
-              <div className="text-sm text-neutral-300 leading-relaxed select-text cursor-text">
-                <MarkdownMessage content={response} />
+              <div className="flex-1">
+                <div className="text-sm text-neutral-300 leading-relaxed select-text cursor-text">
+                  <MarkdownMessage content={response} />
+                </div>
+                {!isConnected && (
+                  <button
+                    onClick={handleCopyCommand}
+                    className="mt-2 px-2.5 py-1 text-xs bg-[#FF8C69]/20 hover:bg-[#FF8C69]/30 text-[#FF8C69] rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <Icon icon="solar:copy-linear" className="text-xs" />
+                    Copy Command
+                  </button>
+                )}
               </div>
             </div>
           )}

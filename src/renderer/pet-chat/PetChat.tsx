@@ -34,6 +34,17 @@ export const PetChat: React.FC = () => {
     }
 
     if (reply === 'Tell me more') {
+      // Check connection first
+      const status = await window.clawster.getClawbotStatus();
+      if (!status.connected) {
+        setMessage({
+          id: crypto.randomUUID(),
+          text: 'Gateway not connected. Run `openclaw gateway install` in your terminal to start it.',
+          quickReplies: ['Got it', 'Not now'],
+        });
+        return;
+      }
+
       setIsLoading(true);
       window.clawster.petChatReply('thinking');
       try {
@@ -50,11 +61,21 @@ export const PetChat: React.FC = () => {
           window.clawster.petChatReply('curious');
         }
       } catch {
-        window.clawster.petChatReply('dismiss');
-        window.clawster.hidePetChat();
+        setMessage({
+          id: crypto.randomUUID(),
+          text: 'Couldn\'t connect to gateway. Make sure it\'s running.',
+          quickReplies: ['Got it', 'Not now'],
+        });
       } finally {
         setIsLoading(false);
       }
+      return;
+    }
+
+    // "Got it" - just close
+    if (reply === 'Got it') {
+      window.clawster.petChatReply('dismiss');
+      window.clawster.hidePetChat();
       return;
     }
 
