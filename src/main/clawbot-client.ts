@@ -1,8 +1,35 @@
 import { EventEmitter } from 'events';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { ActivityEvent } from './watchers';
+
+const execAsync = promisify(exec);
+
+// Cron job types
+interface CronJob {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface CronRunEntry {
+  ts: number;
+  jobId: string;
+  action: string;
+  status: 'ok' | 'error' | 'skipped';
+  error?: string;
+  summary?: string;
+  runAtMs: number;
+  durationMs: number;
+  nextRunAtMs: number;
+}
+
+interface CronRunsResponse {
+  entries: CronRunEntry[];
+}
 
 interface ClawBotResponse {
   type: 'message' | 'suggestion' | 'action';
@@ -112,6 +139,9 @@ export class ClawBotClient extends EventEmitter {
   private connected: boolean = false;
   private lastError: string | null = null;
   private pollInterval: NodeJS.Timeout | null = null;
+  private cronPollInterval: NodeJS.Timeout | null = null;
+  private cronJobs: CronJob[] = [];
+  private lastSeenCronTs: Map<string, number> = new Map();
 
   constructor(baseUrl: string, token: string = '', agentId: string | null = null) {
     super();
@@ -120,6 +150,7 @@ export class ClawBotClient extends EventEmitter {
     this.agentId = agentId;
     this.checkConnection();
     this.startPolling();
+    this.startCronPolling();
   }
 
   // Update configuration
@@ -356,10 +387,97 @@ Please read the screenshot file and answer the user's question. Be helpful and s
     }
   }
 
+  // List all cron jobs via CLI
+  private async listCronJobs(): Promise<CronJob[]> {
+    try {
+      const { stdout } = await execAsync('openclaw cron list --json', {
+        timeout: 10000,
+      });
+      const data = JSON.parse(stdout);
+      // The CLI might return { jobs: [...] } or just an array
+      const jobs = Array.isArray(data) ? data : (data.jobs || []);
+      return jobs.map((job: { id: string; name?: string; status?: string }) => ({
+        id: job.id,
+        name: job.name || 'Unnamed',
+        status: job.status || 'unknown',
+      }));
+    } catch (error) {
+      console.error('[ClawBot] Failed to list cron jobs:', error);
+      return [];
+    }
+  }
+
+  // Get recent runs for a specific cron job via CLI
+  private async getCronRuns(jobId: string): Promise<CronRunEntry[]> {
+    try {
+      const { stdout } = await execAsync(`openclaw cron runs --id ${jobId} --limit 1`, {
+        timeout: 10000,
+      });
+      const data: CronRunsResponse = JSON.parse(stdout);
+      return data.entries || [];
+    } catch (error) {
+      console.error(`[ClawBot] Failed to get cron runs for ${jobId}:`, error);
+      return [];
+    }
+  }
+
+  // Start polling for cron job results (every 30 seconds)
+  private async startCronPolling(): Promise<void> {
+    // Initial fetch of cron jobs
+    console.log('[ClawBot] Starting cron polling...');
+    this.cronJobs = await this.listCronJobs();
+    console.log(`[ClawBot] Found ${this.cronJobs.length} cron jobs:`, this.cronJobs.map(j => j.name));
+
+    // Poll every 30 seconds
+    this.cronPollInterval = setInterval(async () => {
+      if (!this.connected) return;
+
+      // Refresh job list periodically (in case new jobs are added)
+      this.cronJobs = await this.listCronJobs();
+
+      for (const job of this.cronJobs) {
+        const runs = await this.getCronRuns(job.id);
+        if (runs.length === 0) continue;
+
+        const latestRun = runs[0];
+        const lastSeen = this.lastSeenCronTs.get(job.id) || 0;
+
+        // Check if this is a new run we haven't seen
+        if (latestRun.ts > lastSeen) {
+          this.lastSeenCronTs.set(job.id, latestRun.ts);
+
+          // Emit for any run with a summary (ok or skipped with content)
+          if (latestRun.summary) {
+            console.log(`[ClawBot] New cron result for "${job.name}" (${latestRun.status}):`, latestRun.summary.slice(0, 100));
+            this.emit('cronResult', {
+              jobId: job.id,
+              jobName: job.name,
+              status: latestRun.status,
+              summary: latestRun.summary,
+              timestamp: latestRun.ts,
+            });
+          } else if (latestRun.status === 'error' && latestRun.error) {
+            console.log(`[ClawBot] Cron error for "${job.name}":`, latestRun.error);
+            this.emit('cronError', {
+              jobId: job.id,
+              jobName: job.name,
+              error: latestRun.error,
+              timestamp: latestRun.ts,
+            });
+          }
+        }
+      }
+    }, 30000);
+  }
+
   destroy(): void {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
+    }
+    if (this.cronPollInterval) {
+      clearInterval(this.cronPollInterval);
+      this.cronPollInterval = null;
     }
   }
 }
