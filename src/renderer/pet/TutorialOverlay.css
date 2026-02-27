@@ -153,11 +153,11 @@
   transform: translateY(-1px);
 }
 
-/* Open Panel Button - same style as next button */
-.tutorial-panel-btn {
-  background: rgba(255, 140, 105, 0.2);
-  border: 1px solid rgba(255, 140, 105, 0.4);
-  color: #ff8c69;
+/* Skip Button - subtle secondary style */
+.tutorial-skip-btn {
+  background: rgba(128, 128, 128, 0.15);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  color: #888;
   padding: 6px 16px;
   border-radius: 16px;
   font-size: 12px;
@@ -168,30 +168,10 @@
   pointer-events: auto;
 }
 
-.tutorial-panel-btn:hover {
-  background: rgba(255, 140, 105, 0.35);
-  border-color: #ff8c69;
-  transform: translateY(-1px);
-}
-
-/* Skip Text Button - matches .quick-reply-btn.dismiss */
-.tutorial-skip-text {
-  background: rgba(128, 128, 128, 0.15);
-  border: 1px solid rgba(128, 128, 128, 0.3);
-  color: #888;
-  padding: 5px 10px;
-  border-radius: 14px;
-  font-size: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  pointer-events: auto;
-}
-
-.tutorial-skip-text:hover {
+.tutorial-skip-btn:hover {
   background: rgba(128, 128, 128, 0.3);
   border-color: #888;
+  transform: translateY(-1px);
 }
 
 /* Pulse Hint Animation (step 1) */

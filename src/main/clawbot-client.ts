@@ -110,6 +110,7 @@ export class ClawBotClient extends EventEmitter {
   private token: string;
   private agentId: string | null;
   private connected: boolean = false;
+  private lastError: string | null = null;
   private pollInterval: NodeJS.Timeout | null = null;
 
   constructor(baseUrl: string, token: string = '', agentId: string | null = null) {
@@ -149,7 +150,16 @@ export class ClawBotClient extends EventEmitter {
     return this.connected;
   }
 
+  getConnectionStatus(): { connected: boolean; error: string | null; gatewayUrl: string } {
+    return {
+      connected: this.connected,
+      error: this.lastError,
+      gatewayUrl: this.baseUrl,
+    };
+  }
+
   private async checkConnection(): Promise<void> {
+    const wasConnected = this.connected;
     try {
       const response = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
@@ -157,8 +167,15 @@ export class ClawBotClient extends EventEmitter {
         signal: AbortSignal.timeout(3000),
       });
       this.connected = response.ok;
-    } catch {
+      this.lastError = response.ok ? null : `Gateway returned status ${response.status}`;
+    } catch (error) {
       this.connected = false;
+      this.lastError = error instanceof Error ? error.message : 'Connection failed';
+    }
+
+    // Emit event if connection state changed
+    if (wasConnected !== this.connected) {
+      this.emit('connection-changed', this.getConnectionStatus());
     }
   }
 

@@ -68,11 +68,6 @@ export const TutorialOverlay: React.FC = () => {
     window.clawster.tutorialNext();
   }, []);
 
-  const handleOpenPanel = useCallback(() => {
-    window.clawster.tutorialOpenPanel();
-    window.clawster.toggleAssistant();
-  }, []);
-
   const handleResume = useCallback(() => {
     window.clawster.tutorialResume();
   }, []);
@@ -142,18 +137,15 @@ export const TutorialOverlay: React.FC = () => {
           ))}
         </div>
 
-        {/* Next button for all steps except the final one */}
+        {/* Navigation buttons for all steps except the final one */}
         {currentStep && currentStep < totalSteps && (
           <div className="tutorial-buttons">
+            <button className="tutorial-skip-btn" onClick={handleSkip}>
+              Skip
+            </button>
             <button className="tutorial-next-btn" onClick={handleNext}>
               Next
             </button>
-            {/* Additional action buttons for specific steps */}
-            {currentStep === 9 && hintType === 'open-panel-button' && (
-              <button className="tutorial-panel-btn" onClick={handleOpenPanel}>
-                Open Panel
-              </button>
-            )}
           </div>
         )}
 
