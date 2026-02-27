@@ -1164,6 +1164,48 @@ function startMainApp() {
   clawbot.on('mood', (data) => {
     petWindow?.webContents.send('clawbot-mood', data);
   });
+
+  // Listen for cron job results - send to ClawBot for processing
+  clawbot.on('cronResult', async (data) => {
+    console.log('[Main] Cron result received:', data.jobName, '- sending to ClawBot for processing');
+
+    if (!clawbot) return;
+
+    // Send the cron instruction to ClawBot and get its response
+    const response = await clawbot.chat(`[Scheduled reminder: ${data.jobName}] ${data.summary}`);
+
+    if (response.text) {
+      const processedData = {
+        ...data,
+        summary: response.text, // Replace instruction with AI response
+      };
+
+      // Send to assistant window and chatbar for chat history
+      assistantWindow?.webContents.send('cron-result', processedData);
+      chatbarWindow?.webContents.send('cron-result', processedData);
+
+      // Show pet chat popup directly (don't rely on petWindow forwarding)
+      if (!tutorialManager?.getStatus().isActive) {
+        showPetChat({
+          id: randomUUID(),
+          text: response.text,
+          quickReplies: ['Thanks!', 'Snooze', 'Dismiss'],
+        });
+        petWindow?.webContents.send('clawbot-mood', { state: 'excited', reason: 'cron reminder' });
+      }
+
+      // Handle any actions from the response
+      if (response.action) {
+        executePetAction(response.action.payload as PetAction);
+      }
+    }
+  });
+
+  clawbot.on('cronError', (data) => {
+    console.log('[Main] Cron error received:', data.jobName, data.error);
+    petWindow?.webContents.send('cron-error', data);
+    assistantWindow?.webContents.send('cron-error', data);
+  });
 }
 
 // Screen capture - uses native capture for speed

@@ -28,6 +28,11 @@ export const ChatBar: React.FC = () => {
   useEffect(() => {
     window.clawster.getClawbotStatus().then((status) => setIsConnected(status.connected));
     window.clawster.onConnectionStatusChange((status) => setIsConnected(status.connected));
+
+    // Listen for cron results
+    window.clawster.onCronResult((data) => {
+      setResponse(data.summary);
+    });
   }, []);
 
   // Helper to save messages to shared history
