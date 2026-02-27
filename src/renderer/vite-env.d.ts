@@ -69,9 +69,13 @@ interface ClawsterAPI {
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<unknown>;
+  getScreenCapturePermission: () => Promise<'granted' | 'denied' | 'not-determined' | 'restricted'>;
+  checkAccessibilityPermission: (prompt?: boolean) => Promise<boolean>;
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
   askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
-  getClawbotStatus: () => Promise<boolean>;
+  getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
+  copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: unknown) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
   movePetToCursor: () => Promise<void>;
@@ -80,6 +84,8 @@ interface ClawsterAPI {
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;
+  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => void;
+  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;

@@ -48,6 +48,10 @@ export const Assistant: React.FC = () => {
     window.clawster.getChatHistory().then((history) => {
       if (Array.isArray(history) && history.length > 0) {
         setMessages(history as Message[]);
+        // Scroll to bottom immediately after loading history
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+        }, 0);
       }
     });
 
@@ -82,10 +86,33 @@ export const Assistant: React.FC = () => {
       setMessages((prev) => [...prev, assistantMsg]);
     });
 
+    window.clawster.onCronResult((data) => {
+      const cronMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `[${data.jobName}] ${data.summary}`,
+        timestamp: data.timestamp,
+      };
+      setMessages((prev) => [...prev, cronMsg]);
+    });
+
+    window.clawster.onCronError((data) => {
+      const errorMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: `[Cron Error: ${data.jobName}] ${data.error}`,
+        timestamp: data.timestamp,
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    });
+
     window.clawster.onChatSync(() => {
       window.clawster.getChatHistory().then((history) => {
         if (Array.isArray(history)) {
           setMessages(history as Message[]);
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+          }, 0);
         }
       });
     });
