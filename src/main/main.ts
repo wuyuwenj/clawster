@@ -14,6 +14,7 @@ import {
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
@@ -378,12 +379,44 @@ async function getScreenContext(): Promise<{
   };
 }
 
-// Capture screen with cursor position overlay info
-async function captureScreenWithContext(): Promise<{
-  image: string;
-  cursor: { x: number; y: number };
-  screenSize: { width: number; height: number };
-} | null> {
+// Native macOS screen capture using screencapture command (much faster than desktopCapturer)
+async function captureScreenNative(): Promise<string | null> {
+  if (process.platform !== 'darwin') {
+    // Fall back to desktopCapturer on non-macOS platforms
+    return captureScreenFallback();
+  }
+
+  const tempPath = path.join(os.tmpdir(), `clawster-screenshot-${Date.now()}.png`);
+
+  try {
+    // Use macOS screencapture command - much faster than desktopCapturer
+    // -x: no sound, -C: capture cursor, -t png: format
+    execSync(`screencapture -x -C -t png "${tempPath}"`, {
+      timeout: 5000,
+      windowsHide: true,
+    });
+
+    // Read the captured image
+    const imageBuffer = fs.readFileSync(tempPath);
+    const base64 = imageBuffer.toString('base64');
+
+    // Clean up temp file
+    fs.unlinkSync(tempPath);
+
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.error('Native screen capture failed:', error);
+    // Clean up temp file if it exists
+    try {
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    } catch {}
+    // Fall back to desktopCapturer
+    return captureScreenFallback();
+  }
+}
+
+// Fallback capture using desktopCapturer (slower, used on non-macOS)
+async function captureScreenFallback(): Promise<string | null> {
   try {
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
@@ -392,11 +425,31 @@ async function captureScreenWithContext(): Promise<{
 
     if (sources.length > 0) {
       const screenshot = sources[0].thumbnail;
+      return screenshot.toDataURL();
+    }
+    return null;
+  } catch (error) {
+    console.error('Fallback screen capture failed:', error);
+    return null;
+  }
+}
+
+// Capture screen with cursor position overlay info
+async function captureScreenWithContext(): Promise<{
+  image: string;
+  cursor: { x: number; y: number };
+  screenSize: { width: number; height: number };
+} | null> {
+  try {
+    // Use native capture for speed
+    const image = await captureScreenNative();
+
+    if (image) {
       const cursor = screen.getCursorScreenPoint();
       const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
       return {
-        image: screenshot.toDataURL(),
+        image,
         cursor,
         screenSize: { width, height },
       };
@@ -1078,23 +1131,9 @@ function startMainApp() {
   });
 }
 
-// Screen capture
+// Screen capture - uses native capture for speed
 async function captureScreen(): Promise<string | null> {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 },
-    });
-
-    if (sources.length > 0) {
-      const screenshot = sources[0].thumbnail;
-      return screenshot.toDataURL();
-    }
-    return null;
-  } catch (error) {
-    console.error('Screen capture failed:', error);
-    return null;
-  }
+  return captureScreenNative();
 }
 
 // IPC Handlers
