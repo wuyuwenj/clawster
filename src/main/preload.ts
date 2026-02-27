@@ -78,6 +78,12 @@ contextBridge.exposeInMainWorld('clawster', {
   onClawbotMood: (callback: (data: unknown) => void) => {
     ipcRenderer.on('clawbot-mood', (_event, data) => callback(data));
   },
+  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => {
+    ipcRenderer.on('cron-result', (_event, data) => callback(data));
+  },
+  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => {
+    ipcRenderer.on('cron-error', (_event, data) => callback(data));
+  },
   onChatPopup: (callback: (data: unknown) => void) => {
     ipcRenderer.on('chat-popup', (_event, data) => callback(data));
   },
@@ -153,6 +159,8 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('clawbot-suggestion');
     ipcRenderer.removeAllListeners('clawbot-mood');
     ipcRenderer.removeAllListeners('clawbot-connection-changed');
+    ipcRenderer.removeAllListeners('cron-result');
+    ipcRenderer.removeAllListeners('cron-error');
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
     ipcRenderer.removeAllListeners('idle-behavior');
