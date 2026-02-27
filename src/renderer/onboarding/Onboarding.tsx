@@ -260,27 +260,18 @@ export function Onboarding() {
       </div>
 
       {/* Action Footer */}
-      <div className="no-drag h-[72px] absolute bottom-0 w-full flex items-center justify-between px-6 bg-[#0f0f0f]/90 backdrop-blur-md border-t border-white/5 z-50 select-none">
-        {currentStepIndex > 0 ? (
-          <button
-            onClick={goToPreviousStep}
-            className="text-sm font-medium text-neutral-500 hover:text-white transition-colors px-2 py-1"
-          >
-            Back
-          </button>
-        ) : (
-          <button
-            onClick={handleSkip}
-            className="text-sm font-medium text-neutral-500 hover:text-white transition-colors px-2 py-1"
-          >
-            Skip
-          </button>
-        )}
+      <div className="no-drag h-[72px] absolute bottom-0 w-full flex items-center justify-end gap-3 px-6 bg-[#0f0f0f]/90 backdrop-blur-md border-t border-white/5 z-50 select-none">
+        <button
+          onClick={handleSkip}
+          className="px-4 py-2.5 rounded-lg text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+        >
+          Skip Setup
+        </button>
 
         <button
           onClick={handleNextClick}
           disabled={isNextDisabled() || isCompleting}
-          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ml-auto flex items-center gap-2 ${
+          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
             isNextDisabled() || isCompleting
               ? 'bg-[#FF8C69]/50 text-neutral-950/50 cursor-not-allowed'
               : 'bg-[#FF8C69] text-neutral-950 hover:bg-[#ff7a50] shadow-[0_0_15px_rgba(255,140,105,0.2)]'
