@@ -10,6 +10,7 @@ import {
   dialog,
   Tray,
   Menu,
+  systemPreferences,
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
@@ -379,11 +380,27 @@ async function getScreenContext(): Promise<{
   };
 }
 
+// Get screen recording permission status on macOS
+// Returns: 'granted', 'denied', 'not-determined', 'restricted', or 'granted' for non-macOS
+function getScreenCapturePermissionStatus(): string {
+  if (process.platform !== 'darwin') {
+    return 'granted'; // Non-macOS platforms don't need this check
+  }
+  return systemPreferences.getMediaAccessStatus('screen');
+}
+
 // Native macOS screen capture using screencapture command (much faster than desktopCapturer)
 async function captureScreenNative(): Promise<string | null> {
   if (process.platform !== 'darwin') {
     // Fall back to desktopCapturer on non-macOS platforms
     return captureScreenFallback();
+  }
+
+  // Check permission first
+  const permissionStatus = getScreenCapturePermissionStatus();
+  if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
+    console.log('Screen capture permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording');
+    return null;
   }
 
   const tempPath = path.join(os.tmpdir(), `clawster-screenshot-${Date.now()}.png`);
@@ -418,6 +435,15 @@ async function captureScreenNative(): Promise<string | null> {
 // Fallback capture using desktopCapturer (slower, used on non-macOS)
 async function captureScreenFallback(): Promise<string | null> {
   try {
+    const permissionStatus = getScreenCapturePermissionStatus();
+
+    // If explicitly denied or restricted, don't prompt again
+    if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
+      console.log('Screen capture permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording');
+      return null;
+    }
+
+    // If 'not-determined' or 'granted', proceed (this will trigger prompt if not-determined)
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1920, height: 1080 },
@@ -1262,6 +1288,24 @@ function setupIPC() {
   ipcMain.handle('clear-chat-history', () => {
     store.set('chatHistory', []);
     return true;
+  });
+
+  // Check screen capture permission status
+  // Returns: 'granted', 'denied', 'not-determined', or 'restricted'
+  ipcMain.handle('get-screen-capture-permission', () => {
+    return getScreenCapturePermissionStatus();
+  });
+
+  // Check accessibility permission (for active-win app watching)
+  // Returns true if granted, false otherwise
+  // If prompt is true, will show macOS permission dialog
+  ipcMain.handle('check-accessibility-permission', (_event, prompt: boolean = false) => {
+    if (process.platform !== 'darwin') {
+      return true; // Non-macOS platforms don't need this
+    }
+    const result = systemPreferences.isTrustedAccessibilityClient(prompt);
+    console.log(`[Accessibility] isTrustedAccessibilityClient(${prompt}) = ${result}`);
+    return result;
   });
 
   // Screen capture
