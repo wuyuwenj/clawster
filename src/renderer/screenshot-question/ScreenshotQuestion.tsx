@@ -12,15 +12,33 @@ export const ScreenshotQuestion: React.FC = () => {
   const [screenshot, setScreenshot] = useState<ScreenshotData | null>(null);
   const [response, setResponse] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(true);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Capture screenshot on mount
   useEffect(() => {
     const captureScreen = async () => {
       try {
+        // Check permission status first
+        const permissionStatus = await window.clawster.getScreenCapturePermission();
+
+        // If explicitly denied or restricted, show message instead of prompting
+        if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
+          setPermissionDenied(true);
+          setIsCapturing(false);
+          return;
+        }
+
+        // If 'not-determined' or 'granted', proceed (will trigger prompt if needed)
         const result = await window.clawster.captureScreenWithContext();
         if (result) {
           setScreenshot(result as ScreenshotData);
+        } else {
+          // Capture returned null - check if permission was denied during prompt
+          const newStatus = await window.clawster.getScreenCapturePermission();
+          if (newStatus === 'denied' || newStatus === 'restricted') {
+            setPermissionDenied(true);
+          }
         }
       } catch (error) {
         console.error('Failed to capture screen:', error);
@@ -103,6 +121,13 @@ export const ScreenshotQuestion: React.FC = () => {
             <div className="screenshot-loading">
               <div className="capture-spinner" />
               <span>Capturing...</span>
+            </div>
+          ) : permissionDenied ? (
+            <div className="screenshot-error">
+              <p>Screen recording permission required</p>
+              <p className="permission-hint">
+                Go to System Settings &gt; Privacy &amp; Security &gt; Screen Recording and enable Clawster
+              </p>
             </div>
           ) : screenshot ? (
             <img

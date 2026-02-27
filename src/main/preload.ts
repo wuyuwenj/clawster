@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('clawster', {
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
   captureScreenWithContext: () => ipcRenderer.invoke('capture-screen-with-context'),
   getScreenContext: () => ipcRenderer.invoke('get-screen-context'),
+  getScreenCapturePermission: () => ipcRenderer.invoke('get-screen-capture-permission'),
+  checkAccessibilityPermission: (prompt?: boolean) => ipcRenderer.invoke('check-accessibility-permission', prompt),
 
   // ClawBot
   sendToClawbot: (message: string, includeScreen?: boolean) =>
@@ -223,6 +225,8 @@ export interface ClawsterAPI {
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<ScreenContext>;
+  getScreenCapturePermission: () => Promise<'granted' | 'denied' | 'not-determined' | 'restricted'>;
+  checkAccessibilityPermission: (prompt?: boolean) => Promise<boolean>;
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
