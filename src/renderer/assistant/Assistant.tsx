@@ -165,6 +165,13 @@ export const Assistant: React.FC = () => {
   );
 
   const captureScreen = useCallback(async () => {
+    // Check permission first - if denied, show message
+    const permissionStatus = await window.clawster.getScreenCapturePermission();
+    if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
+      alert('Screen recording permission required. Please enable in System Settings > Privacy & Security > Screen Recording');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const screenshot = await window.clawster.captureScreen();

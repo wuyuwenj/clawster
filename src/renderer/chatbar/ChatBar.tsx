@@ -74,6 +74,13 @@ export const ChatBar: React.FC = () => {
     if (isCapturing) return;
     setIsCapturing(true);
     try {
+      // Check permission first - if denied, show message
+      const permissionStatus = await window.clawster.getScreenCapturePermission();
+      if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
+        alert('Screen recording permission required. Please enable in System Settings > Privacy & Security > Screen Recording');
+        return;
+      }
+
       const result = await window.clawster.captureScreenWithContext();
       if (result) {
         setScreenshot(result as Screenshot);
