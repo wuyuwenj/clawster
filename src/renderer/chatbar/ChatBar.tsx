@@ -168,17 +168,19 @@ export const ChatBar: React.FC = () => {
 
             {/* Screenshot Thumbnail Pill */}
             {screenshot && (
-              <div className="flex items-center gap-1.5 bg-[#008080]/10 border border-[#008080]/20 pl-1.5 pr-2 py-1 rounded-lg shrink-0 group transition-colors hover:bg-[#008080]/20 animate-fade-in">
-                <div className="w-6 h-6 bg-[#0a0a0a] rounded flex items-center justify-center overflow-hidden border border-white/10">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="#008080">
-                    <path d="M4 4h4l2-2h4l2 2h4a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm8 3a5 5 0 100 10 5 5 0 000-10zm0 2a3 3 0 110 6 3 3 0 010-6z"/>
-                  </svg>
+              <div className="flex items-center gap-1.5 bg-[#008080]/10 border border-[#008080]/20 p-1 rounded-lg shrink-0 group transition-colors hover:bg-[#008080]/20 animate-fade-in">
+                <div className="w-10 h-8 bg-[#0a0a0a] rounded overflow-hidden border border-white/10 flex-shrink-0">
+                  <img
+                    src={screenshot.image}
+                    alt="Screenshot preview"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <span className="text-xs font-medium text-[#008080] truncate max-w-[80px]">screen.png</span>
                 <button
                   type="button"
                   onClick={handleClearScreenshot}
-                  className="text-[#008080]/60 hover:text-[#008080] transition-colors ml-1"
+                  className="text-[#008080]/60 hover:text-[#008080] transition-colors"
+                  title="Remove screenshot"
                 >
                   <Icon icon="solar:close-circle-linear" className="text-sm" />
                 </button>
