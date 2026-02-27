@@ -1,5 +1,6 @@
 import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
+import { systemPreferences } from 'electron';
 import type Store from 'electron-store';
 import type { StoreSchema } from './store';
 
@@ -44,6 +45,16 @@ export class Watchers {
   private async startAppWatcher() {
     const watchActiveApp = this.store.get('watch.activeApp') as boolean;
     if (!watchActiveApp) return;
+
+    // Check accessibility permission first - don't start if not granted
+    // This prevents spamming the user with permission prompts
+    if (process.platform === 'darwin') {
+      const hasPermission = systemPreferences.isTrustedAccessibilityClient(false);
+      if (!hasPermission) {
+        console.log('[Watchers] Accessibility permission not granted, skipping app watcher');
+        return;
+      }
+    }
 
     // Dynamic import for ESM module
     const activeWin = await import('active-win');
