@@ -392,6 +392,7 @@ Please read the screenshot file and answer the user's question. Be helpful and s
     try {
       const { stdout } = await execAsync('openclaw cron list --json', {
         timeout: 10000,
+        env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: this.token },
       });
       const data = JSON.parse(stdout);
       // The CLI might return { jobs: [...] } or just an array
@@ -412,6 +413,7 @@ Please read the screenshot file and answer the user's question. Be helpful and s
     try {
       const { stdout } = await execAsync(`openclaw cron runs --id ${jobId} --limit 1`, {
         timeout: 10000,
+        env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: this.token },
       });
       const data: CronRunsResponse = JSON.parse(stdout);
       return data.entries || [];

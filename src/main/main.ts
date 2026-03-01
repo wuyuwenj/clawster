@@ -15,7 +15,9 @@ import {
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { execSync } from 'child_process';
+import { exec, execSync } from 'child_process';
+import { promisify } from 'util';
+const execAsync = promisify(exec);
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
@@ -1668,7 +1670,7 @@ function setupIPC() {
 
   // Validate gateway connection by making a real chat completions request
   ipcMain.handle('validate-gateway', async (_event, url: string, token: string) => {
-    try {
+    const makeRequest = async () => {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -1676,8 +1678,7 @@ function setupIPC() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Make a minimal chat completions request to validate the connection and token
-      const response = await fetch(`${url}/v1/chat/completions`, {
+      return fetch(`${url}/v1/chat/completions`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -1689,6 +1690,45 @@ function setupIPC() {
         }),
         signal: AbortSignal.timeout(10000),
       });
+    };
+
+    try {
+      let response = await makeRequest();
+
+      // 405 means the gateway's HTTP chat completions endpoint is disabled.
+      // Auto-enable it in the OpenClaw config and restart the gateway.
+      if (response.status === 405) {
+        console.log('[Gateway] 405 detected — enabling HTTP chatCompletions endpoint');
+        const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+        try {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+          if (!config.gateway) config.gateway = {};
+          if (!config.gateway.http) config.gateway.http = {};
+          if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
+          if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
+          config.gateway.http.endpoints.chatCompletions.enabled = true;
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+          // Reinstall and restart the gateway to pick up the config change
+          await execAsync('openclaw gateway stop', { timeout: 10000 }).catch(() => {});
+          await execAsync('openclaw gateway install --force', { timeout: 10000 });
+          await execAsync('openclaw gateway start', { timeout: 10000 });
+          // Wait for gateway to come back up
+          for (let i = 0; i < 10; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            try {
+              const health = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
+              if (health.ok || health.status === 200) break;
+            } catch { /* gateway not ready yet */ }
+          }
+
+          // Retry the request
+          response = await makeRequest();
+        } catch (configError) {
+          console.error('[Gateway] Failed to auto-enable chatCompletions endpoint:', configError);
+          return { success: false, error: '405: HTTP chat endpoint disabled. Add gateway.http.endpoints.chatCompletions.enabled=true to ~/.openclaw/openclaw.json' };
+        }
+      }
 
       if (response.ok) {
         return { success: true };
@@ -1697,7 +1737,14 @@ function setupIPC() {
         return { success: false, error: `${response.status}: ${errorText.slice(0, 100)}` };
       }
     } catch (error) {
-      return { success: false, error: String(error) };
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('fetch failed') || msg.includes('ECONNREFUSED')) {
+        return { success: false, error: 'Gateway not reachable — is it running?' };
+      }
+      if (msg.includes('timed out') || msg.includes('AbortError')) {
+        return { success: false, error: 'Connection timed out — gateway may be slow or unreachable' };
+      }
+      return { success: false, error: msg };
     }
   });
 
