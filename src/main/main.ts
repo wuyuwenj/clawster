@@ -27,6 +27,11 @@ import { TutorialManager } from './tutorial';
 // Load environment variables
 config();
 
+// Fix transparent window rendering on some Mac hardware (e.g. Mac Mini)
+// Electron has a bug where transparent windows < 162px become opaque on external/4K displays
+// See: https://github.com/electron/electron/issues/44884
+app.disableHardwareAcceleration();
+
 // Windows
 let petWindow: BrowserWindow | null = null;
 let petChatWindow: BrowserWindow | null = null;
@@ -56,8 +61,9 @@ const APP_SWITCH_CHAT_COOLDOWN = 60 * 1000; // 1 minute between app switch chats
 let moveAnimation: NodeJS.Timeout | null = null;
 
 // Pet window size constants
-const PET_WINDOW_WIDTH = 130;
-const PET_WINDOW_HEIGHT = 130;
+// Minimum 162px to avoid Electron transparency bug on external/4K displays
+const PET_WINDOW_WIDTH = 164;
+const PET_WINDOW_HEIGHT = 164;
 const PET_WINDOW_TUTORIAL_WIDTH = 320;
 const PET_WINDOW_TUTORIAL_HEIGHT = 350;
 
@@ -663,6 +669,7 @@ function createPetWindow() {
     y: startY,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000',
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: true,
@@ -715,6 +722,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
       y: Math.max(0, chatY),
       frame: false,
       transparent: true,
+      backgroundColor: '#00000000',
       alwaysOnTop: true,
       resizable: false,
       skipTaskbar: true,
@@ -877,6 +885,7 @@ function createChatbarWindow() {
     y: Math.round(screenHeight / 3),
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000',
     alwaysOnTop: true,
     resizable: false,
     show: false,
@@ -955,6 +964,7 @@ function createScreenshotQuestionWindow() {
     y,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000',
     alwaysOnTop: true,
     resizable: false,
     show: false,
