@@ -1,7 +1,8 @@
 {
   "name": "clawster",
-  "version": "0.1.2",
-  "description": "Desktop pet companion powered by ClawBot",
+  "version": "0.1.3",
+  "author": "Yuwen Wu",
+  "description": "Desktop pet companion powered by OpenClaw",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
