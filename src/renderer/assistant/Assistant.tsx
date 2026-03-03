@@ -23,6 +23,7 @@ interface ActivityEvent {
 }
 
 type Tab = 'chat' | 'activity' | 'settings';
+const isDevEnvironment = import.meta.env.DEV;
 
 export const Assistant: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('chat');
@@ -596,6 +597,28 @@ export const Assistant: React.FC = () => {
               Developer
             </h3>
             <div className="space-y-3">
+              {isDevEnvironment && (
+                <label className="flex items-center justify-between cursor-pointer group px-1">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-neutral-300">
+                      Show window borders
+                    </span>
+                    <span className="text-[11px] text-neutral-500 mt-0.5">
+                      Draw debug outlines around window bounds
+                    </span>
+                  </div>
+                  <div className="relative shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={(settings.dev as { windowBorders?: boolean })?.windowBorders ?? false}
+                      onChange={(e) => updateSetting('dev.windowBorders', e.target.checked)}
+                    />
+                    <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                    <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                  </div>
+                </label>
+              )}
               <button
                 onClick={() => {
                   window.clawster.replayTutorial();
