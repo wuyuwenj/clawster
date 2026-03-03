@@ -92,6 +92,24 @@ const IDLE_BEHAVIORS: { type: IdleBehavior; weight: number }[] = [
   { type: 'wander', weight: 5 },        // Least common
 ];
 
+function setLaunchOnStartup(enabled: boolean) {
+  try {
+    if (process.platform === 'darwin') {
+      app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: true });
+      return;
+    }
+
+    if (process.platform === 'win32') {
+      app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath });
+      return;
+    }
+
+    app.setLoginItemSettings({ openAtLogin: enabled });
+  } catch (error) {
+    console.error('Failed to update launch-on-startup setting:', error);
+  }
+}
+
 // Pet action types that ClawBot can trigger
 interface PetAction {
   type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave' | 'look_at';
@@ -1540,6 +1558,7 @@ function setupIPC() {
   ipcMain.handle('onboarding-complete', (_event, data: {
     workspaceType: 'openclaw' | 'clawster';
     migrateMemory: boolean;
+    launchOnStartup: boolean;
     gatewayUrl: string;
     gatewayToken: string;
     identity: string;
@@ -1567,6 +1586,7 @@ function setupIPC() {
     store.set('hotkeys.openChat', data.hotkeyOpenChat);
     store.set('hotkeys.captureScreen', data.hotkeyCaptureScreen);
     store.set('hotkeys.openAssistant', data.hotkeyOpenAssistant);
+    setLaunchOnStartup(data.launchOnStartup);
 
     // Update ClawBotClient with new config and agentId
     const newAgentId = data.workspaceType === 'clawster' ? 'clawster' : null;

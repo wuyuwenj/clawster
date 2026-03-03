@@ -25,6 +25,7 @@ interface ScreenContext {
 interface OnboardingData {
   workspaceType: 'openclaw' | 'clawster';
   migrateMemory: boolean;
+  launchOnStartup: boolean;
   gatewayUrl: string;
   gatewayToken: string;
   identity: string;
