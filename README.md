@@ -1,16 +1,42 @@
-# 🦞 Clawster
+# Clawster — AI Desktop Pet for macOS
 
-A cute animated lobster desktop pet powered by [OpenClaw](https://openclaw.ai). Clawster lives on your screen, watches what you're working on, and helps you out with quick chat interactions.
+**Clawster is a free, open-source AI desktop pet powered by [OpenClaw](https://openclaw.ai).** It's a screen-aware AI companion for macOS — a cute animated lobster that lives on your desktop, watches what you're doing, and helps you get things done.
 
-https://clawster.pet
+Clawster is the first AI pet and desktop pet built on OpenClaw. All AI processing runs locally on your machine. No cloud, no API keys, no data leaves your computer.
 
-https://www.youtube.com/watch?v=geXxvEi9g9o
+**[Website](https://clawster.pet)** · **[Download for Mac](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-arm64.dmg)**
 
-![Clawster Demo](https://img.shields.io/badge/status-beta-orange)
+![Clawster Demo](https://img.shields.io/badge/status-beta-orange) ![License](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
+
+https://github.com/wuyuwenj/clawster/raw/main/assets/demo.mp4
+
+## What is Clawster?
+
+Clawster is an AI desktop pet that sits on your macOS screen as an animated lobster. Unlike traditional virtual pets, this desktop pet is powered by OpenClaw and can actually help you — it watches your screen, answers questions, analyzes screenshots, and provides context-aware assistance for any app or website.
+
+**Key highlights:**
+- **AI desktop pet** that lives on your screen with 12 animated moods
+- **Screen-aware AI companion** — knows what app you're using
+- **Desktop pet powered by OpenClaw** — all AI runs locally, fully private
+- **Not just for developers** — helps with any app, website, or task
+- Won **2nd Place at the humans& hackathon**
+
+## Features
+
+| Feature | Description | Shortcut |
+|---------|-------------|----------|
+| **Quick Chat** | Summon Clawster anywhere for context-aware help | `Cmd+Shift+Space` |
+| **Screenshot Questions** | Snap any part of your screen and ask about it | `Cmd+Shift+/` |
+| **Full Assistant Panel** | Open the full assistant for longer conversations | `Cmd+Shift+A` or right-click pet |
+| **12 Animated Moods** | Expressive animations that react to interactions | — |
+| **Screen Awareness** | Detects your active app and window for contextual help | — |
+| **Customizable Personality** | Edit IDENTITY.md and SOUL.md to shape behavior | — |
+| **Attention Seeking** | Scuttles toward your cursor when feeling lonely | — |
+| **Guided Onboarding** | 8-step wizard, no terminal required | — |
 
 ## Animations
 
-Clawster has expressive animations for every mood:
+This AI desktop pet expresses itself through 12 animated moods:
 
 | Idle | Happy | Sleep | Startle |
 |:----:|:-----:|:-----:|:-------:|
@@ -27,93 +53,101 @@ Clawster has expressive animations for every mood:
 | <img src="assets/animations/proud.svg" width="80"> | <img src="assets/animations/peek.svg" width="80"> | <img src="assets/animations/spin.svg" width="80"> | <img src="assets/animations/walking.svg" width="80"> |
 | Feeling accomplished | Curious peek | Celebratory spin | Scuttling around |
 
-## Features
-
-- **Animated Desktop Pet** — A friendly lobster that lives on your screen with multiple moods and idle animations
-- **Quick Chat** — Press `Cmd+Shift+Space` to summon a chat bar and ask Clawster anything
-- **Screen Awareness** — Clawster can see what app you're using and offer contextual help
-- **Screenshot Questions** — Press `Cmd+Shift+/` to capture your screen and ask questions about it
-- **Attention Seeking** — Clawster occasionally scuttles toward your cursor when feeling lonely
-- **Idle Behaviors** — Watch Clawster blink, yawn, stretch, and look around when idle
-- **Poke Reactions** — Click on Clawster for fun reactions, right-click to open the full assistant panel
-
 ## Screenshots
 
 | Chat Popup | Quick Chat Bar | Assistant Panel |
 |:----------:|:--------------:|:---------------:|
-| ![Chat Popup](assets/screenshots/chat-popup.png) | ![Quick Chat](assets/screenshots/quick-chat.png) | ![Assistant](assets/screenshots/assistant.png) |
-| Clawster pops up with helpful tips and quick replies | Press `Cmd+Shift+Space` to chat anywhere | Full assistant panel for longer conversations |
+| ![Clawster AI desktop pet chat popup](assets/screenshots/chat-popup.png) | ![Clawster AI pet quick chat bar](assets/screenshots/quick-chat.png) | ![Clawster desktop pet assistant panel](assets/screenshots/assistant.png) |
+| Clawster pops up with contextual tips | Press `Cmd+Shift+Space` to chat anywhere | Right-click the pet for the full assistant |
 
-## Prerequisites
+## Download
+
+**For most users:** Download the app directly — no terminal needed.
+
+**[Download Clawster for Mac (Apple Silicon)](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-arm64.dmg)**
+
+Open the DMG, drag Clawster to Applications, and launch. The 8-step onboarding wizard guides you through everything.
+
+## Getting Started (from source)
+
+### Prerequisites
 
 - **Node.js** 18+
-- **OpenClaw** — Install and set up [OpenClaw](https://openclaw.ai) with the gateway running locally
+- **[OpenClaw](https://openclaw.ai)** — local AI gateway running on your machine
 
-## Installation
+### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/wuyuwenj/clawster.git
-   cd clawster
-   ```
+```bash
+git clone https://github.com/wuyuwenj/clawster.git
+cd clawster
+npm install
+npm run dev
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+On first launch, the onboarding wizard walks you through setup.
 
-3. **Run the app**
-   ```bash
-   npm run dev
-   ```
+## Onboarding Wizard
 
-4. **Complete the onboarding wizard** (see below)
+Clawster includes a guided 8-step onboarding wizard — no terminal or command line required:
 
-## First Launch
+1. **Welcome** — Introduction to Clawster and its capabilities
+2. **Workspace Selection** — Use your existing OpenClaw workspace or create a dedicated Clawster workspace
+3. **Memory Migration** — Optionally bring over conversations from an existing workspace
+4. **Connection Setup** — Auto-detects your OpenClaw gateway from `~/.openclaw/openclaw.json`
+5. **Personality** — Customize IDENTITY.md (who Clawster is) and SOUL.md (how it behaves)
+6. **Watch Preferences** — Configure screen awareness and privacy settings
+7. **Hotkeys** — Set custom keyboard shortcuts
+8. **Complete** — Review settings and launch
 
-On first launch, Clawster guides you through setup with an onboarding wizard:
+## How It Works
 
-1. **Workspace Selection** — Choose between:
-   - **Use OpenClaw Workspace** — Keep your existing `~/.openclaw/workspace/` with your current identity and memory
-   - **Create Clawster Workspace** — Create a dedicated `~/.openclaw/workspace-clawster/` with Clawster's lobster personality
+Clawster is an AI desktop pet built on OpenClaw. Here's how the architecture works:
 
-2. **Memory Migration** — If creating a new workspace, optionally migrate your existing memory
+1. Clawster sends your message to the local OpenClaw gateway (`http://127.0.0.1:18789`)
+2. OpenClaw processes the request using IDENTITY.md and SOUL.md to respond as Clawster
+3. Responses can include action commands (move, change mood, wave, snip)
+4. The desktop pet animates based on these actions
 
-3. **Connection Setup** — Configure your OpenClaw gateway:
-   - Auto-detects URL and token from `~/.openclaw/openclaw.json`
-   - Validates connection before proceeding
+**Everything runs locally.** No API keys, no cloud accounts, no data leaves your machine. This AI pet is powered entirely by OpenClaw on your local machine.
 
-4. **Personality** — Customize IDENTITY.md and SOUL.md (when creating new workspace)
+## Customization
 
-5. **Watch Preferences** — Enable app tracking and window title sharing
+### Personality
+Edit the files in your workspace to customize this AI desktop pet:
+- **IDENTITY.md** — Define who Clawster is: name, appearance, available actions
+- **SOUL.md** — Define how Clawster behaves: tone, response style, personality traits
 
-6. **Hotkeys** — Customize keyboard shortcuts for chat, screenshots, and assistant
+Make it a strict code reviewer, a cheerful assistant, a sarcastic debugger, or anything you want.
 
-## Keyboard Shortcuts
+### Behaviors
+In the Assistant panel settings, you can:
+- Enable/disable attention seeking behavior
+- Configure watched folders for file change notifications
+- Toggle window title tracking
 
-Default shortcuts (customizable during onboarding):
+### Reset Onboarding
+```bash
+rm ~/Library/Application\ Support/clawster/clawster-config.json
+```
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+Shift+Space` | Open quick chat bar |
-| `Cmd+Shift+/` | Screenshot + question |
-| `Cmd+Shift+A` | Toggle full assistant panel |
-| `Esc` | Close chat bar |
+## Privacy
+
+Clawster is an AI desktop pet designed with privacy as a core principle:
+- All AI processing happens locally through OpenClaw
+- Screen captures are processed on-device and never uploaded
+- Conversations are stored locally in your workspace directory
+- No analytics, telemetry, or tracking
+- No cloud component
 
 ## Development
 
 ```bash
-# Run in development mode
-npm run dev
-
-# Build for production
-npm run build
-
-# Create distributable package
-npm run dist
+npm run dev      # Run in development mode
+npm run build    # Build for production
+npm run dist     # Create distributable package
 ```
 
-## Project Structure
+### Project Structure
 
 ```
 clawster/
@@ -128,40 +162,21 @@ clawster/
 │       ├── chatbar/    # Quick chat overlay
 │       ├── assistant/  # Full assistant panel
 │       └── onboarding/ # First-launch setup wizard
-├── openclaw/           # Identity files for OpenClaw
+├── openclaw/           # Default personality files
 └── package.json
 ```
 
-## How It Works
+## System Requirements
 
-Clawster is an Electron app that connects to your local OpenClaw gateway. When you chat with Clawster:
+- **macOS** (Monterey 12.0 or later)
+- **Apple Silicon** (arm64) or **Intel** (x86_64)
+- **OpenClaw** installed locally
 
-1. Your message is sent to OpenClaw's chat completions API
-2. OpenClaw uses the IDENTITY.md and SOUL.md files to respond as Clawster
-3. Clawster can include action commands in responses to move, change mood, etc.
-4. The desktop pet animates based on these actions
+## Links
 
-## Customization
-
-### Workspace
-The onboarding wizard sets up your workspace on first launch. Your workspace location depends on your choice:
-- **OpenClaw workspace**: `~/.openclaw/workspace/`
-- **Clawster workspace**: `~/.openclaw/workspace-clawster/`
-
-### Personality
-Edit `IDENTITY.md` and `SOUL.md` in your workspace to customize Clawster's personality.
-
-### Behaviors
-In the Assistant panel settings, you can:
-- Enable/disable attention seeking behavior
-- Configure watched folders for file change notifications
-- Toggle window title tracking
-
-### Reset Onboarding
-To re-run the onboarding wizard, delete the config file:
-```bash
-rm ~/Library/Application\ Support/clawster/clawster-config.json
-```
+- **Website:** [clawster.pet](https://clawster.pet)
+- **OpenClaw:** [openclaw.ai](https://openclaw.ai)
+- **Download:** [Latest Release](https://github.com/wuyuwenj/clawster/releases/latest)
 
 ## License
 
@@ -169,4 +184,6 @@ MIT
 
 ---
 
-_Made with 🦞 and OpenClaw_
+Clawster is a free, open-source AI desktop pet powered by OpenClaw for macOS. The first desktop pet built on OpenClaw.
+
+_Made with 🦞 and [OpenClaw](https://openclaw.ai)_
