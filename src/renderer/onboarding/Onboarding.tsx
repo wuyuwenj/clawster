@@ -13,6 +13,7 @@ export type WorkspaceType = 'openclaw' | 'clawster';
 export interface OnboardingData {
   workspaceType: WorkspaceType | null;
   migrateMemory: boolean;
+  launchOnStartup: boolean;
   gatewayUrl: string;
   gatewayToken: string;
   identity: string;
@@ -29,6 +30,7 @@ export interface OnboardingData {
 const INITIAL_DATA: OnboardingData = {
   workspaceType: null,
   migrateMemory: true,
+  launchOnStartup: true,
   gatewayUrl: 'http://127.0.0.1:18789',
   gatewayToken: '',
   identity: '',

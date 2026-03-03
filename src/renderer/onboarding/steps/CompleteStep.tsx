@@ -93,7 +93,7 @@ const HappyLobsterSvg = () => (
   </svg>
 );
 
-export const CompleteStep: React.FC<Props> = ({ data }) => {
+export const CompleteStep: React.FC<Props> = ({ data, updateData }) => {
   const getWorkspacePath = () => {
     return data.workspaceType === 'openclaw'
       ? '~/.openclaw/workspace/'
@@ -135,6 +135,16 @@ export const CompleteStep: React.FC<Props> = ({ data }) => {
           )}
         </ul>
       </div>
+
+      <label className="w-full max-w-sm mb-6 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-neutral-900/30 px-3 py-2.5 cursor-pointer">
+        <span className="text-sm text-neutral-200">Launch on startup</span>
+        <input
+          type="checkbox"
+          checked={data.launchOnStartup}
+          onChange={(e) => updateData({ launchOnStartup: e.target.checked })}
+          className="h-4 w-4 rounded border-white/20 bg-neutral-900 accent-[#FF8C69]"
+        />
+      </label>
 
       <div className="text-xs text-neutral-500">
         Press <span className="bg-white/10 px-1.5 py-0.5 rounded text-neutral-300">Cmd+Shift+Space</span> to open chat anytime.
