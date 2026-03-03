@@ -51,6 +51,54 @@ const tutorialManager = new TutorialManager(store);
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
+const DEV_WINDOW_BORDER_CSS = `
+  html, body {
+    box-sizing: border-box !important;
+    border: 1px dashed rgba(255, 120, 120, 0.95) !important;
+  }
+`;
+const debugBorderStyleKeys = new WeakMap<BrowserWindow, string>();
+
+function shouldShowDebugWindowBorders(): boolean {
+  return isDev && Boolean(store.get('dev.windowBorders'));
+}
+
+async function applyDebugWindowBorder(window: BrowserWindow): Promise<void> {
+  if (window.isDestroyed() || window.webContents.isDestroyed()) return;
+
+  const previousKey = debugBorderStyleKeys.get(window);
+  if (previousKey) {
+    try {
+      await window.webContents.removeInsertedCSS(previousKey);
+    } catch (error) {
+      console.warn('[Dev] Failed to remove debug window border CSS:', error);
+    }
+    debugBorderStyleKeys.delete(window);
+  }
+
+  if (!shouldShowDebugWindowBorders()) return;
+
+  try {
+    const key = await window.webContents.insertCSS(DEV_WINDOW_BORDER_CSS);
+    debugBorderStyleKeys.set(window, key);
+  } catch (error) {
+    console.warn('[Dev] Failed to apply debug window border CSS:', error);
+  }
+}
+
+function wireDebugWindowBorder(window: BrowserWindow): void {
+  window.webContents.on('did-finish-load', () => {
+    void applyDebugWindowBorder(window);
+  });
+}
+
+function applyDebugWindowBordersToAllWindows(): void {
+  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow];
+  for (const window of windows) {
+    if (!window || window.isDestroyed()) continue;
+    void applyDebugWindowBorder(window);
+  }
+}
 
 // Idle detection state
 let lastActivityTime = Date.now();
@@ -701,6 +749,7 @@ function createPetWindow() {
       nodeIntegration: false,
     },
   });
+  wireDebugWindowBorder(petWindow);
 
   // Allow dragging and going above menu bar
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -753,6 +802,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
         nodeIntegration: false,
       },
     });
+    wireDebugWindowBorder(petChatWindow);
 
     petChatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -859,6 +909,7 @@ function createAssistantWindow() {
       nodeIntegration: false,
     },
   });
+  wireDebugWindowBorder(assistantWindow);
 
   if (isDev) {
     assistantWindow.loadURL(`http://localhost:${DEV_PORT}/assistant.html`);
@@ -917,6 +968,7 @@ function createChatbarWindow() {
       nodeIntegration: false,
     },
   });
+  wireDebugWindowBorder(chatbarWindow);
 
   chatbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -996,6 +1048,7 @@ function createScreenshotQuestionWindow() {
       nodeIntegration: false,
     },
   });
+  wireDebugWindowBorder(screenshotQuestionWindow);
 
   screenshotQuestionWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -1062,6 +1115,7 @@ function createOnboardingWindow(): Promise<void> {
         nodeIntegration: false,
       },
     });
+    wireDebugWindowBorder(onboardingWindow);
 
     const loadUrl = isDev
       ? `http://localhost:${DEV_PORT}/onboarding.html`
@@ -1338,6 +1392,10 @@ function setupIPC() {
       const url = store.get('clawbot.url') as string;
       const token = store.get('clawbot.token') as string;
       clawbot?.updateConfig(url, token);
+    }
+
+    if (key === 'dev.windowBorders') {
+      applyDebugWindowBordersToAllWindows();
     }
 
     return store.store;
