@@ -130,6 +130,7 @@ contextBridge.exposeInMainWorld('clawster', {
   onboardingComplete: (data: {
     workspaceType: 'openclaw' | 'clawster';
     migrateMemory: boolean;
+    launchOnStartup: boolean;
     gatewayUrl: string;
     gatewayToken: string;
     identity: string;
@@ -137,6 +138,9 @@ contextBridge.exposeInMainWorld('clawster', {
     watchFolders: string[];
     watchActiveApp: boolean;
     watchWindowTitles: boolean;
+    hotkeyOpenChat: string;
+    hotkeyCaptureScreen: string;
+    hotkeyOpenAssistant: string;
   }) => ipcRenderer.invoke('onboarding-complete', data),
   readOpenClawConfig: () => ipcRenderer.invoke('read-openclaw-config'),
   readOpenClawWorkspace: () => ipcRenderer.invoke('read-openclaw-workspace'),
@@ -191,6 +195,7 @@ export interface ScreenContext {
 export interface OnboardingData {
   workspaceType: 'openclaw' | 'clawster';
   migrateMemory: boolean;
+  launchOnStartup: boolean;
   gatewayUrl: string;
   gatewayToken: string;
   identity: string;
@@ -198,6 +203,9 @@ export interface OnboardingData {
   watchFolders: string[];
   watchActiveApp: boolean;
   watchWindowTitles: boolean;
+  hotkeyOpenChat: string;
+  hotkeyCaptureScreen: string;
+  hotkeyOpenAssistant: string;
 }
 
 export interface OpenClawWorkspace {
