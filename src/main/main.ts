@@ -1579,13 +1579,8 @@ function setupIPC() {
     return await captureScreen();
   });
 
-  // Send message to ClawBot (with optional screen context)
-  ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
-    if (!clawbot) return { error: 'ClawBot not connected' };
-
-    resetInteractionTimer(); // User is chatting
-
-    // Get chat history for context (filter to user/assistant only)
+  // Build chat payload with history and optional screen context
+  const buildClawbotChatPayload = async (message: string, includeScreen?: boolean) => {
     const chatHistory = (store.get('chatHistory') || []) as Array<{
       role: 'user' | 'assistant' | 'system';
       content: string;
@@ -1594,19 +1589,41 @@ function setupIPC() {
       .filter(msg => msg.role === 'user' || msg.role === 'assistant')
       .map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
 
-    // Get screen context
     const context = await getScreenContext();
     let fullMessage = message;
 
-    // Add screen context to message if requested or if message mentions screen/cursor
     const mentionsScreen = /screen|cursor|mouse|look|where|point|here|there|this/i.test(message);
     if (includeScreen || mentionsScreen) {
       const screenCapture = await captureScreenWithContext();
       if (screenCapture) {
         fullMessage = `[Screen Context: Cursor at (${screenCapture.cursor.x}, ${screenCapture.cursor.y}), Screen size: ${screenCapture.screenSize.width}x${screenCapture.screenSize.height}, Pet at (${context.petPosition.x}, ${context.petPosition.y})]\n\n${message}`;
-        // Note: For full screen capture, you'd send the image to a vision-capable model
       }
     }
+
+    return { history, fullMessage };
+  };
+
+  // Show final response as a speech bubble on the pet when appropriate
+  const maybeShowPetResponse = (responseText?: string) => {
+    const assistantActive = assistantWindow && assistantWindow.isVisible();
+    const chatbarActive = chatbarWindow && chatbarWindow.isVisible();
+    if (responseText && !responseText.includes('error') && petWindow && !assistantActive && !chatbarActive && !tutorialManager?.getStatus().isActive) {
+      petWindow.webContents.send('chat-popup', {
+        id: randomUUID(),
+        text: responseText,
+        trigger: 'proactive',
+        quickReplies: ['Thanks!', 'Not now'],
+      });
+    }
+  };
+
+  // Send message to ClawBot (with optional screen context)
+  ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
+    if (!clawbot) return { error: 'ClawBot not connected' };
+
+    resetInteractionTimer(); // User is chatting
+
+    const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
 
     const response = await clawbot.chat(fullMessage, history);
 
@@ -1615,18 +1632,52 @@ function setupIPC() {
       await executePetAction(response.action.payload as PetAction);
     }
 
-    // Also show response as speech bubble on pet (but not if assistant window is active or during tutorial)
-    const assistantActive = assistantWindow && assistantWindow.isVisible();
-    if (response.text && !response.text.includes('error') && petWindow && !assistantActive && !tutorialManager?.getStatus().isActive) {
-      petWindow.webContents.send('chat-popup', {
-        id: randomUUID(),
-        text: response.text,
-        trigger: 'proactive',
-        quickReplies: ['Thanks!', 'Not now'],
-      });
-    }
+    maybeShowPetResponse(response.text);
 
     return response;
+  });
+
+  // Start streaming a message to ClawBot and emit chunk/end/error events
+  ipcMain.handle('start-clawbot-stream', async (event, message: string, includeScreen?: boolean) => {
+    const clawbotClient = clawbot;
+    if (!clawbotClient) return { error: 'ClawBot not connected' };
+
+    resetInteractionTimer();
+
+    const requestId = randomUUID();
+    const sender = event.sender;
+
+    const runStream = async () => {
+      try {
+        const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
+        const response = await clawbotClient.chatStream(fullMessage, history, {
+          onDelta: (delta, text) => {
+            if (!sender.isDestroyed()) {
+              sender.send('clawbot-stream-chunk', { requestId, delta, text });
+            }
+          },
+        });
+
+        if (response.action?.payload) {
+          await executePetAction(response.action.payload as PetAction);
+        }
+
+        maybeShowPetResponse(response.text);
+
+        if (!sender.isDestroyed()) {
+          sender.send('clawbot-stream-end', { requestId, response });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('Failed to stream from ClawBot:', error);
+        if (!sender.isDestroyed()) {
+          sender.send('clawbot-stream-error', { requestId, error: errorMessage });
+        }
+      }
+    };
+
+    void runStream();
+    return { requestId };
   });
 
   // Get screen context (cursor position, pet position, etc.)
