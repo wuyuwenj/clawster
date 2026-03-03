@@ -42,6 +42,9 @@ let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let pendingPetChatReveal = false;
+let petChatRevealTimeout: NodeJS.Timeout | null = null;
+let petChatAutoHideTimeout: NodeJS.Timeout | null = null;
 
 // Services
 let watchers: Watchers | null = null;
@@ -116,6 +119,11 @@ const PET_WINDOW_WIDTH = 164;
 const PET_WINDOW_HEIGHT = 164;
 const PET_WINDOW_TUTORIAL_WIDTH = 320;
 const PET_WINDOW_TUTORIAL_HEIGHT = 350;
+const PET_CHAT_MIN_WIDTH = 220;
+const PET_CHAT_MAX_WIDTH = 360;
+const PET_CHAT_MIN_HEIGHT = 90;
+const PET_CHAT_MAX_HEIGHT = 420;
+const PET_CHAT_AUTO_HIDE_MS = 10000;
 
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
@@ -210,8 +218,8 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
 // Attention seeker behavior - periodically moves pet toward cursor
 function seekAttention() {
   const enabled = store.get('pet.attentionSeeker') ?? true; // Default to true
-  if (!enabled || !petWindow) {
-    console.log(`[AttentionSeeker] Skipped: enabled=${enabled}, petWindow=${!!petWindow}`);
+  if (!enabled || !petWindow || isSleeping) {
+    console.log(`[AttentionSeeker] Skipped: enabled=${enabled}, petWindow=${!!petWindow}, isSleeping=${isSleeping}`);
     return;
   }
 
@@ -282,7 +290,7 @@ function pickRandomIdleBehavior(): IdleBehavior {
 
 // Execute an idle behavior
 async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
-  if (!petWindow || isPerformingIdleBehavior) return;
+  if (!petWindow || isPerformingIdleBehavior || isSleeping) return;
 
   isPerformingIdleBehavior = true;
 
@@ -352,7 +360,7 @@ function scheduleNextIdleBehavior(): void {
   idleBehaviorInterval = setTimeout(async () => {
     // Only perform if not recently interacted
     const timeSinceInteraction = Date.now() - lastInteractionTime;
-    if (timeSinceInteraction > INTERACTION_COOLDOWN && !isPerformingIdleBehavior) {
+    if (timeSinceInteraction > INTERACTION_COOLDOWN && !isPerformingIdleBehavior && !isSleeping) {
       const behavior = pickRandomIdleBehavior();
       await performIdleBehavior(behavior);
     }
@@ -379,6 +387,7 @@ function stopIdleBehaviors(): void {
 let isSleeping = false;
 let sleepCheckInterval: NodeJS.Timeout | null = null;
 const SLEEP_AFTER_IDLE = 60000; // Fall asleep after 1 minute of no interaction
+const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
 
 function fallAsleep(): void {
   if (isSleeping || !petWindow) return;
@@ -564,12 +573,20 @@ async function captureScreenWithContext(): Promise<{
 // Execute a pet action from ClawBot
 async function executePetAction(action: PetAction): Promise<void> {
   if (!petWindow) return;
+  if (isSleeping) {
+    console.log(`[Sleep] Ignoring pet action while sleeping: ${action.type}`);
+    return;
+  }
 
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   switch (action.type) {
     case 'set_mood':
       if (action.value) {
+        if (isSleepMoodState(action.value)) {
+          isSleeping = true;
+          console.log(`[Sleep] Entered sleep state via set_mood: ${action.value}`);
+        }
         petWindow.webContents.send('clawbot-mood', { state: action.value });
       }
       break;
@@ -649,6 +666,7 @@ async function sendChatPopup(
     const response = await clawbot.chat(prompt);
 
     if (response.text && !response.text.includes('error')) {
+      resetInteractionTimer();
       petWindow.webContents.send('chat-popup', {
         id: randomUUID(),
         text: response.text,
@@ -769,19 +787,43 @@ function createPetWindow() {
 }
 
 // Show chat popup above the pet
+function schedulePetChatAutoHide() {
+  if (petChatAutoHideTimeout) {
+    clearTimeout(petChatAutoHideTimeout);
+  }
+
+  petChatAutoHideTimeout = setTimeout(() => {
+    petChatAutoHideTimeout = null;
+    if (!petChatWindow || petChatWindow.isDestroyed() || !petChatWindow.isVisible()) return;
+    hidePetChat();
+  }, PET_CHAT_AUTO_HIDE_MS);
+}
+
 function showPetChat(message: { id: string; text: string; quickReplies?: string[] }) {
   if (!petWindow) return;
 
   // Don't show chat popups during tutorial
   if (tutorialManager?.getStatus().isActive) return;
+  pendingPetChatReveal = true;
 
   const [petX, petY] = petWindow.getPosition();
   const [petWidth] = petWindow.getSize();
 
-  const chatWidth = 320;
-  const chatHeight = 300;
+  const chatWidth = PET_CHAT_MIN_WIDTH;
+  const chatHeight = PET_CHAT_MIN_HEIGHT;
   const chatX = petX + (petWidth - chatWidth) / 2;
   const chatY = petY - chatHeight - 10;
+
+  const scheduleFallbackReveal = () => {
+    if (petChatRevealTimeout) clearTimeout(petChatRevealTimeout);
+    petChatRevealTimeout = setTimeout(() => {
+      if (!pendingPetChatReveal || !petChatWindow || petChatWindow.isDestroyed()) return;
+      petChatWindow.setOpacity(1);
+      petChatWindow.show();
+      pendingPetChatReveal = false;
+      petChatRevealTimeout = null;
+    }, 250);
+  };
 
   if (!petChatWindow) {
     petChatWindow = new BrowserWindow({
@@ -814,26 +856,77 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
 
     petChatWindow.on('closed', () => {
       petChatWindow = null;
+      pendingPetChatReveal = false;
+      if (petChatRevealTimeout) {
+        clearTimeout(petChatRevealTimeout);
+        petChatRevealTimeout = null;
+      }
+      if (petChatAutoHideTimeout) {
+        clearTimeout(petChatAutoHideTimeout);
+        petChatAutoHideTimeout = null;
+      }
     });
 
     petChatWindow.once('ready-to-show', () => {
-      petChatWindow?.webContents.send('chat-message', message);
+      petChatWindow?.setOpacity(0);
       petChatWindow?.show();
+      petChatWindow?.webContents.send('chat-message', message);
+      scheduleFallbackReveal();
+      schedulePetChatAutoHide();
     });
   } else {
     // Update position and message
     petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
+    petChatWindow.setOpacity(0);
+    if (!petChatWindow.isVisible()) {
+      petChatWindow.show();
+    }
     petChatWindow.webContents.send('chat-message', message);
-    petChatWindow.show();
+    scheduleFallbackReveal();
+    schedulePetChatAutoHide();
   }
 }
 
 function hidePetChat() {
+  pendingPetChatReveal = false;
+  if (petChatRevealTimeout) {
+    clearTimeout(petChatRevealTimeout);
+    petChatRevealTimeout = null;
+  }
+  if (petChatAutoHideTimeout) {
+    clearTimeout(petChatAutoHideTimeout);
+    petChatAutoHideTimeout = null;
+  }
+  petChatWindow?.setOpacity(1);
   petChatWindow?.hide();
 }
 
+function resizePetChatToContent(width: number, height: number) {
+  if (!petChatWindow || petChatWindow.isDestroyed()) return;
+
+  const nextWidth = Math.max(PET_CHAT_MIN_WIDTH, Math.min(Math.round(width), PET_CHAT_MAX_WIDTH));
+  const nextHeight = Math.max(PET_CHAT_MIN_HEIGHT, Math.min(Math.round(height), PET_CHAT_MAX_HEIGHT));
+  const [currentWidth, currentHeight] = petChatWindow.getSize();
+
+  if (nextWidth !== currentWidth || nextHeight !== currentHeight) {
+    petChatWindow.setSize(nextWidth, nextHeight, false);
+  }
+
+  updatePetChatPosition();
+
+  if (pendingPetChatReveal) {
+    if (petChatRevealTimeout) {
+      clearTimeout(petChatRevealTimeout);
+      petChatRevealTimeout = null;
+    }
+    petChatWindow.setOpacity(1);
+    petChatWindow.show();
+    pendingPetChatReveal = false;
+  }
+}
+
 function updatePetChatPosition() {
-  if (!petWindow || !petChatWindow || !petChatWindow.isVisible()) return;
+  if (!petWindow || !petChatWindow) return;
 
   const [petX, petY] = petWindow.getPosition();
   const [petWidth] = petWindow.getSize();
@@ -864,10 +957,22 @@ function updateAssistantPosition() {
   assistantWindow.setPosition(Math.round(assistantX), Math.max(0, Math.round(assistantY)));
 }
 
+function revealAssistantWindow() {
+  if (!assistantWindow || assistantWindow.isDestroyed()) return;
+
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    assistantWindow.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+    });
+  }
+
+  assistantWindow.show();
+  assistantWindow.focus();
+}
+
 function createAssistantWindow() {
   if (assistantWindow) {
-    assistantWindow.show();
-    assistantWindow.focus();
+    revealAssistantWindow();
     updateAssistantPosition();
     return;
   }
@@ -910,6 +1015,9 @@ function createAssistantWindow() {
     },
   });
   wireDebugWindowBorder(assistantWindow);
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    assistantWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
 
   if (isDev) {
     assistantWindow.loadURL(`http://localhost:${DEV_PORT}/assistant.html`);
@@ -918,7 +1026,7 @@ function createAssistantWindow() {
   }
 
   assistantWindow.once('ready-to-show', () => {
-    assistantWindow?.show();
+    revealAssistantWindow();
     // Open DevTools in dev mode
     if (isDev) {
       assistantWindow?.webContents.openDevTools({ mode: 'detach' });
@@ -1246,6 +1354,14 @@ function startMainApp() {
   });
 
   clawbot.on('mood', (data) => {
+    const moodState = (data as { state?: string } | null)?.state;
+    if (isSleepMoodState(moodState)) {
+      isSleeping = true;
+    }
+    if (isSleeping && !isSleepMoodState(moodState)) {
+      console.log(`[Sleep] Ignoring mood update while sleeping: ${String(moodState ?? 'unknown')}`);
+      return;
+    }
     petWindow?.webContents.send('clawbot-mood', data);
   });
 
@@ -1275,7 +1391,9 @@ function startMainApp() {
           text: response.text,
           quickReplies: ['Thanks!', 'Snooze', 'Dismiss'],
         });
-        petWindow?.webContents.send('clawbot-mood', { state: 'excited', reason: 'cron reminder' });
+        if (!isSleeping) {
+          petWindow?.webContents.send('clawbot-mood', { state: 'excited', reason: 'cron reminder' });
+        }
       }
 
       // Handle any actions from the response
@@ -1304,9 +1422,19 @@ function setupIPC() {
     toggleAssistantWindow();
   });
 
+  // Open assistant window on current desktop/space
+  ipcMain.on('open-assistant', () => {
+    createAssistantWindow();
+  });
+
   // Close assistant window
   ipcMain.on('close-assistant', () => {
     assistantWindow?.hide();
+  });
+
+  // Force pet into sleep mode (dev utility)
+  ipcMain.on('force-pet-sleep', () => {
+    fallAsleep();
   });
 
   // Toggle chatbar window
@@ -1394,8 +1522,16 @@ function setupIPC() {
       clawbot?.updateConfig(url, token);
     }
 
+    if (key === 'pet.transparentWhenSleeping') {
+      petWindow?.webContents.send('pet-transparent-sleep-changed', Boolean(value));
+    }
+
     if (key === 'dev.windowBorders') {
       applyDebugWindowBordersToAllWindows();
+    }
+
+    if (key === 'dev.showPetModeOverlay') {
+      petWindow?.webContents.send('dev-show-pet-mode-overlay-changed', Boolean(value));
     }
 
     return store.store;
@@ -1556,6 +1692,18 @@ function setupIPC() {
   // Hide pet chat popup
   ipcMain.on('hide-pet-chat', () => {
     hidePetChat();
+  });
+
+  // Resize pet chat popup to match rendered content
+  ipcMain.on('resize-pet-chat', (_event, width: number, height: number) => {
+    resizePetChatToContent(width, height);
+  });
+
+  // Reset pet chat inactivity timer when user interacts with the popup
+  ipcMain.on('pet-chat-interacted', () => {
+    if (petChatWindow && !petChatWindow.isDestroyed() && petChatWindow.isVisible()) {
+      schedulePetChatAutoHide();
+    }
   });
 
   // Forward pet chat reply to pet window
@@ -1922,6 +2070,7 @@ function registerHotkeys() {
   globalShortcut.register(hotkeyOpenChat, () => {
     // Notify tutorial if active
     tutorialManager.handleHotkeyPressed('openChat');
+    resetInteractionTimer();
     toggleChatbarWindow();
   });
   console.log(`[Hotkeys] Registered open chat: ${hotkeyOpenChat}`);
@@ -2016,27 +2165,21 @@ function setupTray() {
     {
       label: 'Open Assistant',
       click: () => {
-        if (assistantWindow) {
-          assistantWindow.show();
-          assistantWindow.focus();
-        } else {
-          createAssistantWindow();
-        }
+        createAssistantWindow();
       },
     },
     {
       label: 'Settings',
       click: () => {
-        if (assistantWindow) {
-          assistantWindow.show();
-          assistantWindow.focus();
-          assistantWindow.webContents.send('switch-to-settings');
-        } else {
-          createAssistantWindow();
-          // Wait for window to load then switch to settings
-          setTimeout(() => {
+        createAssistantWindow();
+        if (!assistantWindow) return;
+
+        if (assistantWindow.webContents.isLoading()) {
+          assistantWindow.webContents.once('did-finish-load', () => {
             assistantWindow?.webContents.send('switch-to-settings');
-          }, 500);
+          });
+        } else {
+          assistantWindow.webContents.send('switch-to-settings');
         }
       },
     },

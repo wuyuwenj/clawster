@@ -24,6 +24,7 @@ interface ActivityEvent {
 
 type Tab = 'chat' | 'activity' | 'settings';
 const isDevEnvironment = import.meta.env.DEV;
+const SCROLL_TO_BOTTOM_THRESHOLD = 140;
 
 export const Assistant: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('chat');
@@ -37,8 +38,33 @@ export const Assistant: React.FC = () => {
     gatewayUrl: '',
   });
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  const updateScrollState = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isAboveThreshold = distanceFromBottom > SCROLL_TO_BOTTOM_THRESHOLD;
+
+    setShowScrollToBottom(isAboveThreshold);
+  }, []);
+
+  const handleMessagesScroll = useCallback(() => {
+    updateScrollState();
+  }, [updateScrollState]);
+
+  const handleScrollToBottomClick = useCallback(() => {
+    scrollToBottom('smooth');
+    setShowScrollToBottom(false);
+  }, [scrollToBottom]);
 
   // Initialize
   useEffect(() => {
@@ -51,7 +77,8 @@ export const Assistant: React.FC = () => {
         setMessages(history as Message[]);
         // Scroll to bottom immediately after loading history
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+          scrollToBottom('auto');
+          updateScrollState();
         }, 0);
       }
     });
@@ -64,16 +91,6 @@ export const Assistant: React.FC = () => {
     window.clawster.onActivityEvent((event: unknown) => {
       const activityEvent = event as ActivityEvent;
       setActivityLog((prev) => [...prev.slice(-49), activityEvent]);
-
-      if (activityEvent.type === 'app_focus_changed' && activityEvent.app) {
-        const systemMsg: Message = {
-          id: crypto.randomUUID(),
-          role: 'system',
-          content: `Switched to ${activityEvent.app}`,
-          timestamp: Date.now(),
-        };
-        setMessages((prev) => [...prev, systemMsg]);
-      }
     });
 
     window.clawster.onClawbotSuggestion((data: unknown) => {
@@ -112,7 +129,8 @@ export const Assistant: React.FC = () => {
         if (Array.isArray(history)) {
           setMessages(history as Message[]);
           setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+            scrollToBottom('auto');
+            updateScrollState();
           }, 0);
         }
       });
@@ -125,11 +143,16 @@ export const Assistant: React.FC = () => {
     return () => {
       window.clawster.removeAllListeners();
     };
-  }, []);
+  }, [scrollToBottom, updateScrollState]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (activeTab !== 'chat') return;
+    scrollToBottom('smooth');
+
+    setTimeout(() => {
+      updateScrollState();
+    }, 0);
+  }, [activeTab, messages, scrollToBottom, updateScrollState]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -332,50 +355,65 @@ export const Assistant: React.FC = () => {
 
       {/* CONTENT: Chat */}
       {activeTab === 'chat' && (
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-hide flex flex-col">
-            {messages.length === 0 && (
-              <div className="text-center text-neutral-500 py-10">
-                <p className="mb-2">Press <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs font-mono">⌥Space</kbd> to summon me anytime!</p>
-                <p>Ask me anything or use the actions below.</p>
-              </div>
-            )}
-            {messages.map((msg) => (
-              <React.Fragment key={msg.id}>
-                {msg.role === 'assistant' && (
-                  <div className="max-w-[85%] mr-auto">
-                    <div className="bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-neutral-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed">
-                      <MarkdownMessage content={msg.content} />
-                    </div>
-                  </div>
-                )}
-                {msg.role === 'user' && (
-                  <div className="max-w-[85%] ml-auto">
-                    <div className="bg-white/10 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed border border-white/5">
-                      <LinkifyText text={msg.content} />
-                    </div>
-                  </div>
-                )}
-                {msg.role === 'system' && (
-                  <div className="text-center">
-                    <span className="text-xs text-neutral-500 bg-white/5 px-2 py-1 rounded-full">
-                      {msg.content}
-                    </span>
-                  </div>
-                )}
-              </React.Fragment>
-            ))}
-            {isLoading && (
-              <div className="max-w-[85%] mr-auto">
-                <div className="bg-[#FF8C69]/5 border border-[#FF8C69]/10 text-neutral-400 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
+          <div className="relative flex-1 min-h-0">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleMessagesScroll}
+              className="h-full overflow-y-auto p-4 space-y-5 scrollbar-hide flex flex-col"
+            >
+              {messages.length === 0 && (
+                <div className="text-center text-neutral-500 py-10">
+                  <p className="mb-2">Press <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs font-mono">⌥Space</kbd> to summon me anytime!</p>
+                  <p>Ask me anything or use the actions below.</p>
                 </div>
-              </div>
+              )}
+              {messages.map((msg) => (
+                <React.Fragment key={msg.id}>
+                  {msg.role === 'assistant' && (
+                    <div className="max-w-[85%] mr-auto">
+                      <div className="bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-neutral-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed">
+                        <MarkdownMessage content={msg.content} />
+                      </div>
+                    </div>
+                  )}
+                  {msg.role === 'user' && (
+                    <div className="max-w-[85%] ml-auto">
+                      <div className="bg-white/10 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed border border-white/5">
+                        <LinkifyText text={msg.content} />
+                      </div>
+                    </div>
+                  )}
+                  {msg.role === 'system' && (
+                    <div className="text-center">
+                      <span className="text-xs text-neutral-500 bg-white/5 px-2 py-1 rounded-full">
+                        {msg.content}
+                      </span>
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+              {isLoading && (
+                <div className="max-w-[85%] mr-auto">
+                  <div className="bg-[#FF8C69]/5 border border-[#FF8C69]/10 text-neutral-400 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            {showScrollToBottom && (
+              <button
+                onClick={handleScrollToBottomClick}
+                className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-[#0a0a0a]/95 border border-white/15 text-neutral-300 hover:text-white hover:border-white/30 transition-colors flex items-center justify-center shadow-lg"
+                title="Scroll to bottom"
+              >
+                <Icon icon="solar:arrow-down-linear" className="text-base" />
+              </button>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Actions */}
@@ -561,6 +599,26 @@ export const Assistant: React.FC = () => {
                   <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                 </div>
               </label>
+              <label className="flex items-center justify-between cursor-pointer group">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-neutral-300">
+                    Transparent while asleep
+                  </span>
+                  <span className="text-[11px] text-neutral-500 mt-0.5">
+                    Fade Clawster when in doze/sleep state
+                  </span>
+                </div>
+                <div className="relative shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={(settings.pet as { transparentWhenSleeping?: boolean })?.transparentWhenSleeping ?? false}
+                    onChange={(e) => updateSetting('pet.transparentWhenSleeping', e.target.checked)}
+                  />
+                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                  <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -618,6 +676,80 @@ export const Assistant: React.FC = () => {
                     <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                   </div>
                 </label>
+              )}
+              {isDevEnvironment && (
+                <label className="flex items-center justify-between cursor-pointer group px-1">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-neutral-300">
+                      Show pet mode overlay
+                    </span>
+                    <span className="text-[11px] text-neutral-500 mt-0.5">
+                      Display current mode text above Clawster
+                    </span>
+                  </div>
+                  <div className="relative shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={(settings.dev as { showPetModeOverlay?: boolean })?.showPetModeOverlay ?? false}
+                      onChange={(e) => updateSetting('dev.showPetModeOverlay', e.target.checked)}
+                    />
+                    <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                    <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                  </div>
+                </label>
+              )}
+              {isDevEnvironment && (
+                <div className="space-y-2">
+                  <div className="px-1">
+                    <span className="text-sm font-medium text-neutral-300">
+                      Force Emotion
+                    </span>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                      Instantly set Clawster's current mood state
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      'idle',
+                      'happy',
+                      'curious',
+                      'thinking',
+                      'excited',
+                      'doze',
+                      'sleeping',
+                      'startle',
+                      'proud',
+                      'mad',
+                      'spin',
+                      'mouth_o',
+                    ].map((mood) => (
+                      <button
+                        key={mood}
+                        onClick={() => {
+                          window.clawster.executePetAction({ type: 'set_mood', value: mood });
+                        }}
+                        className="px-2.5 py-2 bg-white/5 border border-white/10 rounded-md hover:bg-white/10 text-xs font-medium text-neutral-300 transition-colors"
+                      >
+                        {mood}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {isDevEnvironment && (
+                <button
+                  onClick={() => {
+                    window.clawster.forcePetSleep();
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon icon="solar:sleeping-linear" className="text-neutral-400 group-hover:text-neutral-300" />
+                    <span className="text-sm font-medium text-neutral-300">Set Clawster to Sleep</span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500">Dev action</span>
+                </button>
               )}
               <button
                 onClick={() => {
