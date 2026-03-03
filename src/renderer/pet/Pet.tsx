@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TutorialOverlay } from './TutorialOverlay';
 
-type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin';
+type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
 
 interface ChatMessage {
@@ -13,6 +13,7 @@ interface ChatMessage {
 }
 
 const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
+const isSleepMood = (nextMood: Mood): boolean => nextMood === 'sleeping' || nextMood === 'doze';
 
 // Map internal moods to lobster animation states
 const moodToState = (mood: Mood): string => {
@@ -34,6 +35,8 @@ const moodToState = (mood: Mood): string => {
       return 'state-crossed';
     case 'spin':
       return 'state-spin';
+    case 'mouth_o':
+      return 'state-mouth-o';
     case 'thinking':
       return 'state-worried';
     default:
@@ -144,6 +147,14 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
           strokeLinecap="round"
         />
         <path
+          className="mouth-mad"
+          d="M 59 72 Q 64 68 69 72"
+          fill="none"
+          stroke="var(--ink)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+        <path
           className="mouth-happy"
           d="M 58 66 Q 64 74 70 66"
           fill="none"
@@ -152,6 +163,7 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
           strokeLinecap="round"
         />
         <circle className="mouth-worried" cx="64" cy="70" r="2.5" fill="var(--ink)" />
+        <circle className="mouth-o" cx="64" cy="70" r="3.4" fill="var(--ink)" />
       </g>
     </g>
     {/* Effects */}
@@ -175,10 +187,32 @@ export const Pet: React.FC = () => {
   const [idleBehavior, setIdleBehavior] = useState<IdleBehavior>(null);
   const [pupilOffset, setPupilOffset] = useState<{ x: number; y: number } | null>(null);
   const [tutorialActive, setTutorialActive] = useState(false);
+  const [transparentWhenSleeping, setTransparentWhenSleeping] = useState(false);
+  const [showModeOverlay, setShowModeOverlay] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sleepLockedRef = useRef(false);
+
+  const setPetMood = useCallback((nextMood: Mood) => {
+    const sleeping = isSleepMood(nextMood);
+    sleepLockedRef.current = sleeping;
+    if (sleeping) {
+      setIsWalking(false);
+      if (idleBehaviorTimeoutRef.current) {
+        clearTimeout(idleBehaviorTimeoutRef.current);
+        idleBehaviorTimeoutRef.current = null;
+      }
+      setIdleBehavior(null);
+    }
+    setMood(nextMood);
+  }, []);
+
+  const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
+    if (!sleepLockedRef.current) return true;
+    return nextMood === 'sleeping' || nextMood === 'doze' || nextMood === 'startle' || nextMood === 'idle';
+  }, []);
 
   // Cursor tracking for pupils
   useEffect(() => {
@@ -228,9 +262,28 @@ export const Pet: React.FC = () => {
 
   // Handle mood updates from ClawBot
   useEffect(() => {
+    window.clawster.getSettings().then((settings) => {
+      const typedSettings = settings as {
+        pet?: { transparentWhenSleeping?: boolean };
+        dev?: { showPetModeOverlay?: boolean };
+      };
+      const petSettings = typedSettings.pet;
+      const devSettings = typedSettings.dev;
+      setTransparentWhenSleeping(Boolean(petSettings?.transparentWhenSleeping));
+      setShowModeOverlay(Boolean(devSettings?.showPetModeOverlay));
+    });
+
     window.clawster.onClawbotMood((data: unknown) => {
       const moodData = data as { state: Mood; reason?: string };
-      setMood(moodData.state);
+      if (!canApplyMoodUpdate(moodData.state)) return;
+      setPetMood(moodData.state);
+    });
+
+    window.clawster.onPetTransparentSleepChanged((enabled: boolean) => {
+      setTransparentWhenSleeping(enabled);
+    });
+    window.clawster.onDevShowPetModeOverlayChanged((enabled: boolean) => {
+      setShowModeOverlay(enabled);
     });
 
     // Handle chat messages from main process - show in separate window
@@ -242,7 +295,9 @@ export const Pet: React.FC = () => {
         quickReplies: messageData.quickReplies || DEFAULT_QUICK_REPLIES,
       };
       window.clawster.showPetChat(message);
-      setMood('curious');
+      if (!sleepLockedRef.current) {
+        setPetMood('curious');
+      }
     });
 
     // Legacy suggestion support - show in separate window
@@ -258,34 +313,52 @@ export const Pet: React.FC = () => {
 
     // Handle chat reply reactions
     window.clawster.onPetChatReply((reply: string) => {
+      if (sleepLockedRef.current) return;
+
       if (reply === 'thanks') {
-        setMood('happy');
-        setTimeout(() => setMood('idle'), 2000);
+        setPetMood('happy');
+        setTimeout(() => {
+          if (!sleepLockedRef.current) {
+            setPetMood('idle');
+          }
+        }, 2000);
       } else if (reply === 'thinking') {
-        setMood('thinking');
+        setPetMood('thinking');
       } else if (reply === 'curious') {
-        setMood('curious');
+        setPetMood('curious');
       } else if (reply === 'dismiss') {
-        setMood('idle');
+        setPetMood('idle');
       }
     });
 
     window.clawster.onActivityEvent((event: unknown) => {
+      if (sleepLockedRef.current) return;
+
       const activityEvent = event as { type: string };
       // React to activity - show curiosity briefly
       if (activityEvent.type === 'app_focus_changed') {
-        setMood('curious');
-        setTimeout(() => setMood('idle'), 3000);
+        setPetMood('curious');
+        setTimeout(() => {
+          if (!sleepLockedRef.current) {
+            setPetMood('idle');
+          }
+        }, 3000);
       }
     });
 
     // Listen for pet movement events
     window.clawster.onPetMoving((data) => {
+      if (sleepLockedRef.current) {
+        setIsWalking(false);
+        return;
+      }
       setIsWalking(data.moving);
     });
 
     // Listen for idle behaviors
     window.clawster.onIdleBehavior((data) => {
+      if (sleepLockedRef.current) return;
+
       const idleData = data as { type: IdleBehavior; direction?: string };
       // Clear any existing behavior timeout
       if (idleBehaviorTimeoutRef.current) {
@@ -333,7 +406,11 @@ export const Pet: React.FC = () => {
       }
       window.clawster.removeAllListeners();
     };
-  }, []);
+  }, [canApplyMoodUpdate, setPetMood]);
+
+  const isSleepTransparent = transparentWhenSleeping && (mood === 'sleeping' || mood === 'doze');
+  const shouldShowModeOverlay = import.meta.env.DEV && showModeOverlay;
+  const currentMode = isWalking ? 'walking' : idleBehavior ? `idle:${idleBehavior}` : `mood:${mood}`;
 
   // Handle dragging - use document-level events to track fast mouse movements
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -384,7 +461,6 @@ export const Pet: React.FC = () => {
     // Annoyed/grumpy reactions
     { mood: 'thinking', duration: 1500 },   // worried/annoyed face
     { mood: 'mad', duration: 1500 },        // arms crossed, annoyed
-    { mood: 'sleeping', duration: 2000 },   // "leave me alone" sleepy
     { behavior: 'yawn', duration: 2500 },   // bored yawn
     // Neutral
     { behavior: 'stretch', duration: 2000 },
@@ -401,25 +477,41 @@ export const Pet: React.FC = () => {
       window.clawster.tutorialPetClicked();
     }
 
+    // When sleeping, ignore poke reactions. The click still notifies main
+    // so explicit user interaction can decide whether to wake Clawster.
+    if (sleepLockedRef.current) {
+      window.clawster.petClicked?.();
+      return;
+    }
+
     // Pick a random reaction
     const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
 
     if (reaction.mood) {
-      setMood(reaction.mood);
-      setTimeout(() => setMood('idle'), reaction.duration);
+      setPetMood(reaction.mood);
+      setTimeout(() => {
+        if (!sleepLockedRef.current) {
+          setPetMood('idle');
+        }
+      }, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
-      setTimeout(() => setIdleBehavior(null), reaction.duration);
+      setTimeout(() => {
+        if (!sleepLockedRef.current) {
+          setIdleBehavior(null);
+        }
+      }, reaction.duration);
     }
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [tutorialActive]);
+  }, [setPetMood, tutorialActive]);
 
   // Right click = open assistant
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     if (!didDragRef.current) {
+      window.clawster.petClicked?.();
       window.clawster.toggleAssistant();
     }
   }, []);
@@ -431,9 +523,13 @@ export const Pet: React.FC = () => {
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
+      {shouldShowModeOverlay && (
+        <div className="pet-mode-overlay">{currentMode}</div>
+      )}
+
       {/* Animated Lobster Pet */}
       <div
-        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''}`}
+        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''} ${isSleepTransparent ? 'sleep-transparent' : ''}`}
       >
         <LobsterSvg pupilOffset={pupilOffset} />
       </div>

@@ -21,6 +21,26 @@
   cursor: grabbing;
 }
 
+.pet-mode-overlay {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
+  z-index: 200;
+  white-space: nowrap;
+}
+
 /* Chat popup */
 .chat-popup {
   position: absolute;
@@ -167,6 +187,11 @@
   width: 120px;
   height: 120px;
   position: relative;
+  transition: opacity 0.35s ease;
+}
+
+.lobster-container.sleep-transparent {
+  opacity: 0.5;
 }
 
 .lobster-container svg {
@@ -223,8 +248,20 @@
   opacity: 0;
 }
 
+.lobster-container .mouth-mad {
+  opacity: 0;
+}
+
 .lobster-container .mouth-worried {
   opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.lobster-container .mouth-o {
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
 }
 
 .lobster-container .fx-zzz,
@@ -269,6 +306,17 @@
 
 .lobster-container.state-happy .pupils {
   transform: scale(1.2);
+}
+
+/* DEBUG MOUTH-O STATE */
+.lobster-container.state-mouth-o .mouth-neutral,
+.lobster-container.state-mouth-o .mouth-happy,
+.lobster-container.state-mouth-o .mouth-worried {
+  opacity: 0;
+}
+
+.lobster-container.state-mouth-o .mouth-o {
+  opacity: 1;
 }
 
 /* SLEEP STATE */
@@ -551,22 +599,21 @@
   animation: jump 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.lobster-container.state-startle .eye-open,
-.lobster-container.state-startle .eye-squint,
-.lobster-container.state-startle .eye-closed {
-  opacity: 0;
+.lobster-container.state-startle .eye-open {
+  opacity: 1;
   animation: none;
 }
 
-.lobster-container.state-startle .eye-wide {
-  opacity: 1;
+.lobster-container.state-startle .eye-closed {
+  opacity: 0;
+  animation: none;
 }
 
 .lobster-container.state-startle .mouth-neutral {
   opacity: 0;
 }
 
-.lobster-container.state-startle .mouth-o {
+.lobster-container.state-startle .mouth-worried {
   opacity: 1;
 }
 
@@ -606,7 +653,7 @@
   animation: none;
 }
 
-.lobster-container.state-doze .eye-squint {
+.lobster-container.state-doze .eye-closed {
   opacity: 1;
 }
 
@@ -674,12 +721,12 @@
 }
 
 .lobster-container.state-crossed .eye-open {
-  opacity: 0;
+  opacity: 1;
   animation: none;
 }
 
-.lobster-container.state-crossed .eye-squint {
-  opacity: 1;
+.lobster-container.state-crossed .eye-closed {
+  opacity: 0;
 }
 
 .lobster-container.state-crossed .mouth-neutral {
@@ -728,12 +775,11 @@
 }
 
 .lobster-container.state-proud .mouth-neutral {
-  opacity: 0;
+  opacity: 1;
 }
 
 .lobster-container.state-proud .mouth-mad {
-  opacity: 1;
-  transform: scaleY(-1) translateY(-140px);
+  opacity: 0;
 }
 
 /* SPIN STATE */
@@ -931,7 +977,7 @@
   opacity: 0;
 }
 
-.lobster-container.idle-yawn .mouth-o {
+.lobster-container.idle-yawn .mouth-worried {
   opacity: 1;
   animation: yawnMouth 2.5s ease-in-out;
 }
