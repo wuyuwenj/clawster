@@ -31,6 +31,7 @@ export const Assistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeStreamMessageId, setActiveStreamMessageId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; error: string | null; gatewayUrl: string }>({
     connected: false,
@@ -42,6 +43,8 @@ export const Assistant: React.FC = () => {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const activeStreamRequestIdRef = useRef<string | null>(null);
+  const activeStreamMessageIdRef = useRef<string | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -124,6 +127,67 @@ export const Assistant: React.FC = () => {
       setMessages((prev) => [...prev, errorMsg]);
     });
 
+    window.clawster.onClawbotStreamChunk((data) => {
+      if (data.requestId !== activeStreamRequestIdRef.current) return;
+      const messageId = activeStreamMessageIdRef.current;
+      if (!messageId) return;
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: data.text }
+            : msg
+        )
+      );
+    });
+
+    window.clawster.onClawbotStreamEnd((data) => {
+      if (data.requestId !== activeStreamRequestIdRef.current) return;
+      const response = data.response as {
+        text?: string;
+        action?: { type: string; payload: unknown };
+      };
+
+      const messageId = activeStreamMessageIdRef.current;
+      if (messageId) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, content: response.text || msg.content || 'No response' }
+              : msg
+          )
+        );
+      }
+
+      if (response.action?.type === 'open_url' && response.action.payload) {
+        window.clawster.openExternal(response.action.payload as string);
+      }
+
+      activeStreamRequestIdRef.current = null;
+      activeStreamMessageIdRef.current = null;
+      setActiveStreamMessageId(null);
+      setIsLoading(false);
+    });
+
+    window.clawster.onClawbotStreamError((data) => {
+      if (data.requestId !== activeStreamRequestIdRef.current) return;
+      const messageId = activeStreamMessageIdRef.current;
+      if (messageId) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, content: `Failed to stream response: ${data.error}` }
+              : msg
+          )
+        );
+      }
+
+      activeStreamRequestIdRef.current = null;
+      activeStreamMessageIdRef.current = null;
+      setActiveStreamMessageId(null);
+      setIsLoading(false);
+    });
+
     window.clawster.onChatSync(() => {
       window.clawster.getChatHistory().then((history) => {
         if (Array.isArray(history)) {
@@ -162,46 +226,69 @@ export const Assistant: React.FC = () => {
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
+    const prompt = input.trim();
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: input.trim(),
+      content: prompt,
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const streamingAssistantMessageId = crypto.randomUUID();
+    const assistantPlaceholder: Message = {
+      id: streamingAssistantMessageId,
+      role: 'assistant',
+      content: '...',
+      timestamp: Date.now(),
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
     setInput('');
     setIsLoading(true);
+    setActiveStreamMessageId(streamingAssistantMessageId);
+    activeStreamMessageIdRef.current = streamingAssistantMessageId;
 
     try {
-      const response = (await window.clawster.sendToClawbot(input.trim())) as {
-        text?: string;
-        action?: { type: string; payload: unknown };
-      };
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: response.text || 'No response',
-        timestamp: Date.now(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      if (response.action?.type === 'open_url' && response.action.payload) {
-        window.clawster.openExternal(response.action.payload as string);
+      const started = await window.clawster.startClawbotStream(prompt);
+      if (!started.requestId || started.error) {
+        throw new Error(started.error || 'Failed to start stream');
       }
-    } catch (error) {
-      const errorMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'Failed to get response from ClawBot',
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
+
+      activeStreamRequestIdRef.current = started.requestId;
+      return;
+    } catch {
+      try {
+        const response = (await window.clawster.sendToClawbot(prompt)) as {
+          text?: string;
+          action?: { type: string; payload: unknown };
+        };
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === streamingAssistantMessageId
+              ? { ...msg, content: response.text || 'No response' }
+              : msg
+          )
+        );
+
+        if (response.action?.type === 'open_url' && response.action.payload) {
+          window.clawster.openExternal(response.action.payload as string);
+        }
+      } catch {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === streamingAssistantMessageId
+              ? { ...msg, content: 'Failed to get response from ClawBot' }
+              : msg
+          )
+        );
+      } finally {
+        activeStreamRequestIdRef.current = null;
+        activeStreamMessageIdRef.current = null;
+        setActiveStreamMessageId(null);
+        setIsLoading(false);
+      }
     }
   }, [input, isLoading]);
 
@@ -394,7 +481,7 @@ export const Assistant: React.FC = () => {
                   )}
                 </React.Fragment>
               ))}
-              {isLoading && (
+              {isLoading && !activeStreamMessageId && (
                 <div className="max-w-[85%] mr-auto">
                   <div className="bg-[#FF8C69]/5 border border-[#FF8C69]/10 text-neutral-400 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>

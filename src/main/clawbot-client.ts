@@ -40,6 +40,10 @@ interface ClawBotResponse {
   };
 }
 
+interface ChatStreamHandlers {
+  onDelta?: (delta: string, fullText: string) => void;
+}
+
 // Desktop capabilities prompt - generic, no personality (identity comes from workspace files)
 const SYSTEM_PROMPT = `You are a desktop pet assistant running on the user's computer. You appear as an animated character on the user's screen.
 
@@ -310,6 +314,137 @@ export class ClawBotClient extends EventEmitter {
       }
     } catch (error) {
       console.error('Failed to chat with ClawBot:', error);
+      return { type: 'message', text: `Failed to reach ClawBot: ${error}` };
+    }
+  }
+
+  // Stream a chat message from ClawBot (OpenAI-compatible API with SSE)
+  async chatStream(
+    message: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    handlers: ChatStreamHandlers = {}
+  ): Promise<ClawBotResponse> {
+    if (!this.connected) {
+      return { type: 'message', text: 'ClawBot is not connected. Check if it\'s running.' };
+    }
+
+    try {
+      const recentHistory = history.slice(-20);
+      const messages: Array<{ role: string; content: string }> = [];
+
+      if (this.agentId) {
+        messages.push({ role: 'system', content: SYSTEM_PROMPT });
+      }
+
+      messages.push(...recentHistory, { role: 'user', content: message });
+
+      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages,
+          stream: true,
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`ClawBot stream chat error (${response.status}):`, errorText);
+        return { type: 'message', text: `ClawBot error ${response.status}: ${errorText.slice(0, 200)}` };
+      }
+
+      if (!response.body) {
+        console.warn('[ClawBot] Stream response missing body; falling back to non-streaming chat');
+        return await this.chat(message, history);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let rawText = '';
+      let done = false;
+
+      while (!done) {
+        const result = await reader.read();
+        done = result.done;
+
+        if (result.value) {
+          buffer += decoder.decode(result.value, { stream: true });
+
+          const events = buffer.split('\n\n');
+          buffer = events.pop() ?? '';
+
+          for (const evt of events) {
+            const lines = evt.split('\n');
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+
+              const payload = trimmed.slice(5).trim();
+              if (!payload) continue;
+              if (payload === '[DONE]') {
+                done = true;
+                break;
+              }
+
+              try {
+                const chunk = JSON.parse(payload) as {
+                  choices?: Array<{
+                    delta?: { content?: string };
+                  }>;
+                };
+                const delta = chunk.choices?.[0]?.delta?.content;
+                if (typeof delta === 'string' && delta.length > 0) {
+                  rawText += delta;
+                  handlers.onDelta?.(delta, rawText);
+                }
+              } catch (error) {
+                console.warn('[ClawBot] Failed to parse stream chunk:', payload.slice(0, 120), error);
+              }
+            }
+          }
+        }
+      }
+
+      if (buffer.trim().length > 0) {
+        const trailingLines = buffer.split('\n');
+        for (const line of trailingLines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+
+          try {
+            const chunk = JSON.parse(payload) as {
+              choices?: Array<{
+                delta?: { content?: string };
+              }>;
+            };
+            const delta = chunk.choices?.[0]?.delta?.content;
+            if (typeof delta === 'string' && delta.length > 0) {
+              rawText += delta;
+              handlers.onDelta?.(delta, rawText);
+            }
+          } catch {
+            // Ignore trailing malformed events
+          }
+        }
+      }
+
+      if (!rawText) {
+        rawText = 'No response';
+      }
+
+      const { cleanText, action } = parseActionFromResponse(rawText);
+      return {
+        type: action ? 'action' : 'message',
+        text: cleanText,
+        action: action ? { type: (action as { type: string }).type, payload: action } : undefined
+      };
+    } catch (error) {
+      console.error('Failed to stream chat with ClawBot:', error);
       return { type: 'message', text: `Failed to reach ClawBot: ${error}` };
     }
   }
