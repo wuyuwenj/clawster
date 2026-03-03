@@ -49,6 +49,9 @@ interface StoreSchema {
   chatHistory: ChatMessage[];
   onboarding: OnboardingState;
   tutorial: TutorialState;
+  dev: {
+    windowBorders: boolean;
+  };
 }
 
 const defaults: StoreSchema = {
@@ -88,6 +91,9 @@ const defaults: StoreSchema = {
     completedAt: null,
     wasInterrupted: false,
     lastStep: 0,
+  },
+  dev: {
+    windowBorders: false,
   },
 };
 
