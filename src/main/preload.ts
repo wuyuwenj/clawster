@@ -121,12 +121,18 @@ contextBridge.exposeInMainWorld('clawster', {
   onChatSync: (callback: () => void) => {
     ipcRenderer.on('chat-sync', () => callback());
   },
+  onSwitchToChat: (callback: () => void) => {
+    ipcRenderer.on('switch-to-chat', () => callback());
+  },
   onSwitchToSettings: (callback: () => void) => {
     ipcRenderer.on('switch-to-settings', () => callback());
   },
 
   // Pet interactions
   petClicked: () => ipcRenderer.send('pet-clicked'),
+  showPetContextMenu: (x: number, y: number) => ipcRenderer.send('show-pet-context-menu', { x, y }),
+  hidePetContextMenu: () => ipcRenderer.send('hide-pet-context-menu'),
+  petContextMenuAction: (action: 'chat' | 'settings') => ipcRenderer.send('pet-context-menu-action', action),
 
   // Tutorial
   tutorialPetClicked: () => ipcRenderer.send('tutorial-pet-clicked'),
@@ -200,6 +206,8 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('dev-show-pet-mode-overlay-changed');
     ipcRenderer.removeAllListeners('idle-behavior');
     ipcRenderer.removeAllListeners('chat-sync');
+    ipcRenderer.removeAllListeners('switch-to-chat');
+    ipcRenderer.removeAllListeners('switch-to-settings');
     ipcRenderer.removeAllListeners('tutorial-step');
     ipcRenderer.removeAllListeners('tutorial-hint');
     ipcRenderer.removeAllListeners('tutorial-ended');
@@ -302,7 +310,12 @@ export interface ClawsterAPI {
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
   onChatSync: (callback: () => void) => void;
+  onSwitchToChat: (callback: () => void) => void;
+  onSwitchToSettings: (callback: () => void) => void;
   petClicked: () => void;
+  showPetContextMenu: (x: number, y: number) => void;
+  hidePetContextMenu: () => void;
+  petContextMenuAction: (action: 'chat' | 'settings') => void;
   // Tutorial
   tutorialPetClicked: () => void;
   tutorialNext: () => void;
