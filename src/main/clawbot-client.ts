@@ -1,9 +1,6 @@
 import { EventEmitter } from 'events';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import type { ActivityEvent } from './watchers';
 
 const execAsync = promisify(exec);
@@ -43,6 +40,28 @@ interface ClawBotResponse {
 interface ChatStreamHandlers {
   onDelta?: (delta: string, fullText: string) => void;
 }
+
+type ResponsesInputTextPart = {
+  type: 'input_text';
+  text: string;
+};
+
+type ResponsesInputImagePart = {
+  type: 'input_image';
+  source: {
+    type: 'base64';
+    media_type: string;
+    data: string;
+  };
+};
+
+type ResponsesInputPart = ResponsesInputTextPart | ResponsesInputImagePart;
+
+type ResponsesInputItem = {
+  type: 'message';
+  role: 'system' | 'developer' | 'user' | 'assistant';
+  content: ResponsesInputPart[];
+};
 
 // Desktop capabilities prompt - generic, no personality (identity comes from workspace files)
 const SYSTEM_PROMPT = `You are a desktop pet assistant running on the user's computer. You appear as an animated character on the user's screen.
@@ -261,7 +280,7 @@ export class ClawBotClient extends EventEmitter {
     }
   }
 
-  // Send a chat message to ClawBot (OpenAI-compatible API)
+  // Send a chat message to ClawBot via OpenClaw Responses API
   async chat(
     message: string,
     history: Array<{ role: 'user' | 'assistant'; content: string }> = []
@@ -283,34 +302,24 @@ export class ClawBotClient extends EventEmitter {
 
       messages.push(...recentHistory, { role: 'user', content: message });
 
-      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+      const response = await fetch(`${this.baseUrl}/v1/responses`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
           model: 'openclaw',
-          messages,
+          input: this.buildResponsesTextInput(messages),
         }),
         signal: AbortSignal.timeout(60000),
       });
 
       if (response.ok) {
-        const data = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        const rawText = data.choices?.[0]?.message?.content || 'No response';
-
-        // Parse any action blocks from the response
-        const { cleanText, action } = parseActionFromResponse(rawText);
-
-        return {
-          type: action ? 'action' : 'message',
-          text: cleanText,
-          action: action ? { type: (action as { type: string }).type, payload: action } : undefined
-        };
+        const data = (await response.json()) as unknown;
+        const rawText = this.extractTextFromResponsesPayload(data) || 'No response';
+        return this.toClawBotResponse(rawText);
       } else {
         const errorText = await response.text();
         console.error(`ClawBot chat error (${response.status}):`, errorText);
-        return { type: 'message', text: `ClawBot error ${response.status}: ${errorText.slice(0, 200)}` };
+        return { type: 'message', text: this.formatGatewayError(response.status, errorText) };
       }
     } catch (error) {
       console.error('Failed to chat with ClawBot:', error);
@@ -318,7 +327,7 @@ export class ClawBotClient extends EventEmitter {
     }
   }
 
-  // Stream a chat message from ClawBot (OpenAI-compatible API with SSE)
+  // Stream a chat message from ClawBot via OpenClaw Responses API (SSE)
   async chatStream(
     message: string,
     history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
@@ -338,12 +347,12 @@ export class ClawBotClient extends EventEmitter {
 
       messages.push(...recentHistory, { role: 'user', content: message });
 
-      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+      const response = await fetch(`${this.baseUrl}/v1/responses`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
           model: 'openclaw',
-          messages,
+          input: this.buildResponsesTextInput(messages),
           stream: true,
         }),
         signal: AbortSignal.timeout(120000),
@@ -352,7 +361,7 @@ export class ClawBotClient extends EventEmitter {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`ClawBot stream chat error (${response.status}):`, errorText);
-        return { type: 'message', text: `ClawBot error ${response.status}: ${errorText.slice(0, 200)}` };
+        return { type: 'message', text: this.formatGatewayError(response.status, errorText) };
       }
 
       if (!response.body) {
@@ -365,6 +374,33 @@ export class ClawBotClient extends EventEmitter {
       let buffer = '';
       let rawText = '';
       let done = false;
+      let completedPayload: unknown = null;
+
+      const handleStreamPayload = (payload: string): void => {
+        if (!payload) return;
+        if (payload === '[DONE]') {
+          done = true;
+          return;
+        }
+
+        try {
+          const chunk = JSON.parse(payload) as {
+            type?: unknown;
+            response?: unknown;
+          };
+          const delta = this.extractDeltaFromResponsesStreamPayload(chunk);
+          if (delta) {
+            rawText += delta;
+            handlers.onDelta?.(delta, rawText);
+          }
+
+          if (chunk.type === 'response.completed') {
+            completedPayload = chunk.response || chunk;
+          }
+        } catch (error) {
+          console.warn('[ClawBot] Failed to parse stream chunk:', payload.slice(0, 120), error);
+        }
+      };
 
       while (!done) {
         const result = await reader.read();
@@ -381,28 +417,8 @@ export class ClawBotClient extends EventEmitter {
             for (const line of lines) {
               const trimmed = line.trim();
               if (!trimmed.startsWith('data:')) continue;
-
               const payload = trimmed.slice(5).trim();
-              if (!payload) continue;
-              if (payload === '[DONE]') {
-                done = true;
-                break;
-              }
-
-              try {
-                const chunk = JSON.parse(payload) as {
-                  choices?: Array<{
-                    delta?: { content?: string };
-                  }>;
-                };
-                const delta = chunk.choices?.[0]?.delta?.content;
-                if (typeof delta === 'string' && delta.length > 0) {
-                  rawText += delta;
-                  handlers.onDelta?.(delta, rawText);
-                }
-              } catch (error) {
-                console.warn('[ClawBot] Failed to parse stream chunk:', payload.slice(0, 120), error);
-              }
+              handleStreamPayload(payload);
             }
           }
         }
@@ -414,42 +430,22 @@ export class ClawBotClient extends EventEmitter {
           const trimmed = line.trim();
           if (!trimmed.startsWith('data:')) continue;
           const payload = trimmed.slice(5).trim();
-          if (!payload || payload === '[DONE]') continue;
-
-          try {
-            const chunk = JSON.parse(payload) as {
-              choices?: Array<{
-                delta?: { content?: string };
-              }>;
-            };
-            const delta = chunk.choices?.[0]?.delta?.content;
-            if (typeof delta === 'string' && delta.length > 0) {
-              rawText += delta;
-              handlers.onDelta?.(delta, rawText);
-            }
-          } catch {
-            // Ignore trailing malformed events
-          }
+          handleStreamPayload(payload);
         }
       }
 
       if (!rawText) {
-        rawText = 'No response';
+        rawText = this.extractTextFromResponsesPayload(completedPayload) || 'No response';
       }
 
-      const { cleanText, action } = parseActionFromResponse(rawText);
-      return {
-        type: action ? 'action' : 'message',
-        text: cleanText,
-        action: action ? { type: (action as { type: string }).type, payload: action } : undefined
-      };
+      return this.toClawBotResponse(rawText);
     } catch (error) {
       console.error('Failed to stream chat with ClawBot:', error);
       return { type: 'message', text: `Failed to reach ClawBot: ${error}` };
     }
   }
 
-  // Save screenshot to temp file and send path to OpenClaw for analysis
+  // Send screenshot directly to OpenClaw Responses API for analysis
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ClawBotResponse> {
     console.log('[ClawBot] analyzeScreen called');
     console.log('[ClawBot] Question:', question);
@@ -461,40 +457,218 @@ export class ClawBotClient extends EventEmitter {
       return { type: 'message', text: 'ClawBot is not connected. Check if it\'s running.' };
     }
 
-    // Save screenshot to a temp file so OpenClaw can read it directly
-    let screenshotPath: string | null = null;
-    try {
-      const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, '');
-      const tmpDir = path.join(os.tmpdir(), 'clawster');
-      fs.mkdirSync(tmpDir, { recursive: true });
-      screenshotPath = path.join(tmpDir, `screenshot-${Date.now()}.png`);
-      fs.writeFileSync(screenshotPath, Buffer.from(base64Data, 'base64'));
-      console.log('[ClawBot] Screenshot saved to:', screenshotPath);
-    } catch (error) {
-      console.error('[ClawBot] Failed to save screenshot:', error);
-      return { type: 'message', text: 'Failed to save screenshot for analysis.' };
+    const imageSource = this.parseBase64ImageSource(imageDataUrl);
+    if (!imageSource) {
+      return { type: 'message', text: 'Invalid screenshot format. Expected a base64 data URL.' };
     }
 
     try {
-      const clawbotPrompt = `[SCREENSHOT: The user has captured a screenshot. The image file is located at: ${screenshotPath}]
+      const input: ResponsesInputItem[] = [];
+      if (this.agentId) {
+        input.push({
+          type: 'message',
+          role: 'system',
+          content: [{ type: 'input_text', text: SYSTEM_PROMPT }],
+        });
+      }
 
-USER QUESTION: "${userQuestion}"
+      input.push({
+        type: 'message',
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text: `${userQuestion}\n\nPlease analyze the attached screenshot and answer specifically about what is visible.`,
+          },
+          {
+            type: 'input_image',
+            source: imageSource,
+          },
+        ],
+      });
 
-Please read the screenshot file and answer the user's question. Be helpful and specific about what's shown in the screenshot.`;
+      const response = await fetch(`${this.baseUrl}/v1/responses`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          model: 'openclaw',
+          input,
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
 
-      return await this.chat(clawbotPrompt);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`ClawBot image analysis error (${response.status}):`, errorText);
+        return { type: 'message', text: this.formatGatewayError(response.status, errorText) };
+      }
+
+      const data = (await response.json()) as unknown;
+      const rawText = this.extractTextFromResponsesPayload(data) || 'No response';
+      return this.toClawBotResponse(rawText);
     } catch (error) {
-      console.error('[ClawBot] ClawBot chat failed:', error);
+      console.error('[ClawBot] ClawBot image analysis failed:', error);
       return { type: 'message', text: 'Failed to analyze screenshot.' };
-    } finally {
-      // Clean up temp file after a delay to ensure OpenClaw has time to read it
-      if (screenshotPath) {
-        const filePath = screenshotPath;
-        setTimeout(() => {
-          try { fs.unlinkSync(filePath); } catch { /* ignore */ }
-        }, 60000);
+    }
+  }
+
+  private buildResponsesTextInput(
+    messages: Array<{ role: string; content: string }>
+  ): ResponsesInputItem[] {
+    return messages.map((msg) => ({
+      type: 'message',
+      role: this.normalizeMessageRole(msg.role),
+      content: [{ type: 'input_text', text: msg.content }],
+    }));
+  }
+
+  private normalizeMessageRole(role: string): ResponsesInputItem['role'] {
+    if (role === 'system' || role === 'developer' || role === 'assistant' || role === 'user') {
+      return role;
+    }
+    return 'user';
+  }
+
+  private parseBase64ImageSource(imageDataUrl: string): ResponsesInputImagePart['source'] | null {
+    const dataUrlMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/);
+    if (!dataUrlMatch) {
+      return null;
+    }
+
+    return {
+      type: 'base64',
+      media_type: dataUrlMatch[1],
+      data: dataUrlMatch[2],
+    };
+  }
+
+  private formatGatewayError(status: number, errorText: string): string {
+    if (status === 405) {
+      return 'ClawBot error 405: Responses endpoint disabled. Set gateway.http.endpoints.responses.enabled=true in ~/.openclaw/openclaw.json and restart the gateway.';
+    }
+    return `ClawBot error ${status}: ${errorText.slice(0, 200)}`;
+  }
+
+  private extractTextFromResponsesPayload(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const data = payload as {
+      output_text?: unknown;
+      output?: unknown;
+      response?: unknown;
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    if (typeof data.output_text === 'string' && data.output_text.length > 0) {
+      return data.output_text;
+    }
+
+    if (Array.isArray(data.output_text)) {
+      const textParts = data.output_text
+        .map((part) => {
+          if (typeof part === 'string') return part;
+          if (part && typeof part === 'object' && typeof (part as { text?: unknown }).text === 'string') {
+            return (part as { text: string }).text;
+          }
+          return '';
+        })
+        .filter((part) => part.length > 0);
+      if (textParts.length > 0) {
+        return textParts.join('');
       }
     }
+
+    const outputTextParts: string[] = [];
+    if (Array.isArray(data.output)) {
+      for (const item of data.output) {
+        if (!item || typeof item !== 'object') continue;
+        const itemObj = item as { text?: unknown; content?: unknown };
+        if (typeof itemObj.text === 'string' && itemObj.text.length > 0) {
+          outputTextParts.push(itemObj.text);
+        }
+        if (Array.isArray(itemObj.content)) {
+          for (const part of itemObj.content) {
+            if (!part || typeof part !== 'object') continue;
+            const partObj = part as { type?: unknown; text?: unknown };
+            if (typeof partObj.text === 'string' && partObj.text.length > 0) {
+              const partType = typeof partObj.type === 'string' ? partObj.type : '';
+              if (!partType || partType.includes('text')) {
+                outputTextParts.push(partObj.text);
+              }
+            }
+          }
+        }
+      }
+    }
+    if (outputTextParts.length > 0) {
+      return outputTextParts.join('');
+    }
+
+    // response.completed events may nest the full response object under "response"
+    if (data.response && typeof data.response === 'object') {
+      const nested = this.extractTextFromResponsesPayload(data.response);
+      if (nested) return nested;
+    }
+
+    // Compatibility with legacy chat-completions shape
+    const fallbackText = data.choices?.[0]?.message?.content;
+    if (typeof fallbackText === 'string' && fallbackText.length > 0) {
+      return fallbackText;
+    }
+
+    return null;
+  }
+
+  private extractDeltaFromResponsesStreamPayload(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const data = payload as {
+      type?: unknown;
+      delta?: unknown;
+      part?: unknown;
+      choices?: Array<{
+        delta?: { content?: string };
+      }>;
+    };
+
+    if (data.type === 'response.output_text.delta') {
+      if (typeof data.delta === 'string' && data.delta.length > 0) {
+        return data.delta;
+      }
+      if (data.delta && typeof data.delta === 'object' && typeof (data.delta as { text?: unknown }).text === 'string') {
+        return (data.delta as { text: string }).text;
+      }
+    }
+
+    if (data.type === 'response.content_part.added' && data.part && typeof data.part === 'object') {
+      const part = data.part as { type?: unknown; text?: unknown };
+      if (typeof part.text === 'string' && part.text.length > 0) {
+        const partType = typeof part.type === 'string' ? part.type : '';
+        if (!partType || partType.includes('text')) {
+          return part.text;
+        }
+      }
+    }
+
+    const legacyDelta = data.choices?.[0]?.delta?.content;
+    if (typeof legacyDelta === 'string' && legacyDelta.length > 0) {
+      return legacyDelta;
+    }
+
+    return null;
+  }
+
+  private toClawBotResponse(rawText: string): ClawBotResponse {
+    const { cleanText, action } = parseActionFromResponse(rawText);
+    return {
+      type: action ? 'action' : 'message',
+      text: cleanText,
+      action: action ? { type: (action as { type: string }).type, payload: action } : undefined,
+    };
   }
 
   // Request ClawBot to perform an action
