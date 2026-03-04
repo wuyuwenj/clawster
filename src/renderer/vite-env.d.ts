@@ -47,7 +47,9 @@ interface OpenClawWorkspace {
 
 interface ClawsterAPI {
   toggleAssistant: () => void;
+  openAssistant: () => void;
   closeAssistant: () => void;
+  forcePetSleep: () => void;
   toggleChatbar: () => void;
   closeChatbar: () => void;
   setChatbarIgnoreMouse: (ignore: boolean) => void;
@@ -56,6 +58,8 @@ interface ClawsterAPI {
   dragPet: (deltaX: number, deltaY: number) => void;
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) => void;
   hidePetChat: () => void;
+  resizePetChat: (width: number, height: number) => void;
+  petChatInteracted: () => void;
   onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => void;
   petChatReply: (reply: string) => void;
   onPetChatReply: (callback: (reply: string) => void) => void;
@@ -89,6 +93,8 @@ interface ClawsterAPI {
   onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
+  onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
+  onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
   onChatSync: (callback: () => void) => void;
   onSwitchToSettings: (callback: () => void) => void;
