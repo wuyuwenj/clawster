@@ -189,10 +189,15 @@ export const Pet: React.FC = () => {
   const [tutorialActive, setTutorialActive] = useState(false);
   const [transparentWhenSleeping, setTransparentWhenSleeping] = useState(false);
   const [showModeOverlay, setShowModeOverlay] = useState(false);
+  const [cameraSnapActive, setCameraSnapActive] = useState(false);
+  const [cameraFlashActive, setCameraFlashActive] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cameraSnapEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cameraFlashOffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sleepLockedRef = useRef(false);
 
   const setPetMood = useCallback((nextMood: Mood) => {
@@ -355,6 +360,38 @@ export const Pet: React.FC = () => {
       setIsWalking(data.moving);
     });
 
+    window.clawster.onPetCameraSnap((data) => {
+      if (sleepLockedRef.current) return;
+
+      const captureAtMs = Math.max(0, data.captureAtMs || 0);
+      const durationMs = Math.max(captureAtMs + 80, data.durationMs || 900);
+      const flashDurationMs = Math.max(60, data.flashDurationMs || 120);
+
+      if (cameraSnapEndTimeoutRef.current) {
+        clearTimeout(cameraSnapEndTimeoutRef.current);
+      }
+      if (cameraFlashOnTimeoutRef.current) {
+        clearTimeout(cameraFlashOnTimeoutRef.current);
+      }
+      if (cameraFlashOffTimeoutRef.current) {
+        clearTimeout(cameraFlashOffTimeoutRef.current);
+      }
+
+      setCameraSnapActive(true);
+      setCameraFlashActive(false);
+
+      cameraFlashOnTimeoutRef.current = setTimeout(() => {
+        setCameraFlashActive(true);
+        cameraFlashOffTimeoutRef.current = setTimeout(() => {
+          setCameraFlashActive(false);
+        }, flashDurationMs);
+      }, captureAtMs);
+
+      cameraSnapEndTimeoutRef.current = setTimeout(() => {
+        setCameraSnapActive(false);
+      }, durationMs);
+    });
+
     // Listen for idle behaviors
     window.clawster.onIdleBehavior((data) => {
       if (sleepLockedRef.current) return;
@@ -403,6 +440,15 @@ export const Pet: React.FC = () => {
     return () => {
       if (idleBehaviorTimeoutRef.current) {
         clearTimeout(idleBehaviorTimeoutRef.current);
+      }
+      if (cameraSnapEndTimeoutRef.current) {
+        clearTimeout(cameraSnapEndTimeoutRef.current);
+      }
+      if (cameraFlashOnTimeoutRef.current) {
+        clearTimeout(cameraFlashOnTimeoutRef.current);
+      }
+      if (cameraFlashOffTimeoutRef.current) {
+        clearTimeout(cameraFlashOffTimeoutRef.current);
       }
       window.clawster.removeAllListeners();
     };
@@ -518,7 +564,7 @@ export const Pet: React.FC = () => {
 
   return (
     <div
-      className={`pet-container ${tutorialActive ? 'tutorial-active' : ''}`}
+      className={`pet-container ${tutorialActive ? 'tutorial-active' : ''} ${cameraFlashActive ? 'camera-flash-active' : ''}`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
@@ -529,10 +575,15 @@ export const Pet: React.FC = () => {
 
       {/* Animated Lobster Pet */}
       <div
-        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''} ${isSleepTransparent ? 'sleep-transparent' : ''}`}
+        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''} ${isSleepTransparent ? 'sleep-transparent' : ''} ${cameraSnapActive ? 'action-camera-snap' : ''}`}
       >
         <LobsterSvg pupilOffset={pupilOffset} />
+        <div className="camera-prop" aria-hidden="true">
+          <span className="camera-shutter" />
+          <span className="camera-lens" />
+        </div>
       </div>
+      <div className="camera-flash-overlay" aria-hidden="true" />
 
       {/* Tutorial Overlay */}
       <TutorialOverlay />

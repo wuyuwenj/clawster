@@ -98,6 +98,7 @@ interface ClawsterAPI {
   onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
+  onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
