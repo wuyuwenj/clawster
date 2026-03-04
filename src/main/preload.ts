@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('clawster', {
   openAssistant: () => ipcRenderer.send('open-assistant'),
   closeAssistant: () => ipcRenderer.send('close-assistant'),
   forcePetSleep: () => ipcRenderer.send('force-pet-sleep'),
+  forceActiveAppComment: () => ipcRenderer.invoke('dev-force-active-app-comment'),
   toggleChatbar: () => ipcRenderer.send('toggle-chatbar'),
   closeChatbar: () => ipcRenderer.send('close-chatbar'),
   setChatbarIgnoreMouse: (ignore: boolean) => ipcRenderer.send('chatbar-set-ignore-mouse', ignore),
@@ -246,6 +247,7 @@ export interface ClawsterAPI {
   openAssistant: () => void;
   closeAssistant: () => void;
   forcePetSleep: () => void;
+  forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
   closeChatbar: () => void;
   setChatbarIgnoreMouse: (ignore: boolean) => void;
