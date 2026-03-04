@@ -50,6 +50,7 @@ interface ClawsterAPI {
   openAssistant: () => void;
   closeAssistant: () => void;
   forcePetSleep: () => void;
+  forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
   closeChatbar: () => void;
   setChatbarIgnoreMouse: (ignore: boolean) => void;

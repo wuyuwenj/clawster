@@ -1438,6 +1438,22 @@ function setupIPC() {
     fallAsleep();
   });
 
+  // Force a test app-switch chat popup (dev utility)
+  ipcMain.handle('dev-force-active-app-comment', async () => {
+    let activeApp: string | undefined;
+
+    try {
+      const activeWin = await import('active-win');
+      const win = await activeWin.default();
+      activeApp = win?.owner?.name;
+    } catch (error) {
+      console.warn('[Dev] Failed to resolve active app for forced comment:', error);
+    }
+
+    await sendChatPopup('app_switch', activeApp);
+    return true;
+  });
+
   // Toggle chatbar window
   ipcMain.on('toggle-chatbar', () => {
     toggleChatbarWindow();

@@ -45,6 +45,9 @@ export const Assistant: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const activeStreamMessageIdRef = useRef<string | null>(null);
+  const chatScrollTopRef = useRef(0);
+  const chatShouldAutoScrollRef = useRef(true);
+  const hasInitializedChatScrollRef = useRef(false);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -57,8 +60,28 @@ export const Assistant: React.FC = () => {
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     const isAboveThreshold = distanceFromBottom > SCROLL_TO_BOTTOM_THRESHOLD;
 
+    chatScrollTopRef.current = container.scrollTop;
+    chatShouldAutoScrollRef.current = !isAboveThreshold;
     setShowScrollToBottom(isAboveThreshold);
   }, []);
+
+  const persistChatScrollPosition = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    chatScrollTopRef.current = container.scrollTop;
+    chatShouldAutoScrollRef.current = distanceFromBottom <= SCROLL_TO_BOTTOM_THRESHOLD;
+  }, []);
+
+  const switchTab = useCallback((nextTab: Tab) => {
+    setActiveTab((currentTab) => {
+      if (currentTab === nextTab) return currentTab;
+      if (currentTab === 'chat') {
+        persistChatScrollPosition();
+      }
+      return nextTab;
+    });
+  }, [persistChatScrollPosition]);
 
   const handleMessagesScroll = useCallback(() => {
     updateScrollState();
@@ -67,7 +90,10 @@ export const Assistant: React.FC = () => {
   const handleScrollToBottomClick = useCallback(() => {
     scrollToBottom('smooth');
     setShowScrollToBottom(false);
-  }, [scrollToBottom]);
+    setTimeout(() => {
+      updateScrollState();
+    }, 0);
+  }, [scrollToBottom, updateScrollState]);
 
   // Initialize
   useEffect(() => {
@@ -189,11 +215,21 @@ export const Assistant: React.FC = () => {
     });
 
     window.clawster.onChatSync(() => {
+      const shouldAutoScroll = chatShouldAutoScrollRef.current;
+      const savedScrollTop = chatScrollTopRef.current;
       window.clawster.getChatHistory().then((history) => {
         if (Array.isArray(history)) {
           setMessages(history as Message[]);
           setTimeout(() => {
-            scrollToBottom('auto');
+            const container = messagesContainerRef.current;
+            if (!container) return;
+
+            if (shouldAutoScroll) {
+              scrollToBottom('auto');
+            } else {
+              const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+              container.scrollTop = Math.min(savedScrollTop, maxScrollTop);
+            }
             updateScrollState();
           }, 0);
         }
@@ -201,22 +237,49 @@ export const Assistant: React.FC = () => {
     });
 
     window.clawster.onSwitchToSettings(() => {
-      setActiveTab('settings');
+      switchTab('settings');
     });
 
     return () => {
       window.clawster.removeAllListeners();
     };
-  }, [scrollToBottom, updateScrollState]);
+  }, [scrollToBottom, switchTab, updateScrollState]);
 
   useEffect(() => {
     if (activeTab !== 'chat') return;
-    scrollToBottom('smooth');
+    const timer = setTimeout(() => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
 
-    setTimeout(() => {
+      if (hasInitializedChatScrollRef.current) {
+        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+        container.scrollTop = Math.min(chatScrollTopRef.current, maxScrollTop);
+      } else {
+        hasInitializedChatScrollRef.current = true;
+      }
+
       updateScrollState();
     }, 0);
-  }, [activeTab, messages, scrollToBottom, updateScrollState]);
+
+    return () => clearTimeout(timer);
+  }, [activeTab, updateScrollState]);
+
+  useEffect(() => {
+    if (activeTab !== 'chat') return;
+    const timer = setTimeout(() => {
+      if (chatShouldAutoScrollRef.current) {
+        scrollToBottom('auto');
+      } else {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+        container.scrollTop = Math.min(chatScrollTopRef.current, maxScrollTop);
+      }
+      updateScrollState();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [messages, activeTab, scrollToBottom, updateScrollState]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -322,14 +385,15 @@ export const Assistant: React.FC = () => {
         };
         setMessages((prev) => [...prev, userMessage]);
 
-        const response = (await window.clawster.sendToClawbot(
-          '[SCREEN_CAPTURE]'
-        )) as { text?: string };
+        const response = (await window.clawster.askAboutScreen(
+          'What is on my screen right now? Give me a short, practical summary and one helpful next step.',
+          screenshot
+        )) as { text?: string; response?: string; error?: string };
 
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: response.text || 'Could not analyze screen',
+          content: response.response || response.text || response.error || 'Could not analyze screen',
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
@@ -400,7 +464,7 @@ export const Assistant: React.FC = () => {
       {/* Tabs */}
       <div className="flex px-2 border-b border-white/5 shrink-0 bg-[#0f0f0f]">
         <button
-          onClick={() => setActiveTab('chat')}
+          onClick={() => switchTab('chat')}
           className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
             activeTab === 'chat'
               ? 'text-[#FF8C69] border-[#FF8C69]'
@@ -410,7 +474,7 @@ export const Assistant: React.FC = () => {
           Chat
         </button>
         <button
-          onClick={() => setActiveTab('activity')}
+          onClick={() => switchTab('activity')}
           className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
             activeTab === 'activity'
               ? 'text-[#FF8C69] border-[#FF8C69]'
@@ -420,7 +484,7 @@ export const Assistant: React.FC = () => {
           Activity
         </button>
         <button
-          onClick={() => setActiveTab('settings')}
+          onClick={() => switchTab('settings')}
           className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
             activeTab === 'settings'
               ? 'text-[#FF8C69] border-[#FF8C69]'
@@ -823,6 +887,20 @@ export const Assistant: React.FC = () => {
                     ))}
                   </div>
                 </div>
+              )}
+              {isDevEnvironment && (
+                <button
+                  onClick={() => {
+                    void window.clawster.forceActiveAppComment();
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon icon="solar:monitor-smartphone-linear" className="text-neutral-400 group-hover:text-neutral-300" />
+                    <span className="text-sm font-medium text-neutral-300">Test Active App Comment</span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500">Dev action</span>
+                </button>
               )}
               {isDevEnvironment && (
                 <button
