@@ -36,6 +36,7 @@ interface StoreSchema {
     position: { x: number; y: number } | null;
     mood: string;
     attentionSeeker: boolean;
+    transparentWhenSleeping: boolean;
   };
   screenCapture: {
     enabled: boolean;
@@ -51,6 +52,7 @@ interface StoreSchema {
   tutorial: TutorialState;
   dev: {
     windowBorders: boolean;
+    showPetModeOverlay: boolean;
   };
 }
 
@@ -68,6 +70,7 @@ const defaults: StoreSchema = {
     position: null,
     mood: 'idle',
     attentionSeeker: true,
+    transparentWhenSleeping: false,
   },
   screenCapture: {
     enabled: false,
@@ -94,6 +97,7 @@ const defaults: StoreSchema = {
   },
   dev: {
     windowBorders: false,
+    showPetModeOverlay: false,
   },
 };
 
