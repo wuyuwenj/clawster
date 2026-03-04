@@ -110,6 +110,46 @@ Clawster is an AI desktop pet built on OpenClaw. Here's how the architecture wor
 
 **Everything runs locally.** No API keys, no cloud accounts, no data leaves your machine. This AI pet is powered entirely by OpenClaw on your local machine.
 
+## OpenClaw Channel Delivery (Optional)
+
+Clawster can act as a first-class OpenClaw channel target for outbound messages (cron jobs, reminders, proactive notifications).
+
+### 1) Install the Clawster channel plugin
+
+```bash
+npm run setup:openclaw-channel
+```
+
+This copies the extension to:
+
+`~/.openclaw/extensions/clawster`
+
+### 2) Add channel config in `~/.openclaw/openclaw.json`
+
+Use the snippet printed by the install command. The key values are:
+
+- `channels.clawster.endpointUrl`: `http://127.0.0.1:18790/api/channel/message`
+- `channels.clawster.authToken`: same token Clawster uses to connect to your gateway
+- `channels.clawster.accounts.default.enabled`: `true`
+
+### 3) Restart OpenClaw gateway
+
+```bash
+openclaw gateway restart
+```
+
+When Clawster is running, channel deliveries will appear in the Assistant/chatbar and as pet chat popups.
+
+If OpenClaw asks for a `target` in send actions, pass any non-empty value (for example `default`). Clawster accepts it for compatibility and does not use it for routing.
+
+Receiver defaults (can be overridden with env vars):
+
+- Host: `127.0.0.1` (`CLAWSTER_CHANNEL_HOST`)
+- Port: `18790` (`CLAWSTER_CHANNEL_PORT`)
+- Auth token override: `CLAWSTER_CHANNEL_TOKEN` (otherwise Clawster uses `clawbot.token`)
+
+If `18790` is already in use, Clawster now auto-selects the next free local port, persists it, updates `channels.clawster.endpointUrl` in `~/.openclaw/openclaw.json`, and restarts the OpenClaw gateway automatically.
+
 ## Customization
 
 ### Personality

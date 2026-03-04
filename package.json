@@ -16,6 +16,7 @@
     "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landign-electronbuilder/public/downloads/Clawster-*mac* ../clawster-landign-electronbuilder/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/latest-mac.yml ../clawster-landign-electronbuilder/public/downloads/",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
+    "setup:openclaw-channel": "node scripts/install-openclaw-channel-plugin.mjs",
     "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
     "start": "electron ."
   },
