@@ -819,7 +819,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
     petChatRevealTimeout = setTimeout(() => {
       if (!pendingPetChatReveal || !petChatWindow || petChatWindow.isDestroyed()) return;
       petChatWindow.setOpacity(1);
-      petChatWindow.show();
+      petChatWindow.showInactive();
       pendingPetChatReveal = false;
       petChatRevealTimeout = null;
     }, 250);
@@ -869,7 +869,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
 
     petChatWindow.once('ready-to-show', () => {
       petChatWindow?.setOpacity(0);
-      petChatWindow?.show();
+      petChatWindow?.showInactive();
       petChatWindow?.webContents.send('chat-message', message);
       scheduleFallbackReveal();
       schedulePetChatAutoHide();
@@ -879,7 +879,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
     petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
     petChatWindow.setOpacity(0);
     if (!petChatWindow.isVisible()) {
-      petChatWindow.show();
+      petChatWindow.showInactive();
     }
     petChatWindow.webContents.send('chat-message', message);
     scheduleFallbackReveal();
@@ -920,7 +920,7 @@ function resizePetChatToContent(width: number, height: number) {
       petChatRevealTimeout = null;
     }
     petChatWindow.setOpacity(1);
-    petChatWindow.show();
+    petChatWindow.showInactive();
     pendingPetChatReveal = false;
   }
 }
