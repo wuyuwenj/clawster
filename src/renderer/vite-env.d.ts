@@ -103,8 +103,12 @@ interface ClawsterAPI {
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
   onChatSync: (callback: () => void) => void;
+  onSwitchToChat: (callback: () => void) => void;
   onSwitchToSettings: (callback: () => void) => void;
   petClicked: () => void;
+  showPetContextMenu: (x: number, y: number) => void;
+  hidePetContextMenu: () => void;
+  petContextMenuAction: (action: 'chat' | 'settings') => void;
   removeAllListeners: () => void;
   // Tutorial
   tutorialPetClicked: () => void;
