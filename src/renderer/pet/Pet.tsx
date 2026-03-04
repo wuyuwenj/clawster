@@ -553,12 +553,12 @@ export const Pet: React.FC = () => {
     window.clawster.petClicked?.();
   }, [setPetMood, tutorialActive]);
 
-  // Right click = open assistant
+  // Right click = open custom context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     if (!didDragRef.current) {
       window.clawster.petClicked?.();
-      window.clawster.toggleAssistant();
+      window.clawster.showPetContextMenu(e.screenX, e.screenY);
     }
   }, []);
 

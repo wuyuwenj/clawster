@@ -1,0 +1,57 @@
+.menu-shell {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+}
+
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(19, 21, 26, 0.96);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 46px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #f5f7ff;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:focus,
+.menu-item:focus-visible {
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.menu-item:active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.menu-divider {
+  width: calc(100% - 16px);
+  height: 1px;
+  margin: 0 8px;
+  background: rgba(255, 255, 255, 0.16);
+  flex-shrink: 0;
+}
