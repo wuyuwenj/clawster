@@ -17,7 +17,6 @@ import fs from 'fs';
 import os from 'os';
 import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
-const execAsync = promisify(exec);
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
@@ -25,6 +24,8 @@ import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
+
+const execAsync = promisify(exec);
 
 // Load environment variables
 config();
@@ -1945,7 +1946,7 @@ function setupIPC() {
     }
   });
 
-  // Validate gateway connection by making a real chat completions request
+  // Validate gateway connection by making a real Responses API request
   ipcMain.handle('validate-gateway', async (_event, url: string, token: string) => {
     const makeRequest = async () => {
       const headers: Record<string, string> = {
@@ -1955,15 +1956,13 @@ function setupIPC() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      return fetch(`${url}/v1/chat/completions`, {
+      return fetch(`${url}/v1/responses`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           model: 'openclaw',
-          messages: [
-            { role: 'user', content: 'hi' }
-          ],
-          max_tokens: 5,
+          input: 'hi',
+          max_output_tokens: 5,
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -1972,38 +1971,40 @@ function setupIPC() {
     try {
       let response = await makeRequest();
 
-      // 405 means the gateway's HTTP chat completions endpoint is disabled.
-      // Auto-enable it in the OpenClaw config and restart the gateway.
+      // 405 means the gateway's HTTP responses endpoint is disabled.
+      // Auto-enable it in OpenClaw config and restart the gateway.
       if (response.status === 405) {
-        console.log('[Gateway] 405 detected — enabling HTTP chatCompletions endpoint');
+        console.log('[Gateway] 405 detected — enabling HTTP responses endpoint');
         const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
         try {
           const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
           if (!config.gateway) config.gateway = {};
           if (!config.gateway.http) config.gateway.http = {};
           if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
-          if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
-          config.gateway.http.endpoints.chatCompletions.enabled = true;
+          if (!config.gateway.http.endpoints.responses) config.gateway.http.endpoints.responses = {};
+          config.gateway.http.endpoints.responses.enabled = true;
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-          // Reinstall and restart the gateway to pick up the config change
+          // Reinstall and restart the gateway to ensure endpoint config is applied
           await execAsync('openclaw gateway stop', { timeout: 10000 }).catch(() => {});
           await execAsync('openclaw gateway install --force', { timeout: 10000 });
           await execAsync('openclaw gateway start', { timeout: 10000 });
-          // Wait for gateway to come back up
+
+          // Wait for gateway to come back up before retrying
           for (let i = 0; i < 10; i++) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             try {
               const health = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
               if (health.ok || health.status === 200) break;
-            } catch { /* gateway not ready yet */ }
+            } catch {
+              // Gateway may still be starting; keep retrying
+            }
           }
 
-          // Retry the request
           response = await makeRequest();
         } catch (configError) {
-          console.error('[Gateway] Failed to auto-enable chatCompletions endpoint:', configError);
-          return { success: false, error: '405: HTTP chat endpoint disabled. Add gateway.http.endpoints.chatCompletions.enabled=true to ~/.openclaw/openclaw.json' };
+          console.error('[Gateway] Failed to auto-enable responses endpoint:', configError);
+          return { success: false, error: '405: HTTP responses endpoint disabled. Add gateway.http.endpoints.responses.enabled=true to ~/.openclaw/openclaw.json' };
         }
       }
 
