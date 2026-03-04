@@ -27,6 +27,9 @@ interface StoreSchema {
     url: string;
     token: string;
   };
+  channel: {
+    receiverPort: number;
+  };
   watch: {
     activeApp: boolean;
     sendWindowTitles: boolean;
@@ -60,6 +63,9 @@ const defaults: StoreSchema = {
   clawbot: {
     url: 'http://127.0.0.1:18789',
     token: '',
+  },
+  channel: {
+    receiverPort: 18790,
   },
   watch: {
     activeApp: true,

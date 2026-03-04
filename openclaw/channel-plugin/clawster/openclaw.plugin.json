@@ -1,0 +1,22 @@
+{
+  "id": "clawster",
+  "channels": ["clawster"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+      "endpointUrl": {
+        "type": "string",
+        "description": "Local Clawster delivery endpoint."
+      },
+      "authToken": {
+        "type": "string",
+        "description": "Bearer token used by Clawster's local receiver."
+      },
+      "accounts": {
+        "type": "object",
+        "description": "Optional per-account overrides."
+      }
+    }
+  }
+}

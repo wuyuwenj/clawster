@@ -15,6 +15,8 @@ import {
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http';
+import { createServer as createNetServer } from 'net';
 import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
@@ -56,6 +58,10 @@ const tutorialManager = new TutorialManager(store);
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
+const CHANNEL_RECEIVER_HOST = process.env.CLAWSTER_CHANNEL_HOST || '127.0.0.1';
+const CHANNEL_RECEIVER_DEFAULT_PORT = 18790;
+const CHANNEL_RECEIVER_MAX_PORT_ATTEMPTS = 20;
+const CHANNEL_RECEIVER_PATH = '/api/channel/message';
 const DEV_WINDOW_BORDER_CSS = `
   html, body {
     box-sizing: border-box !important;
@@ -136,6 +142,8 @@ const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
 
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
+let channelReceiverServer: Server | null = null;
+let channelReceiverPort = CHANNEL_RECEIVER_DEFAULT_PORT;
 
 // Idle behavior system
 let idleBehaviorInterval: NodeJS.Timeout | null = null;
@@ -182,6 +190,24 @@ interface PetAction {
   x?: number;
   y?: number;
   duration?: number;
+}
+
+interface IncomingChannelPayload {
+  text?: string;
+  message?: string;
+  summary?: string;
+  jobId?: string;
+  jobName?: string;
+  status?: string;
+  timestamp?: number;
+}
+
+interface CronResultEvent {
+  jobId: string;
+  jobName: string;
+  status: string;
+  summary: string;
+  timestamp: number;
 }
 
 // Smooth animation to move pet to target position
@@ -909,6 +935,332 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
   }
 }
 
+function emitCronResultToUi(data: CronResultEvent) {
+  assistantWindow?.webContents.send('cron-result', data);
+  chatbarWindow?.webContents.send('cron-result', data);
+}
+
+function deliverInboundMessageToUi(payload: IncomingChannelPayload) {
+  const text = payload.text || payload.message || payload.summary || '';
+  const trimmed = text.trim();
+  if (!trimmed) return;
+
+  const wasSleeping = isSleeping;
+  resetInteractionTimer();
+
+  const sourceName = payload.jobName?.trim() || 'OpenClaw';
+  const result: CronResultEvent = {
+    jobId: payload.jobId?.trim() || `channel-${sourceName.toLowerCase().replace(/\s+/g, '-')}`,
+    jobName: sourceName,
+    status: payload.status?.trim() || 'ok',
+    summary: trimmed,
+    timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
+  };
+
+  emitCronResultToUi(result);
+
+  if (!tutorialManager?.getStatus().isActive) {
+    showPetChat({
+      id: randomUUID(),
+      text: trimmed,
+      quickReplies: ['Thanks!', 'Dismiss'],
+    });
+
+    // If we just woke up, keep the wake/startle animation instead of overriding it.
+    if (!wasSleeping && !isSleeping) {
+      petWindow?.webContents.send('clawbot-mood', { state: 'excited', reason: 'channel delivery' });
+    }
+  }
+}
+
+function getExpectedChannelToken(): string {
+  const envToken = process.env.CLAWSTER_CHANNEL_TOKEN?.trim();
+  if (envToken) return envToken;
+  return (store.get('clawbot.token') as string | undefined)?.trim() || '';
+}
+
+function writeJson(res: ServerResponse, status: number, body: Record<string, unknown>) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+function getHeaderValue(req: IncomingMessage, headerName: string): string {
+  const value = req.headers[headerName.toLowerCase()];
+  if (Array.isArray(value)) return value[0] || '';
+  return value || '';
+}
+
+function normalizeChannelPayload(raw: unknown): IncomingChannelPayload | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const candidate = raw as Record<string, unknown>;
+  return {
+    text: typeof candidate.text === 'string' ? candidate.text : undefined,
+    message: typeof candidate.message === 'string' ? candidate.message : undefined,
+    summary: typeof candidate.summary === 'string' ? candidate.summary : undefined,
+    jobId: typeof candidate.jobId === 'string' ? candidate.jobId : undefined,
+    jobName: typeof candidate.jobName === 'string' ? candidate.jobName : undefined,
+    status: typeof candidate.status === 'string' ? candidate.status : undefined,
+    timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : undefined,
+  };
+}
+
+function isValidPort(port: number): boolean {
+  return Number.isFinite(port) && port > 0 && port <= 65535;
+}
+
+function parsePort(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return isValidPort(parsed) ? parsed : null;
+}
+
+function getConfiguredChannelReceiverPort(): number {
+  const envPort = parsePort(process.env.CLAWSTER_CHANNEL_PORT);
+  if (envPort) return envPort;
+
+  const storedPort = Number(store.get('channel.receiverPort'));
+  if (isValidPort(storedPort)) return storedPort;
+
+  return CHANNEL_RECEIVER_DEFAULT_PORT;
+}
+
+function buildPortCandidates(preferredPort: number): number[] {
+  const candidates: number[] = [];
+
+  if (isValidPort(preferredPort)) {
+    candidates.push(preferredPort);
+  }
+
+  for (let offset = 0; offset < CHANNEL_RECEIVER_MAX_PORT_ATTEMPTS; offset += 1) {
+    const nextPort = CHANNEL_RECEIVER_DEFAULT_PORT + offset;
+    if (!isValidPort(nextPort)) continue;
+    if (!candidates.includes(nextPort)) {
+      candidates.push(nextPort);
+    }
+  }
+
+  return candidates;
+}
+
+async function isPortAvailable(host: string, port: number): Promise<boolean> {
+  return await new Promise<boolean>((resolve) => {
+    const probe = createNetServer();
+
+    probe.once('error', () => {
+      resolve(false);
+    });
+
+    probe.once('listening', () => {
+      probe.close(() => resolve(true));
+    });
+
+    probe.listen(port, host);
+  });
+}
+
+async function pickChannelReceiverPort(preferredPort: number): Promise<number | null> {
+  const candidates = buildPortCandidates(preferredPort);
+  for (const candidate of candidates) {
+    const available = await isPortAvailable(CHANNEL_RECEIVER_HOST, candidate);
+    if (available) return candidate;
+  }
+  return null;
+}
+
+function getChannelEndpointUrl(port: number): string {
+  return `http://${CHANNEL_RECEIVER_HOST}:${port}${CHANNEL_RECEIVER_PATH}`;
+}
+
+async function syncOpenClawChannelEndpoint(port: number): Promise<void> {
+  const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+  if (!fs.existsSync(configPath)) return;
+
+  let config: Record<string, any>;
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, any>;
+  } catch (error) {
+    console.warn('[ChannelReceiver] Could not parse OpenClaw config for endpoint sync:', error);
+    return;
+  }
+
+  if (!config.channels || typeof config.channels !== 'object') {
+    config.channels = {};
+  }
+  if (!config.channels.clawster || typeof config.channels.clawster !== 'object') {
+    config.channels.clawster = {};
+  }
+
+  const desiredEndpoint = getChannelEndpointUrl(port);
+  const currentEndpoint = config.channels.clawster.endpointUrl;
+  if (currentEndpoint === desiredEndpoint) return;
+
+  config.channels.clawster.endpointUrl = desiredEndpoint;
+
+  try {
+    fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  } catch (error) {
+    console.warn('[ChannelReceiver] Failed to update OpenClaw channel endpoint:', error);
+    return;
+  }
+
+  console.log(`[ChannelReceiver] Updated channels.clawster.endpointUrl to ${desiredEndpoint}`);
+  try {
+    await execAsync('openclaw gateway restart', { timeout: 30000 });
+    console.log('[ChannelReceiver] Restarted OpenClaw gateway after endpoint update');
+  } catch (error) {
+    console.warn('[ChannelReceiver] Failed to restart OpenClaw gateway after endpoint update:', error);
+  }
+}
+
+async function startChannelReceiver(): Promise<void> {
+  if (channelReceiverServer) return;
+
+  const preferredPort = getConfiguredChannelReceiverPort();
+  const selectedPort = await pickChannelReceiverPort(preferredPort);
+  if (!selectedPort) {
+    console.error('[ChannelReceiver] Failed to find an available port for the local receiver');
+    return;
+  }
+
+  channelReceiverPort = selectedPort;
+
+  if (!process.env.CLAWSTER_CHANNEL_PORT) {
+    store.set('channel.receiverPort', selectedPort);
+  }
+
+  if (selectedPort !== preferredPort) {
+    console.warn(`[ChannelReceiver] Port ${preferredPort} is unavailable; using ${selectedPort}`);
+  }
+
+  const server = createServer((req, res) => {
+    if (!req.url) {
+      writeJson(res, 400, { ok: false, error: 'Missing request URL' });
+      return;
+    }
+
+    let requestUrl: URL;
+    try {
+      requestUrl = new URL(req.url, `http://${CHANNEL_RECEIVER_HOST}:${channelReceiverPort}`);
+    } catch {
+      writeJson(res, 400, { ok: false, error: 'Invalid request URL' });
+      return;
+    }
+    const isHealthCheck = req.method === 'GET' && requestUrl.pathname === '/healthz';
+    if (isHealthCheck) {
+      writeJson(res, 200, {
+        ok: true,
+        service: 'clawster-channel-receiver',
+        path: CHANNEL_RECEIVER_PATH,
+        endpointUrl: getChannelEndpointUrl(channelReceiverPort),
+        requiresAuth: Boolean(getExpectedChannelToken()),
+      });
+      return;
+    }
+
+    const isMessagePath =
+      req.method === 'POST' &&
+      (requestUrl.pathname === CHANNEL_RECEIVER_PATH || requestUrl.pathname === '/api/message');
+    if (!isMessagePath) {
+      writeJson(res, 404, { ok: false, error: 'Not found' });
+      return;
+    }
+
+    const expectedToken = getExpectedChannelToken();
+    if (expectedToken) {
+      const authHeader = getHeaderValue(req, 'authorization');
+      const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
+        ? authHeader.slice('bearer '.length).trim()
+        : '';
+      const altToken = getHeaderValue(req, 'x-clawster-token').trim();
+      if (bearerToken !== expectedToken && altToken !== expectedToken) {
+        writeJson(res, 401, { ok: false, error: 'Unauthorized' });
+        return;
+      }
+    }
+
+    let rawBody = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk: string) => {
+      rawBody += chunk;
+      if (rawBody.length > 256 * 1024) {
+        writeJson(res, 413, { ok: false, error: 'Payload too large' });
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      let parsed: unknown = {};
+      if (rawBody.trim().length > 0) {
+        try {
+          parsed = JSON.parse(rawBody);
+        } catch {
+          writeJson(res, 400, { ok: false, error: 'Invalid JSON body' });
+          return;
+        }
+      }
+
+      const payload = normalizeChannelPayload(parsed);
+      if (!payload) {
+        writeJson(res, 400, { ok: false, error: 'Invalid payload' });
+        return;
+      }
+
+      const text = payload.text || payload.message || payload.summary || '';
+      if (!text.trim()) {
+        writeJson(res, 400, { ok: false, error: 'Payload must include text, message, or summary' });
+        return;
+      }
+
+      deliverInboundMessageToUi(payload);
+      writeJson(res, 200, { ok: true });
+    });
+    req.on('error', (error) => {
+      console.error('[ChannelReceiver] Request error:', error);
+      if (!res.writableEnded) {
+        writeJson(res, 500, { ok: false, error: 'Request error' });
+      }
+    });
+  });
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error) => {
+        server.off('listening', onListening);
+        reject(error);
+      };
+      const onListening = () => {
+        server.off('error', onError);
+        resolve();
+      };
+
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(channelReceiverPort, CHANNEL_RECEIVER_HOST);
+    });
+  } catch (error) {
+    console.error(`[ChannelReceiver] Failed to listen on ${CHANNEL_RECEIVER_HOST}:${channelReceiverPort}:`, error);
+    return;
+  }
+
+  channelReceiverServer = server;
+  console.log(`[ChannelReceiver] Listening on ${getChannelEndpointUrl(channelReceiverPort)}`);
+
+  server.on('error', (error) => {
+    console.error('[ChannelReceiver] Server error:', error);
+  });
+
+  await syncOpenClawChannelEndpoint(channelReceiverPort);
+}
+
+function stopChannelReceiver() {
+  if (!channelReceiverServer) return;
+  channelReceiverServer.close((error) => {
+    if (error) {
+      console.error('[ChannelReceiver] Failed to close server:', error);
+    }
+  });
+  channelReceiverServer = null;
+}
+
 function hidePetChat() {
   pendingPetChatReveal = false;
   if (petChatRevealTimeout) {
@@ -1486,8 +1838,7 @@ function startMainApp() {
       };
 
       // Send to assistant window and chatbar for chat history
-      assistantWindow?.webContents.send('cron-result', processedData);
-      chatbarWindow?.webContents.send('cron-result', processedData);
+      emitCronResultToUi(processedData);
 
       // Show pet chat popup directly (don't rely on petWindow forwarding)
       if (!tutorialManager?.getStatus().isActive) {
@@ -2429,6 +2780,7 @@ app.whenReady().then(async () => {
   setupIPC();
   setupAutoUpdater();
   setupTray();
+  void startChannelReceiver();
 
   // Check onboarding status
   const onboardingCompleted = store.get('onboarding.completed') as boolean;
@@ -2462,6 +2814,7 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  stopChannelReceiver();
   watchers?.stop();
   stopIdleBehaviors();
   if (idleCheckInterval) {
