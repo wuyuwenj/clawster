@@ -125,6 +125,9 @@ const PET_CHAT_MAX_WIDTH = 360;
 const PET_CHAT_MIN_HEIGHT = 90;
 const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
+const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
+const PET_CAMERA_SNAP_DURATION_MS = 920;
+const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
 
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
@@ -473,6 +476,18 @@ function getScreenCapturePermissionStatus(): string {
   return systemPreferences.getMediaAccessStatus('screen');
 }
 
+async function playPetCameraSnapAnimationBeforeCapture(): Promise<void> {
+  if (!petWindow || petWindow.isDestroyed() || isSleeping) return;
+
+  petWindow.webContents.send('pet-camera-snap', {
+    captureAtMs: PET_CAMERA_SNAP_CAPTURE_DELAY_MS,
+    durationMs: PET_CAMERA_SNAP_DURATION_MS,
+    flashDurationMs: PET_CAMERA_SNAP_FLASH_DURATION_MS,
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, PET_CAMERA_SNAP_CAPTURE_DELAY_MS));
+}
+
 // Native macOS screen capture using screencapture command (much faster than desktopCapturer)
 async function captureScreenNative(): Promise<string | null> {
   if (process.platform !== 'darwin') {
@@ -549,7 +564,7 @@ async function captureScreenWithContext(): Promise<{
   image: string;
   cursor: { x: number; y: number };
   screenSize: { width: number; height: number };
-} | null> {
+  } | null> {
   try {
     // Use native capture for speed
     const image = await captureScreenNative();
@@ -1593,6 +1608,7 @@ function setupIPC() {
 
   // Screen capture
   ipcMain.handle('capture-screen', async () => {
+    await playPetCameraSnapAnimationBeforeCapture();
     return await captureScreen();
   });
 
@@ -1704,6 +1720,7 @@ function setupIPC() {
 
   // Capture screen with context
   ipcMain.handle('capture-screen-with-context', async () => {
+    await playPetCameraSnapAnimationBeforeCapture();
     return await captureScreenWithContext();
   });
 

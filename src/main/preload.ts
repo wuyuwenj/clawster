@@ -106,6 +106,9 @@ contextBridge.exposeInMainWorld('clawster', {
   onPetMoving: (callback: (data: { moving: boolean }) => void) => {
     ipcRenderer.on('pet-moving', (_event, data) => callback(data));
   },
+  onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => {
+    ipcRenderer.on('pet-camera-snap', (_event, data) => callback(data));
+  },
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => {
     ipcRenderer.on('pet-transparent-sleep-changed', (_event, enabled) => callback(Boolean(enabled)));
   },
@@ -192,6 +195,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('cron-error');
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
+    ipcRenderer.removeAllListeners('pet-camera-snap');
     ipcRenderer.removeAllListeners('pet-transparent-sleep-changed');
     ipcRenderer.removeAllListeners('dev-show-pet-mode-overlay-changed');
     ipcRenderer.removeAllListeners('idle-behavior');
@@ -293,6 +297,7 @@ export interface ClawsterAPI {
   onClawbotMood: (callback: (data: unknown) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
+  onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
