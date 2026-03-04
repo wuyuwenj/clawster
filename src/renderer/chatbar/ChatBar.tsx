@@ -25,6 +25,7 @@ export const ChatBar: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
+  const activePetPopupIdRef = useRef<string | null>(null);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
@@ -47,12 +48,21 @@ export const ChatBar: React.FC = () => {
       const finalText = streamResponse.text || 'No response';
       setResponse(finalText);
 
+      if (activePetPopupIdRef.current) {
+        window.clawster.showPetChat({
+          id: activePetPopupIdRef.current,
+          text: finalText,
+          quickReplies: ['Thanks!', 'Not now'],
+        });
+      }
+
       if (pendingUserMessageRef.current && finalText) {
         await saveMessageToHistory(pendingUserMessageRef.current, finalText);
       }
 
       activeStreamRequestIdRef.current = null;
       pendingUserMessageRef.current = null;
+      activePetPopupIdRef.current = null;
       setIsLoading(false);
       inputRef.current?.focus();
     });
@@ -62,12 +72,21 @@ export const ChatBar: React.FC = () => {
       const errorMsg = `Error: ${data.error}`;
       setResponse(errorMsg);
 
+      if (activePetPopupIdRef.current) {
+        window.clawster.showPetChat({
+          id: activePetPopupIdRef.current,
+          text: errorMsg,
+          quickReplies: ['Got it', 'Not now'],
+        });
+      }
+
       if (pendingUserMessageRef.current) {
         await saveMessageToHistory(pendingUserMessageRef.current, errorMsg);
       }
 
       activeStreamRequestIdRef.current = null;
       pendingUserMessageRef.current = null;
+      activePetPopupIdRef.current = null;
       setIsLoading(false);
       inputRef.current?.focus();
     });
@@ -160,6 +179,7 @@ export const ChatBar: React.FC = () => {
     setInput('');
     setIsLoading(true);
     setResponse(null);
+    let handedOffToStream = false;
 
     try {
       let result: { response?: string; text?: string; error?: string };
@@ -184,15 +204,42 @@ export const ChatBar: React.FC = () => {
         inputRef.current?.focus();
         return;
       } else {
+        const popupId = crypto.randomUUID();
+        activePetPopupIdRef.current = popupId;
+        window.clawster.showPetChat({
+          id: popupId,
+          text: '...',
+          quickReplies: [],
+        });
+        window.clawster.closeChatbar();
+
         pendingUserMessageRef.current = message;
         const started = await window.clawster.startClawbotStream(message);
         if (started.requestId && !started.error) {
+          handedOffToStream = true;
           activeStreamRequestIdRef.current = started.requestId;
           setResponse('...');
           return;
         }
 
         result = await window.clawster.sendToClawbot(message) as typeof result;
+
+        let fallbackText = '';
+        if (result.response) {
+          fallbackText = result.response;
+        } else if (result.text) {
+          fallbackText = result.text;
+        } else if (result.error) {
+          fallbackText = `Error: ${result.error}`;
+        }
+
+        if (activePetPopupIdRef.current) {
+          window.clawster.showPetChat({
+            id: activePetPopupIdRef.current,
+            text: fallbackText || 'No response',
+            quickReplies: ['Thanks!', 'Not now'],
+          });
+        }
       }
 
       let responseText = '';
@@ -212,9 +259,20 @@ export const ChatBar: React.FC = () => {
     } catch (error) {
       const errorMsg = 'Failed to connect to ClawBot';
       setResponse(errorMsg);
+      if (activePetPopupIdRef.current) {
+        window.clawster.showPetChat({
+          id: activePetPopupIdRef.current,
+          text: errorMsg,
+          quickReplies: ['Got it', 'Not now'],
+        });
+      }
       await saveMessageToHistory(message, errorMsg);
     } finally {
+      if (handedOffToStream) {
+        return;
+      }
       pendingUserMessageRef.current = null;
+      activePetPopupIdRef.current = null;
       setIsLoading(false);
       inputRef.current?.focus();
     }

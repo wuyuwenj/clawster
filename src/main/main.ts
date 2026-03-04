@@ -125,6 +125,8 @@ const PET_CHAT_MAX_WIDTH = 360;
 const PET_CHAT_MIN_HEIGHT = 90;
 const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
+const PET_CHAT_VERTICAL_GAP = -2;
+const ASSISTANT_VERTICAL_GAP = -3;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
@@ -828,7 +830,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
   const chatWidth = PET_CHAT_MIN_WIDTH;
   const chatHeight = PET_CHAT_MIN_HEIGHT;
   const chatX = petX + (petWidth - chatWidth) / 2;
-  const chatY = petY - chatHeight - 10;
+  const chatY = petY - chatHeight + PET_CHAT_VERTICAL_GAP;
 
   const scheduleFallbackReveal = () => {
     if (petChatRevealTimeout) clearTimeout(petChatRevealTimeout);
@@ -950,7 +952,7 @@ function updatePetChatPosition() {
 
   const [cw, ch] = petChatWindow.getSize();
   const chatX = petX + (petWidth - cw) / 2;
-  const chatY = petY - ch - 10;
+  const chatY = petY - ch + PET_CHAT_VERTICAL_GAP;
 
   petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
 }
@@ -963,9 +965,9 @@ function updateAssistantPosition() {
   const [assistantWidth, assistantHeight] = assistantWindow.getSize();
   const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
 
-  // Center assistant above pet, with 15px gap
+  // Center assistant above pet with configurable vertical gap
   let assistantX = petX + (petWidth - assistantWidth) / 2;
-  const assistantY = petY - assistantHeight - 15;
+  const assistantY = petY - assistantHeight + ASSISTANT_VERTICAL_GAP;
 
   // Keep within screen bounds
   assistantX = Math.max(0, Math.min(assistantX, screenWidth - assistantWidth));
@@ -1006,7 +1008,7 @@ function createAssistantWindow() {
     const assistantHeight = 500;
 
     initialX = petX + (petWidth - assistantWidth) / 2;
-    initialY = petY - assistantHeight - 15;
+    initialY = petY - assistantHeight + ASSISTANT_VERTICAL_GAP;
 
     // Keep within screen bounds
     initialX = Math.max(0, Math.min(initialX, screenWidth - assistantWidth));
@@ -1679,6 +1681,11 @@ function setupIPC() {
 
     const requestId = randomUUID();
     const sender = event.sender;
+    const isChatbarRequest = Boolean(
+      chatbarWindow &&
+      !chatbarWindow.isDestroyed() &&
+      chatbarWindow.webContents.id === sender.id
+    );
 
     const runStream = async () => {
       try {
@@ -1695,7 +1702,9 @@ function setupIPC() {
           await executePetAction(response.action.payload as PetAction);
         }
 
-        maybeShowPetResponse(response.text);
+        if (!isChatbarRequest) {
+          maybeShowPetResponse(response.text);
+        }
 
         if (!sender.isDestroyed()) {
           sender.send('clawbot-stream-end', { requestId, response });
