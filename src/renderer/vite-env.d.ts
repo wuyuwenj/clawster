@@ -50,6 +50,7 @@ interface ClawsterAPI {
   openAssistant: () => void;
   closeAssistant: () => void;
   forcePetSleep: () => void;
+  forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
   closeChatbar: () => void;
   setChatbarIgnoreMouse: (ignore: boolean) => void;
@@ -77,9 +78,13 @@ interface ClawsterAPI {
   getScreenCapturePermission: () => Promise<'granted' | 'denied' | 'not-determined' | 'restricted'>;
   checkAccessibilityPermission: (prompt?: boolean) => Promise<boolean>;
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
+  startClawbotStream: (message: string, includeScreen?: boolean) => Promise<{ requestId?: string; error?: string }>;
   askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
+  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
+  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
+  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
   copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: unknown) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
@@ -93,6 +98,7 @@ interface ClawsterAPI {
   onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
+  onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;

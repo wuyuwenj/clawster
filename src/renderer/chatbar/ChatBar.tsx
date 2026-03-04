@@ -23,6 +23,8 @@ export const ChatBar: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeStreamRequestIdRef = useRef<string | null>(null);
+  const pendingUserMessageRef = useRef<string | null>(null);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
@@ -32,6 +34,42 @@ export const ChatBar: React.FC = () => {
     // Listen for cron results
     window.clawster.onCronResult((data) => {
       setResponse(data.summary);
+    });
+
+    window.clawster.onClawbotStreamChunk((data) => {
+      if (data.requestId !== activeStreamRequestIdRef.current) return;
+      setResponse(data.text);
+    });
+
+    window.clawster.onClawbotStreamEnd(async (data) => {
+      if (data.requestId !== activeStreamRequestIdRef.current) return;
+      const streamResponse = data.response as { text?: string };
+      const finalText = streamResponse.text || 'No response';
+      setResponse(finalText);
+
+      if (pendingUserMessageRef.current && finalText) {
+        await saveMessageToHistory(pendingUserMessageRef.current, finalText);
+      }
+
+      activeStreamRequestIdRef.current = null;
+      pendingUserMessageRef.current = null;
+      setIsLoading(false);
+      inputRef.current?.focus();
+    });
+
+    window.clawster.onClawbotStreamError(async (data) => {
+      if (data.requestId !== activeStreamRequestIdRef.current) return;
+      const errorMsg = `Error: ${data.error}`;
+      setResponse(errorMsg);
+
+      if (pendingUserMessageRef.current) {
+        await saveMessageToHistory(pendingUserMessageRef.current, errorMsg);
+      }
+
+      activeStreamRequestIdRef.current = null;
+      pendingUserMessageRef.current = null;
+      setIsLoading(false);
+      inputRef.current?.focus();
     });
   }, []);
 
@@ -129,7 +167,31 @@ export const ChatBar: React.FC = () => {
       if (screenshot) {
         result = await window.clawster.askAboutScreen(message, screenshot.image) as typeof result;
         setScreenshot(null);
+        let responseText = '';
+        if (result.response) {
+          responseText = result.response;
+        } else if (result.text) {
+          responseText = result.text;
+        } else if (result.error) {
+          responseText = `Error: ${result.error}`;
+        }
+
+        setResponse(responseText);
+        if (responseText) {
+          await saveMessageToHistory(message, responseText);
+        }
+        setIsLoading(false);
+        inputRef.current?.focus();
+        return;
       } else {
+        pendingUserMessageRef.current = message;
+        const started = await window.clawster.startClawbotStream(message);
+        if (started.requestId && !started.error) {
+          activeStreamRequestIdRef.current = started.requestId;
+          setResponse('...');
+          return;
+        }
+
         result = await window.clawster.sendToClawbot(message) as typeof result;
       }
 
@@ -152,6 +214,7 @@ export const ChatBar: React.FC = () => {
       setResponse(errorMsg);
       await saveMessageToHistory(message, errorMsg);
     } finally {
+      pendingUserMessageRef.current = null;
       setIsLoading(false);
       inputRef.current?.focus();
     }

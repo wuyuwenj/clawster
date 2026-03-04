@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('clawster', {
   openAssistant: () => ipcRenderer.send('open-assistant'),
   closeAssistant: () => ipcRenderer.send('close-assistant'),
   forcePetSleep: () => ipcRenderer.send('force-pet-sleep'),
+  forceActiveAppComment: () => ipcRenderer.invoke('dev-force-active-app-comment'),
   toggleChatbar: () => ipcRenderer.send('toggle-chatbar'),
   closeChatbar: () => ipcRenderer.send('close-chatbar'),
   setChatbarIgnoreMouse: (ignore: boolean) => ipcRenderer.send('chatbar-set-ignore-mouse', ignore),
@@ -55,9 +56,20 @@ contextBridge.exposeInMainWorld('clawster', {
   // ClawBot
   sendToClawbot: (message: string, includeScreen?: boolean) =>
     ipcRenderer.invoke('send-to-clawbot', message, includeScreen),
+  startClawbotStream: (message: string, includeScreen?: boolean) =>
+    ipcRenderer.invoke('start-clawbot-stream', message, includeScreen),
   getClawbotStatus: () => ipcRenderer.invoke('clawbot-status'),
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => {
     ipcRenderer.on('clawbot-connection-changed', (_event, status) => callback(status));
+  },
+  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => {
+    ipcRenderer.on('clawbot-stream-chunk', (_event, data) => callback(data));
+  },
+  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => {
+    ipcRenderer.on('clawbot-stream-end', (_event, data) => callback(data));
+  },
+  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => {
+    ipcRenderer.on('clawbot-stream-error', (_event, data) => callback(data));
   },
 
   // Clipboard
@@ -93,6 +105,9 @@ contextBridge.exposeInMainWorld('clawster', {
   },
   onPetMoving: (callback: (data: { moving: boolean }) => void) => {
     ipcRenderer.on('pet-moving', (_event, data) => callback(data));
+  },
+  onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => {
+    ipcRenderer.on('pet-camera-snap', (_event, data) => callback(data));
   },
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => {
     ipcRenderer.on('pet-transparent-sleep-changed', (_event, enabled) => callback(Boolean(enabled)));
@@ -173,10 +188,14 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('clawbot-suggestion');
     ipcRenderer.removeAllListeners('clawbot-mood');
     ipcRenderer.removeAllListeners('clawbot-connection-changed');
+    ipcRenderer.removeAllListeners('clawbot-stream-chunk');
+    ipcRenderer.removeAllListeners('clawbot-stream-end');
+    ipcRenderer.removeAllListeners('clawbot-stream-error');
     ipcRenderer.removeAllListeners('cron-result');
     ipcRenderer.removeAllListeners('cron-error');
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
+    ipcRenderer.removeAllListeners('pet-camera-snap');
     ipcRenderer.removeAllListeners('pet-transparent-sleep-changed');
     ipcRenderer.removeAllListeners('dev-show-pet-mode-overlay-changed');
     ipcRenderer.removeAllListeners('idle-behavior');
@@ -232,6 +251,7 @@ export interface ClawsterAPI {
   openAssistant: () => void;
   closeAssistant: () => void;
   forcePetSleep: () => void;
+  forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
   closeChatbar: () => void;
   setChatbarIgnoreMouse: (ignore: boolean) => void;
@@ -260,8 +280,12 @@ export interface ClawsterAPI {
   getScreenCapturePermission: () => Promise<'granted' | 'denied' | 'not-determined' | 'restricted'>;
   checkAccessibilityPermission: (prompt?: boolean) => Promise<boolean>;
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
+  startClawbotStream: (message: string, includeScreen?: boolean) => Promise<{ requestId?: string; error?: string }>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
+  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
+  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
+  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
   copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: PetAction) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
@@ -273,6 +297,7 @@ export interface ClawsterAPI {
   onClawbotMood: (callback: (data: unknown) => void) => void;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
+  onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;

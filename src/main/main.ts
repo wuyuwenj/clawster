@@ -17,7 +17,6 @@ import fs from 'fs';
 import os from 'os';
 import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
-const execAsync = promisify(exec);
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
@@ -25,6 +24,8 @@ import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
+
+const execAsync = promisify(exec);
 
 // Load environment variables
 config();
@@ -124,6 +125,9 @@ const PET_CHAT_MAX_WIDTH = 360;
 const PET_CHAT_MIN_HEIGHT = 90;
 const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
+const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
+const PET_CAMERA_SNAP_DURATION_MS = 920;
+const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
 
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
@@ -472,6 +476,18 @@ function getScreenCapturePermissionStatus(): string {
   return systemPreferences.getMediaAccessStatus('screen');
 }
 
+async function playPetCameraSnapAnimationBeforeCapture(): Promise<void> {
+  if (!petWindow || petWindow.isDestroyed() || isSleeping) return;
+
+  petWindow.webContents.send('pet-camera-snap', {
+    captureAtMs: PET_CAMERA_SNAP_CAPTURE_DELAY_MS,
+    durationMs: PET_CAMERA_SNAP_DURATION_MS,
+    flashDurationMs: PET_CAMERA_SNAP_FLASH_DURATION_MS,
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, PET_CAMERA_SNAP_CAPTURE_DELAY_MS));
+}
+
 // Native macOS screen capture using screencapture command (much faster than desktopCapturer)
 async function captureScreenNative(): Promise<string | null> {
   if (process.platform !== 'darwin') {
@@ -548,7 +564,7 @@ async function captureScreenWithContext(): Promise<{
   image: string;
   cursor: { x: number; y: number };
   screenSize: { width: number; height: number };
-} | null> {
+  } | null> {
   try {
     // Use native capture for speed
     const image = await captureScreenNative();
@@ -819,7 +835,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
     petChatRevealTimeout = setTimeout(() => {
       if (!pendingPetChatReveal || !petChatWindow || petChatWindow.isDestroyed()) return;
       petChatWindow.setOpacity(1);
-      petChatWindow.show();
+      petChatWindow.showInactive();
       pendingPetChatReveal = false;
       petChatRevealTimeout = null;
     }, 250);
@@ -869,7 +885,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
 
     petChatWindow.once('ready-to-show', () => {
       petChatWindow?.setOpacity(0);
-      petChatWindow?.show();
+      petChatWindow?.showInactive();
       petChatWindow?.webContents.send('chat-message', message);
       scheduleFallbackReveal();
       schedulePetChatAutoHide();
@@ -879,7 +895,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
     petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
     petChatWindow.setOpacity(0);
     if (!petChatWindow.isVisible()) {
-      petChatWindow.show();
+      petChatWindow.showInactive();
     }
     petChatWindow.webContents.send('chat-message', message);
     scheduleFallbackReveal();
@@ -920,7 +936,7 @@ function resizePetChatToContent(width: number, height: number) {
       petChatRevealTimeout = null;
     }
     petChatWindow.setOpacity(1);
-    petChatWindow.show();
+    petChatWindow.showInactive();
     pendingPetChatReveal = false;
   }
 }
@@ -1437,6 +1453,22 @@ function setupIPC() {
     fallAsleep();
   });
 
+  // Force a test app-switch chat popup (dev utility)
+  ipcMain.handle('dev-force-active-app-comment', async () => {
+    let activeApp: string | undefined;
+
+    try {
+      const activeWin = await import('active-win');
+      const win = await activeWin.default();
+      activeApp = win?.owner?.name;
+    } catch (error) {
+      console.warn('[Dev] Failed to resolve active app for forced comment:', error);
+    }
+
+    await sendChatPopup('app_switch', activeApp);
+    return true;
+  });
+
   // Toggle chatbar window
   ipcMain.on('toggle-chatbar', () => {
     toggleChatbarWindow();
@@ -1576,16 +1608,12 @@ function setupIPC() {
 
   // Screen capture
   ipcMain.handle('capture-screen', async () => {
+    await playPetCameraSnapAnimationBeforeCapture();
     return await captureScreen();
   });
 
-  // Send message to ClawBot (with optional screen context)
-  ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
-    if (!clawbot) return { error: 'ClawBot not connected' };
-
-    resetInteractionTimer(); // User is chatting
-
-    // Get chat history for context (filter to user/assistant only)
+  // Build chat payload with history and optional screen context
+  const buildClawbotChatPayload = async (message: string, includeScreen?: boolean) => {
     const chatHistory = (store.get('chatHistory') || []) as Array<{
       role: 'user' | 'assistant' | 'system';
       content: string;
@@ -1594,19 +1622,41 @@ function setupIPC() {
       .filter(msg => msg.role === 'user' || msg.role === 'assistant')
       .map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
 
-    // Get screen context
     const context = await getScreenContext();
     let fullMessage = message;
 
-    // Add screen context to message if requested or if message mentions screen/cursor
     const mentionsScreen = /screen|cursor|mouse|look|where|point|here|there|this/i.test(message);
     if (includeScreen || mentionsScreen) {
       const screenCapture = await captureScreenWithContext();
       if (screenCapture) {
         fullMessage = `[Screen Context: Cursor at (${screenCapture.cursor.x}, ${screenCapture.cursor.y}), Screen size: ${screenCapture.screenSize.width}x${screenCapture.screenSize.height}, Pet at (${context.petPosition.x}, ${context.petPosition.y})]\n\n${message}`;
-        // Note: For full screen capture, you'd send the image to a vision-capable model
       }
     }
+
+    return { history, fullMessage };
+  };
+
+  // Show final response as a speech bubble on the pet when appropriate
+  const maybeShowPetResponse = (responseText?: string) => {
+    const assistantActive = assistantWindow && assistantWindow.isVisible();
+    const chatbarActive = chatbarWindow && chatbarWindow.isVisible();
+    if (responseText && !responseText.includes('error') && petWindow && !assistantActive && !chatbarActive && !tutorialManager?.getStatus().isActive) {
+      petWindow.webContents.send('chat-popup', {
+        id: randomUUID(),
+        text: responseText,
+        trigger: 'proactive',
+        quickReplies: ['Thanks!', 'Not now'],
+      });
+    }
+  };
+
+  // Send message to ClawBot (with optional screen context)
+  ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
+    if (!clawbot) return { error: 'ClawBot not connected' };
+
+    resetInteractionTimer(); // User is chatting
+
+    const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
 
     const response = await clawbot.chat(fullMessage, history);
 
@@ -1615,18 +1665,52 @@ function setupIPC() {
       await executePetAction(response.action.payload as PetAction);
     }
 
-    // Also show response as speech bubble on pet (but not if assistant window is active or during tutorial)
-    const assistantActive = assistantWindow && assistantWindow.isVisible();
-    if (response.text && !response.text.includes('error') && petWindow && !assistantActive && !tutorialManager?.getStatus().isActive) {
-      petWindow.webContents.send('chat-popup', {
-        id: randomUUID(),
-        text: response.text,
-        trigger: 'proactive',
-        quickReplies: ['Thanks!', 'Not now'],
-      });
-    }
+    maybeShowPetResponse(response.text);
 
     return response;
+  });
+
+  // Start streaming a message to ClawBot and emit chunk/end/error events
+  ipcMain.handle('start-clawbot-stream', async (event, message: string, includeScreen?: boolean) => {
+    const clawbotClient = clawbot;
+    if (!clawbotClient) return { error: 'ClawBot not connected' };
+
+    resetInteractionTimer();
+
+    const requestId = randomUUID();
+    const sender = event.sender;
+
+    const runStream = async () => {
+      try {
+        const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
+        const response = await clawbotClient.chatStream(fullMessage, history, {
+          onDelta: (delta, text) => {
+            if (!sender.isDestroyed()) {
+              sender.send('clawbot-stream-chunk', { requestId, delta, text });
+            }
+          },
+        });
+
+        if (response.action?.payload) {
+          await executePetAction(response.action.payload as PetAction);
+        }
+
+        maybeShowPetResponse(response.text);
+
+        if (!sender.isDestroyed()) {
+          sender.send('clawbot-stream-end', { requestId, response });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('Failed to stream from ClawBot:', error);
+        if (!sender.isDestroyed()) {
+          sender.send('clawbot-stream-error', { requestId, error: errorMessage });
+        }
+      }
+    };
+
+    void runStream();
+    return { requestId };
   });
 
   // Get screen context (cursor position, pet position, etc.)
@@ -1636,6 +1720,7 @@ function setupIPC() {
 
   // Capture screen with context
   ipcMain.handle('capture-screen-with-context', async () => {
+    await playPetCameraSnapAnimationBeforeCapture();
     return await captureScreenWithContext();
   });
 
@@ -1894,7 +1979,7 @@ function setupIPC() {
     }
   });
 
-  // Validate gateway connection by making a real chat completions request
+  // Validate gateway connection by making a real Responses API request
   ipcMain.handle('validate-gateway', async (_event, url: string, token: string) => {
     const makeRequest = async () => {
       const headers: Record<string, string> = {
@@ -1904,15 +1989,13 @@ function setupIPC() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      return fetch(`${url}/v1/chat/completions`, {
+      return fetch(`${url}/v1/responses`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           model: 'openclaw',
-          messages: [
-            { role: 'user', content: 'hi' }
-          ],
-          max_tokens: 5,
+          input: 'hi',
+          max_output_tokens: 5,
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -1921,38 +2004,40 @@ function setupIPC() {
     try {
       let response = await makeRequest();
 
-      // 405 means the gateway's HTTP chat completions endpoint is disabled.
-      // Auto-enable it in the OpenClaw config and restart the gateway.
+      // 405 means the gateway's HTTP responses endpoint is disabled.
+      // Auto-enable it in OpenClaw config and restart the gateway.
       if (response.status === 405) {
-        console.log('[Gateway] 405 detected — enabling HTTP chatCompletions endpoint');
+        console.log('[Gateway] 405 detected — enabling HTTP responses endpoint');
         const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
         try {
           const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
           if (!config.gateway) config.gateway = {};
           if (!config.gateway.http) config.gateway.http = {};
           if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
-          if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
-          config.gateway.http.endpoints.chatCompletions.enabled = true;
+          if (!config.gateway.http.endpoints.responses) config.gateway.http.endpoints.responses = {};
+          config.gateway.http.endpoints.responses.enabled = true;
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-          // Reinstall and restart the gateway to pick up the config change
+          // Reinstall and restart the gateway to ensure endpoint config is applied
           await execAsync('openclaw gateway stop', { timeout: 10000 }).catch(() => {});
           await execAsync('openclaw gateway install --force', { timeout: 10000 });
           await execAsync('openclaw gateway start', { timeout: 10000 });
-          // Wait for gateway to come back up
+
+          // Wait for gateway to come back up before retrying
           for (let i = 0; i < 10; i++) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             try {
               const health = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
               if (health.ok || health.status === 200) break;
-            } catch { /* gateway not ready yet */ }
+            } catch {
+              // Gateway may still be starting; keep retrying
+            }
           }
 
-          // Retry the request
           response = await makeRequest();
         } catch (configError) {
-          console.error('[Gateway] Failed to auto-enable chatCompletions endpoint:', configError);
-          return { success: false, error: '405: HTTP chat endpoint disabled. Add gateway.http.endpoints.chatCompletions.enabled=true to ~/.openclaw/openclaw.json' };
+          console.error('[Gateway] Failed to auto-enable responses endpoint:', configError);
+          return { success: false, error: '405: HTTP responses endpoint disabled. Add gateway.http.endpoints.responses.enabled=true to ~/.openclaw/openclaw.json' };
         }
       }
 
