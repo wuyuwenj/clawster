@@ -42,6 +42,7 @@ let assistantWindow: BrowserWindow | null = null;
 let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
+let petContextMenuWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let pendingPetChatReveal = false;
 let petChatRevealTimeout: NodeJS.Timeout | null = null;
@@ -97,7 +98,7 @@ function wireDebugWindowBorder(window: BrowserWindow): void {
 }
 
 function applyDebugWindowBordersToAllWindows(): void {
-  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow];
+  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow];
   for (const window of windows) {
     if (!window || window.isDestroyed()) continue;
     void applyDebugWindowBorder(window);
@@ -127,6 +128,8 @@ const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
 const PET_CHAT_VERTICAL_GAP = -2;
 const ASSISTANT_VERTICAL_GAP = -3;
+const PET_CONTEXT_MENU_WIDTH = 220;
+const PET_CONTEXT_MENU_HEIGHT = 296;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
@@ -801,6 +804,7 @@ function createPetWindow() {
     petWindow = null;
     // Also close the chat window when pet is closed
     petChatWindow?.close();
+    petContextMenuWindow?.close();
   });
 }
 
@@ -988,6 +992,25 @@ function revealAssistantWindow() {
   assistantWindow.focus();
 }
 
+function openAssistantOnTab(tab: 'chat' | 'settings') {
+  createAssistantWindow();
+  if (!assistantWindow || assistantWindow.isDestroyed()) return;
+
+  const channel = tab === 'settings' ? 'switch-to-settings' : 'switch-to-chat';
+  const sendTabSwitch = () => {
+    if (!assistantWindow || assistantWindow.isDestroyed()) return;
+    assistantWindow.webContents.send(channel);
+  };
+
+  if (assistantWindow.webContents.isLoading()) {
+    assistantWindow.webContents.once('did-finish-load', () => {
+      setTimeout(sendTabSwitch, 0);
+    });
+  } else {
+    sendTabSwitch();
+  }
+}
+
 function createAssistantWindow() {
   if (assistantWindow) {
     revealAssistantWindow();
@@ -1054,6 +1077,70 @@ function createAssistantWindow() {
   assistantWindow.on('closed', () => {
     assistantWindow = null;
   });
+}
+
+function createPetContextMenuWindow() {
+  if (petContextMenuWindow) return;
+
+  petContextMenuWindow = new BrowserWindow({
+    width: PET_CONTEXT_MENU_WIDTH,
+    height: PET_CONTEXT_MENU_HEIGHT,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  wireDebugWindowBorder(petContextMenuWindow);
+  petContextMenuWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  // Keep the context menu above the pet window, which also uses screen-saver level.
+  petContextMenuWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+
+  if (isDev) {
+    petContextMenuWindow.loadURL(`http://localhost:${DEV_PORT}/pet-context-menu.html`);
+  } else {
+    petContextMenuWindow.loadFile(path.join(__dirname, '../renderer/pet-context-menu.html'));
+  }
+
+  petContextMenuWindow.on('blur', () => {
+    petContextMenuWindow?.hide();
+  });
+
+  petContextMenuWindow.on('closed', () => {
+    petContextMenuWindow = null;
+  });
+}
+
+function showPetContextMenuAtCursor(cursorX: number, cursorY: number) {
+  createPetContextMenuWindow();
+  if (!petContextMenuWindow || petContextMenuWindow.isDestroyed()) return;
+
+  const display = screen.getDisplayNearestPoint({ x: cursorX, y: cursorY });
+  const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = display.workArea;
+
+  const x = Math.max(areaX, Math.min(Math.round(cursorX), areaX + areaWidth - PET_CONTEXT_MENU_WIDTH));
+  const y = Math.max(areaY, Math.min(Math.round(cursorY), areaY + areaHeight - PET_CONTEXT_MENU_HEIGHT));
+
+  const showWindow = () => {
+    if (!petContextMenuWindow || petContextMenuWindow.isDestroyed()) return;
+    petContextMenuWindow.setPosition(x, y);
+    petContextMenuWindow.show();
+    petContextMenuWindow.focus();
+  };
+
+  if (petContextMenuWindow.webContents.isLoading()) {
+    petContextMenuWindow.webContents.once('did-finish-load', showWindow);
+  } else {
+    showWindow();
+  }
 }
 
 function toggleAssistantWindow() {
@@ -1450,6 +1537,24 @@ function setupIPC() {
     assistantWindow?.hide();
   });
 
+  ipcMain.on('show-pet-context-menu', (_event, position: { x: number; y: number }) => {
+    if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') return;
+    showPetContextMenuAtCursor(position.x, position.y);
+  });
+
+  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings') => {
+    if (action === 'settings') {
+      openAssistantOnTab('settings');
+    } else {
+      openAssistantOnTab('chat');
+    }
+    petContextMenuWindow?.hide();
+  });
+
+  ipcMain.on('hide-pet-context-menu', () => {
+    petContextMenuWindow?.hide();
+  });
+
   // Force pet into sleep mode (dev utility)
   ipcMain.on('force-pet-sleep', () => {
     fallAsleep();
@@ -1774,6 +1879,7 @@ function setupIPC() {
       // Also move the chat windows if visible
       updatePetChatPosition();
       updateAssistantPosition();
+      petContextMenuWindow?.hide();
       resetInteractionTimer(); // User is interacting
     }
   });

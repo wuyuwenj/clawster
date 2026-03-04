@@ -236,6 +236,10 @@ export const Assistant: React.FC = () => {
       });
     });
 
+    window.clawster.onSwitchToChat(() => {
+      switchTab('chat');
+    });
+
     window.clawster.onSwitchToSettings(() => {
       switchTab('settings');
     });
