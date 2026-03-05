@@ -3,6 +3,7 @@ import path from 'path';
 import { systemPreferences } from 'electron';
 import type Store from 'electron-store';
 import type { StoreSchema } from './store';
+import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
 
 export interface ActivityEvent {
   type: 'app_focus_changed' | 'file_added' | 'file_changed' | 'file_deleted';
@@ -21,6 +22,7 @@ export class Watchers {
   private fileWatcher: FSWatcher | null = null;
   private appWatcherInterval: NodeJS.Timeout | null = null;
   private lastActiveApp: string | null = null;
+  private hasLoggedScreenRecordingWarning = false;
 
   constructor(store: Store<StoreSchema>, onEvent: EventCallback) {
     this.store = store;
@@ -61,14 +63,43 @@ export class Watchers {
 
     this.appWatcherInterval = setInterval(async () => {
       try {
-        const win = await activeWin.default();
+        const sendTitles = this.store.get('watch.sendWindowTitles') as boolean;
+        let screenRecordingDenied = false;
+
+        let win: Awaited<ReturnType<typeof activeWin.default>> | undefined;
+        try {
+          win = await activeWin.default({
+            accessibilityPermission: true,
+            screenRecordingPermission: sendTitles,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const requiresScreenRecording = message.toLowerCase().includes('screen recording');
+          if (requiresScreenRecording && sendTitles) {
+            screenRecordingDenied = true;
+            if (!this.hasLoggedScreenRecordingWarning) {
+              console.warn('[Watchers] Screen Recording permission not granted. App watcher will continue without window titles.');
+              this.hasLoggedScreenRecordingWarning = true;
+            }
+            win = await activeWin.default({
+              accessibilityPermission: true,
+              screenRecordingPermission: false,
+            });
+          } else {
+            throw error;
+          }
+        }
+
         if (win && win.owner.name !== this.lastActiveApp) {
-          const sendTitles = this.store.get('watch.sendWindowTitles') as boolean;
+          let title = sendTitles ? win.title || undefined : undefined;
+          if (sendTitles && screenRecordingDenied && !title) {
+            title = await getFrontmostWindowTitleFromSystemEvents(win.owner.name);
+          }
 
           this.onEvent({
             type: 'app_focus_changed',
             app: win.owner.name,
-            title: sendTitles ? win.title : undefined,
+            title,
             at: Date.now(),
           });
 

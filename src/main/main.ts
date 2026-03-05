@@ -24,6 +24,7 @@ import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
+import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
 
 const execAsync = promisify(exec);
 
@@ -133,6 +134,7 @@ const PET_CONTEXT_MENU_HEIGHT = 296;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
+const DEV_FORCE_ACTIVE_APP_COMMENT_DELAY_MS = 5000;
 
 // Attention seeker state
 let attentionInterval: NodeJS.Timeout | null = null;
@@ -661,7 +663,8 @@ async function executePetAction(action: PetAction): Promise<void> {
 // Send chat popup to pet window
 async function sendChatPopup(
   trigger: 'app_switch' | 'idle' | 'proactive',
-  context?: string
+  context?: string,
+  windowTitle?: string
 ) {
   if (!petWindow || !clawbot?.isConnected()) return;
 
@@ -669,12 +672,13 @@ async function sendChatPopup(
   if (tutorialManager?.getStatus().isActive) return;
 
   try {
-    let prompt: string;
-    switch (trigger) {
+      let prompt: string;
+      switch (trigger) {
       case 'app_switch':
-        prompt = context
-          ? `The user just switched to ${context}. Give a brief, friendly comment or tip (1-2 sentences max). Be casual and helpful.`
-          : 'The user is switching between apps. Give a brief, friendly productivity tip.';
+        if (!context?.trim()) {
+          return;
+        }
+        prompt = `User is using app name: "${context}". Window title: "${windowTitle?.trim() || '[unavailable]'}". Based on what you know about the user, say something funny that's relevant to the app and/or window title.`;
         break;
       case 'idle':
         prompt = 'The user has been idle for a while. Give a brief, friendly message to check in or suggest a break (1-2 sentences max). Be warm and not pushy.';
@@ -684,6 +688,7 @@ async function sendChatPopup(
         break;
     }
 
+    console.log('[ChatPopup] sendChatPopup', { trigger, context, windowTitle, prompt });
     const response = await clawbot.chat(prompt);
 
     if (response.text && !response.text.includes('error')) {
@@ -853,6 +858,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
       height: chatHeight,
       x: Math.max(0, chatX),
       y: Math.max(0, chatY),
+      show: false,
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
@@ -1432,7 +1438,7 @@ function startMainApp() {
         lastAppSwitchChat = now;
         // Random chance to show chat (30% of the time to not be annoying)
         if (Math.random() < 0.3) {
-          sendChatPopup('app_switch', event.app);
+          sendChatPopup('app_switch', event.app, event.title);
         }
       }
     }
@@ -1562,17 +1568,45 @@ function setupIPC() {
 
   // Force a test app-switch chat popup (dev utility)
   ipcMain.handle('dev-force-active-app-comment', async () => {
+    await new Promise((resolve) => setTimeout(resolve, DEV_FORCE_ACTIVE_APP_COMMENT_DELAY_MS));
+
     let activeApp: string | undefined;
+    let activeWindowTitle: string | undefined;
+    const sendTitles = store.get('watch.sendWindowTitles') as boolean;
+    let screenRecordingDenied = false;
 
     try {
       const activeWin = await import('active-win');
-      const win = await activeWin.default();
+      let win: Awaited<ReturnType<typeof activeWin.default>> | undefined;
+      try {
+        win = await activeWin.default({
+          accessibilityPermission: true,
+          screenRecordingPermission: sendTitles,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const requiresScreenRecording = message.toLowerCase().includes('screen recording');
+        if (requiresScreenRecording && sendTitles) {
+          screenRecordingDenied = true;
+          console.warn('[Dev] Screen Recording permission not granted. Testing active app comment without window title.');
+          win = await activeWin.default({
+            accessibilityPermission: true,
+            screenRecordingPermission: false,
+          });
+        } else {
+          throw error;
+        }
+      }
       activeApp = win?.owner?.name;
+      activeWindowTitle = sendTitles ? win?.title : undefined;
+      if (sendTitles && screenRecordingDenied && activeApp && !activeWindowTitle) {
+        activeWindowTitle = await getFrontmostWindowTitleFromSystemEvents(activeApp);
+      }
     } catch (error) {
       console.warn('[Dev] Failed to resolve active app for forced comment:', error);
     }
 
-    await sendChatPopup('app_switch', activeApp);
+    await sendChatPopup('app_switch', activeApp, activeWindowTitle);
     return true;
   });
 
