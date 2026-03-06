@@ -1,7 +1,7 @@
 import React from 'react';
 import { Icon } from '@iconify/react';
 
-type MenuAction = 'chat' | 'settings';
+type MenuAction = 'chat' | 'settings' | 'workspace';
 
 interface MenuItem {
   action: MenuAction;
@@ -17,6 +17,7 @@ interface SocialLink {
 
 const MENU_ITEMS: MenuItem[] = [
   { action: 'chat', label: 'Chat', icon: 'solar:chat-round-line-linear' },
+  { action: 'workspace', label: 'Workspace', icon: 'solar:folder-open-linear' },
   { action: 'settings', label: 'Settings', icon: 'solar:settings-linear' },
 ];
 

@@ -45,10 +45,49 @@ interface OpenClawWorkspace {
   hasMemory: boolean;
 }
 
+interface CurrentWorkspaceInfo {
+  workspaceType: 'openclaw' | 'clawster' | null;
+  workspacePath: string | null;
+  exists: boolean;
+}
+
+interface WorkspaceEntry {
+  name: string;
+  path: string;
+  kind: 'file' | 'directory';
+  createdAt: number;
+  modifiedAt: number;
+  accessedAt: number;
+}
+
+interface WorkspaceDirectoryResult {
+  success: boolean;
+  currentPath: string;
+  entries: WorkspaceEntry[];
+  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
+}
+
+interface WorkspaceOpenResult {
+  success: boolean;
+  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
+  message?: string;
+}
+
+interface WorkspacePreviewResult {
+  success: boolean;
+  path: string;
+  previewKind?: 'markdown' | 'image' | 'json';
+  content?: string;
+  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed' | 'not_file' | 'unsupported_preview' | 'file_too_large' | 'read_failed';
+  message?: string;
+}
+
 interface ClawsterAPI {
   toggleAssistant: () => void;
   openAssistant: () => void;
   closeAssistant: () => void;
+  openWorkspaceBrowser: () => void;
+  closeWorkspaceBrowser: () => void;
   forcePetSleep: () => void;
   forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
@@ -66,6 +105,11 @@ interface ClawsterAPI {
   onPetChatReply: (callback: (reply: string) => void) => void;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
+  getCurrentWorkspaceInfo: () => Promise<CurrentWorkspaceInfo>;
+  listWorkspaceDirectory: (relativePath?: string) => Promise<WorkspaceDirectoryResult>;
+  openWorkspacePath: (relativePath?: string) => Promise<WorkspaceOpenResult>;
+  revealWorkspacePath: (relativePath?: string) => Promise<WorkspaceOpenResult>;
+  previewWorkspaceFile: (relativePath?: string) => Promise<WorkspacePreviewResult>;
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   getChatHistory: () => Promise<unknown[]>;
@@ -108,7 +152,7 @@ interface ClawsterAPI {
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;
-  petContextMenuAction: (action: 'chat' | 'settings') => void;
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => void;
   removeAllListeners: () => void;
   // Tutorial
   tutorialPetClicked: () => void;

@@ -15,11 +15,12 @@ import {
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { exec, execSync } from 'child_process';
+import { exec, execFile, execSync } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
+import sharp from 'sharp';
 import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
 import { createStore } from './store';
@@ -27,6 +28,7 @@ import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Load environment variables
 config();
@@ -44,6 +46,7 @@ let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
 let petContextMenuWindow: BrowserWindow | null = null;
+let workspaceBrowserWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let pendingPetChatReveal = false;
 let petChatRevealTimeout: NodeJS.Timeout | null = null;
@@ -99,7 +102,7 @@ function wireDebugWindowBorder(window: BrowserWindow): void {
 }
 
 function applyDebugWindowBordersToAllWindows(): void {
-  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow];
+  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow, workspaceBrowserWindow];
   for (const window of windows) {
     if (!window || window.isDestroyed()) continue;
     void applyDebugWindowBorder(window);
@@ -129,8 +132,11 @@ const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
 const PET_CHAT_VERTICAL_GAP = -2;
 const ASSISTANT_VERTICAL_GAP = -3;
+const WORKSPACE_BROWSER_VERTICAL_GAP = -6;
 const PET_CONTEXT_MENU_WIDTH = 220;
-const PET_CONTEXT_MENU_HEIGHT = 296;
+const PET_CONTEXT_MENU_HEIGHT = 342;
+const WORKSPACE_BROWSER_WIDTH = 420;
+const WORKSPACE_BROWSER_HEIGHT = 520;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
@@ -186,6 +192,375 @@ interface PetAction {
   duration?: number;
 }
 
+type WorkspaceType = 'openclaw' | 'clawster';
+type WorkspaceErrorCode = 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
+type WorkspacePreviewKind = 'markdown' | 'image' | 'json';
+type WorkspacePreviewErrorCode =
+  | WorkspaceErrorCode
+  | 'not_file'
+  | 'unsupported_preview'
+  | 'file_too_large'
+  | 'read_failed';
+
+interface CurrentWorkspaceInfo {
+  workspaceType: WorkspaceType | null;
+  workspacePath: string | null;
+  exists: boolean;
+}
+
+interface WorkspaceEntry {
+  name: string;
+  path: string;
+  kind: 'file' | 'directory';
+  createdAt: number;
+  modifiedAt: number;
+  accessedAt: number;
+}
+
+interface WorkspaceDirectoryResult {
+  success: boolean;
+  currentPath: string;
+  entries: WorkspaceEntry[];
+  error?: WorkspaceErrorCode;
+}
+
+interface WorkspaceOpenResult {
+  success: boolean;
+  error?: WorkspaceErrorCode;
+  message?: string;
+}
+
+interface WorkspacePreviewResult {
+  success: boolean;
+  path: string;
+  previewKind?: WorkspacePreviewKind;
+  content?: string;
+  error?: WorkspacePreviewErrorCode;
+  message?: string;
+}
+
+const MAX_MARKDOWN_PREVIEW_BYTES = 1024 * 1024 * 2;
+const MAX_IMAGE_PREVIEW_BYTES = 1024 * 1024 * 12;
+const MAX_JSON_PREVIEW_BYTES = 1024 * 1024 * 2;
+
+function getCurrentWorkspaceType(): WorkspaceType | null {
+  const workspaceType = store.get('onboarding.workspaceType');
+  return workspaceType === 'openclaw' || workspaceType === 'clawster' ? workspaceType : null;
+}
+
+function getDefaultOpenClawWorkspacePath(): string {
+  return path.join(os.homedir(), '.openclaw', 'workspace');
+}
+
+function resolveWorkspaceRootPath(workspaceType: WorkspaceType | null): { workspaceType: WorkspaceType; workspacePath: string } {
+  const openClawWorkspace = getDefaultOpenClawWorkspacePath();
+
+  if (workspaceType === 'clawster') {
+    const clawsterWorkspace = (store.get('onboarding.clawsterWorkspacePath') as string | null)
+      ?? path.join(os.homedir(), '.openclaw', 'workspace-clawster');
+
+    if (fs.existsSync(clawsterWorkspace) || !fs.existsSync(openClawWorkspace)) {
+      return { workspaceType: 'clawster', workspacePath: clawsterWorkspace };
+    }
+  }
+
+  return {
+    workspaceType: 'openclaw',
+    workspacePath: openClawWorkspace,
+  };
+}
+
+function getCurrentWorkspaceInfo(): CurrentWorkspaceInfo {
+  const resolvedWorkspace = resolveWorkspaceRootPath(getCurrentWorkspaceType());
+
+  return {
+    workspaceType: resolvedWorkspace.workspaceType,
+    workspacePath: resolvedWorkspace.workspacePath,
+    exists: fs.existsSync(resolvedWorkspace.workspacePath),
+  };
+}
+
+function normalizeWorkspaceRelativePath(relativePath: string = ''): string {
+  if (!relativePath || relativePath === '.') return '';
+  return path.normalize(relativePath);
+}
+
+function resolveWorkspaceTarget(relativePath: string = ''):
+  | { info: CurrentWorkspaceInfo; workspacePath: string; absolutePath: string; relativePath: string }
+  | { info: CurrentWorkspaceInfo; error: WorkspaceErrorCode } {
+  const info = getCurrentWorkspaceInfo();
+  if (!info.workspacePath || !info.exists) {
+    return { info, error: 'missing_workspace' };
+  }
+
+  const normalizedPath = normalizeWorkspaceRelativePath(relativePath);
+  if (path.isAbsolute(normalizedPath)) {
+    return { info, error: 'outside_workspace' };
+  }
+
+  const absolutePath = path.resolve(info.workspacePath, normalizedPath || '.');
+  const relativeFromRoot = path.relative(info.workspacePath, absolutePath);
+
+  if (relativeFromRoot === '..' || relativeFromRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeFromRoot)) {
+    return { info, error: 'outside_workspace' };
+  }
+
+  const safeRelativePath = relativeFromRoot ? relativeFromRoot.split(path.sep).join('/') : '';
+
+  return {
+    info,
+    workspacePath: info.workspacePath,
+    absolutePath,
+    relativePath: safeRelativePath,
+  };
+}
+
+function listWorkspaceDirectory(relativePath: string = ''): WorkspaceDirectoryResult {
+  const resolved = resolveWorkspaceTarget(relativePath);
+  if ('error' in resolved) {
+    return {
+      success: false,
+      currentPath: '',
+      entries: [],
+      error: resolved.error,
+    };
+  }
+
+  try {
+    if (!fs.existsSync(resolved.absolutePath)) {
+      return { success: false, currentPath: resolved.relativePath, entries: [], error: 'path_not_found' };
+    }
+
+    const stats = fs.statSync(resolved.absolutePath);
+    if (!stats.isDirectory()) {
+      return { success: false, currentPath: resolved.relativePath, entries: [], error: 'not_directory' };
+    }
+
+    const entries = fs.readdirSync(resolved.absolutePath, { withFileTypes: true })
+      .map((entry) => {
+        const entryAbsolutePath = path.join(resolved.absolutePath, entry.name);
+        const entryStats = fs.statSync(entryAbsolutePath);
+
+        return {
+          name: entry.name,
+          path: [resolved.relativePath, entry.name].filter(Boolean).join('/'),
+          kind: entryStats.isDirectory() ? 'directory' as const : 'file' as const,
+          createdAt: entryStats.birthtimeMs,
+          modifiedAt: entryStats.mtimeMs,
+          accessedAt: entryStats.atimeMs,
+        };
+      });
+
+    return {
+      success: true,
+      currentPath: resolved.relativePath,
+      entries,
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { success: false, currentPath: resolved.relativePath, entries: [], error: 'path_not_found' };
+    }
+
+    throw error;
+  }
+}
+
+async function openWorkspacePath(relativePath: string = ''): Promise<WorkspaceOpenResult> {
+  const resolved = resolveWorkspaceTarget(relativePath);
+  if ('error' in resolved) {
+    return { success: false, error: resolved.error };
+  }
+
+  if (!fs.existsSync(resolved.absolutePath)) {
+    return { success: false, error: 'path_not_found' };
+  }
+
+  const openError = await shell.openPath(resolved.absolutePath);
+  if (openError) {
+    return { success: false, error: 'open_failed', message: openError };
+  }
+
+  return { success: true };
+}
+
+function getWorkspacePreviewKind(fileName: string): WorkspacePreviewKind | null {
+  const extension = path.extname(fileName).toLowerCase();
+
+  if (extension === '.md' || extension === '.mdx') {
+    return 'markdown';
+  }
+
+  if (['.json', '.jsonc', '.geojson'].includes(extension)) {
+    return 'json';
+  }
+
+  if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.heic', '.bmp', '.tiff'].includes(extension)) {
+    return 'image';
+  }
+
+  return null;
+}
+
+function getImageMimeType(fileName: string): string {
+  switch (path.extname(fileName).toLowerCase()) {
+    case '.png':
+      return 'image/png';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.gif':
+      return 'image/gif';
+    case '.webp':
+      return 'image/webp';
+    case '.svg':
+      return 'image/svg+xml';
+    case '.heic':
+      return 'image/heic';
+    case '.bmp':
+      return 'image/bmp';
+    case '.tiff':
+      return 'image/tiff';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+function shouldTranscodeImagePreview(fileName: string): boolean {
+  return ['.heic', '.heif'].includes(path.extname(fileName).toLowerCase());
+}
+
+async function transcodeImagePreviewToPngBuffer(filePath: string, sourceBuffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(sourceBuffer).png().toBuffer();
+  } catch (error) {
+    if (process.platform !== 'darwin') {
+      throw error;
+    }
+
+    const outputPath = path.join(os.tmpdir(), `clawster-workspace-preview-${randomUUID()}.png`);
+
+    try {
+      await execFileAsync('/usr/bin/sips', ['-s', 'format', 'png', filePath, '--out', outputPath]);
+      return fs.readFileSync(outputPath);
+    } finally {
+      if (fs.existsSync(outputPath)) {
+        fs.unlinkSync(outputPath);
+      }
+    }
+  }
+}
+
+async function revealWorkspacePath(relativePath: string = ''): Promise<WorkspaceOpenResult> {
+  const resolved = resolveWorkspaceTarget(relativePath);
+  if ('error' in resolved) {
+    return { success: false, error: resolved.error };
+  }
+
+  if (!fs.existsSync(resolved.absolutePath)) {
+    return { success: false, error: 'path_not_found' };
+  }
+
+  shell.showItemInFolder(resolved.absolutePath);
+  return { success: true };
+}
+
+async function previewWorkspaceFile(relativePath: string = ''): Promise<WorkspacePreviewResult> {
+  const resolved = resolveWorkspaceTarget(relativePath);
+  if ('error' in resolved) {
+    return { success: false, path: relativePath, error: resolved.error };
+  }
+
+  try {
+    if (!fs.existsSync(resolved.absolutePath)) {
+      return { success: false, path: resolved.relativePath, error: 'path_not_found' };
+    }
+
+    const stats = fs.statSync(resolved.absolutePath);
+    if (!stats.isFile()) {
+      return { success: false, path: resolved.relativePath, error: 'not_file' };
+    }
+
+    const previewKind = getWorkspacePreviewKind(resolved.absolutePath);
+    if (!previewKind) {
+      return { success: false, path: resolved.relativePath, error: 'unsupported_preview' };
+    }
+
+    const maxBytes = previewKind === 'markdown'
+      ? MAX_MARKDOWN_PREVIEW_BYTES
+      : previewKind === 'json'
+        ? MAX_JSON_PREVIEW_BYTES
+        : MAX_IMAGE_PREVIEW_BYTES;
+    if (stats.size > maxBytes) {
+      return {
+        success: false,
+        path: resolved.relativePath,
+        error: 'file_too_large',
+        message: previewKind === 'markdown'
+          ? 'This markdown file is too large to preview in the workspace window.'
+          : previewKind === 'json'
+            ? 'This JSON file is too large to preview in the workspace window.'
+            : 'This image is too large to preview in the workspace window.',
+      };
+    }
+
+    if (previewKind === 'markdown' || previewKind === 'json') {
+      const content = fs.readFileSync(resolved.absolutePath, 'utf8');
+      let previewContent = content;
+
+      if (previewKind === 'json') {
+        try {
+          previewContent = `${JSON.stringify(JSON.parse(content), null, 2)}\n`;
+        } catch {
+          previewContent = content;
+        }
+      }
+
+      return {
+        success: true,
+        path: resolved.relativePath,
+        previewKind,
+        content: previewContent,
+      };
+    }
+
+    const buffer = fs.readFileSync(resolved.absolutePath);
+    if (shouldTranscodeImagePreview(resolved.absolutePath)) {
+      return {
+        success: true,
+        path: resolved.relativePath,
+        previewKind,
+        content: `data:image/png;base64,${(await transcodeImagePreviewToPngBuffer(resolved.absolutePath, buffer)).toString('base64')}`,
+      };
+    }
+
+    return {
+      success: true,
+      path: resolved.relativePath,
+      previewKind,
+      content: `data:${getImageMimeType(resolved.absolutePath)};base64,${buffer.toString('base64')}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      path: resolved.relativePath,
+      error: 'read_failed',
+      message: shouldTranscodeImagePreview(resolved.absolutePath)
+        ? 'Failed to generate a preview for this HEIC image.'
+        : error instanceof Error
+          ? error.message
+          : 'Failed to read file preview.',
+    };
+  }
+}
+
+function resetOnboardingState(): void {
+  store.set('onboarding.completed', false);
+  store.set('onboarding.skipped', false);
+  store.set('onboarding.workspaceType', null);
+  store.set('onboarding.clawsterWorkspacePath', null);
+  store.set('onboarding.memoryMigrated', false);
+}
+
 // Smooth animation to move pet to target position
 function animateMoveTo(targetX: number, targetY: number, duration: number = 1000): Promise<void> {
   return new Promise((resolve) => {
@@ -214,13 +589,15 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       petWindow?.setPosition(currentX, currentY);
       updatePetChatPosition();
       updateAssistantPosition();
+      updateWorkspaceBrowserPosition();
 
       if (progress >= 1) {
         clearInterval(moveAnimation!);
         moveAnimation = null;
-        store.set('pet.position', { x: targetX, y: targetY });
-        petWindow?.webContents.send('pet-moving', { moving: false });
-        resolve();
+      store.set('pet.position', { x: targetX, y: targetY });
+      petWindow?.webContents.send('pet-moving', { moving: false });
+      updateWorkspaceBrowserPosition();
+      resolve();
       }
     }, 16); // ~60fps
   });
@@ -400,6 +777,15 @@ let sleepCheckInterval: NodeJS.Timeout | null = null;
 const SLEEP_AFTER_IDLE = 60000; // Fall asleep after 1 minute of no interaction
 const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
 
+function isWorkspaceBrowserActive(): boolean {
+  return Boolean(
+    workspaceBrowserWindow
+    && !workspaceBrowserWindow.isDestroyed()
+    && workspaceBrowserWindow.isVisible()
+    && workspaceBrowserWindow.isFocused(),
+  );
+}
+
 function fallAsleep(): void {
   if (isSleeping || !petWindow) return;
   isSleeping = true;
@@ -433,6 +819,13 @@ function wakeUp(): void {
 function startSleepCheck(): void {
   if (sleepCheckInterval) return;
   sleepCheckInterval = setInterval(() => {
+    if (isWorkspaceBrowserActive()) {
+      if (isSleeping) {
+        wakeUp();
+      }
+      return;
+    }
+
     const timeSinceInteraction = Date.now() - lastInteractionTime;
     if (!isSleeping && timeSinceInteraction >= SLEEP_AFTER_IDLE) {
       fallAsleep();
@@ -742,6 +1135,7 @@ function expandPetWindowForTutorial(): void {
 
   petWindow.setSize(PET_WINDOW_TUTORIAL_WIDTH, PET_WINDOW_TUTORIAL_HEIGHT);
   petWindow.setPosition(Math.round(safeX), Math.round(safeY));
+  updateWorkspaceBrowserPosition();
   petWindow.webContents.send('tutorial-window-expanded', true);
   console.log('[Tutorial] Pet window expanded for tutorial');
 }
@@ -758,6 +1152,7 @@ function contractPetWindow(): void {
 
   petWindow.setSize(PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT);
   petWindow.setPosition(Math.round(newX), Math.round(newY));
+  updateWorkspaceBrowserPosition();
   petWindow.webContents.send('tutorial-window-expanded', false);
   console.log('[Tutorial] Pet window contracted to normal');
 }
@@ -810,6 +1205,7 @@ function createPetWindow() {
     // Also close the chat window when pet is closed
     petChatWindow?.close();
     petContextMenuWindow?.close();
+    workspaceBrowserWindow?.close();
   });
 }
 
@@ -985,6 +1381,22 @@ function updateAssistantPosition() {
   assistantWindow.setPosition(Math.round(assistantX), Math.max(0, Math.round(assistantY)));
 }
 
+function updateWorkspaceBrowserPosition() {
+  if (!petWindow || !workspaceBrowserWindow || !workspaceBrowserWindow.isVisible()) return;
+
+  const [petX, petY] = petWindow.getPosition();
+  const [petWidth] = petWindow.getSize();
+  const [browserWidth, browserHeight] = workspaceBrowserWindow.getSize();
+  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+
+  let browserX = petX + (petWidth - browserWidth) / 2;
+  const browserY = petY - browserHeight + WORKSPACE_BROWSER_VERTICAL_GAP;
+
+  browserX = Math.max(0, Math.min(browserX, screenWidth - browserWidth));
+
+  workspaceBrowserWindow.setPosition(Math.round(browserX), Math.max(0, Math.round(browserY)));
+}
+
 function revealAssistantWindow() {
   if (!assistantWindow || assistantWindow.isDestroyed()) return;
 
@@ -1122,6 +1534,77 @@ function createPetContextMenuWindow() {
 
   petContextMenuWindow.on('closed', () => {
     petContextMenuWindow = null;
+  });
+}
+
+function createWorkspaceBrowserWindow() {
+  if (workspaceBrowserWindow) {
+    workspaceBrowserWindow.show();
+    workspaceBrowserWindow.focus();
+    updateWorkspaceBrowserPosition();
+    return;
+  }
+
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+
+  let initialX = screenWidth - WORKSPACE_BROWSER_WIDTH - 24;
+  let initialY = screenHeight - WORKSPACE_BROWSER_HEIGHT - 24;
+
+  if (petWindow) {
+    const [petX, petY] = petWindow.getPosition();
+    const [petWidth] = petWindow.getSize();
+
+    initialX = petX + (petWidth - WORKSPACE_BROWSER_WIDTH) / 2;
+    initialY = petY - WORKSPACE_BROWSER_HEIGHT + ASSISTANT_VERTICAL_GAP;
+    initialX = Math.max(0, Math.min(initialX, screenWidth - WORKSPACE_BROWSER_WIDTH));
+    initialY = Math.max(0, initialY);
+  }
+
+  workspaceBrowserWindow = new BrowserWindow({
+    width: WORKSPACE_BROWSER_WIDTH,
+    height: WORKSPACE_BROWSER_HEIGHT,
+    x: Math.round(initialX),
+    y: Math.round(initialY),
+    frame: false,
+    transparent: false,
+    alwaysOnTop: true,
+    resizable: true,
+    show: false,
+    backgroundColor: '#0f1720',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  wireDebugWindowBorder(workspaceBrowserWindow);
+
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    workspaceBrowserWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+
+  if (isDev) {
+    workspaceBrowserWindow.loadURL(`http://localhost:${DEV_PORT}/workspace-browser.html`);
+  } else {
+    workspaceBrowserWindow.loadFile(path.join(__dirname, '../renderer/workspace-browser.html'));
+  }
+
+  workspaceBrowserWindow.once('ready-to-show', () => {
+    workspaceBrowserWindow?.show();
+    workspaceBrowserWindow?.focus();
+    updateWorkspaceBrowserPosition();
+  });
+
+  workspaceBrowserWindow.on('focus', () => {
+    resetInteractionTimer();
+  });
+
+  workspaceBrowserWindow.on('resize', () => {
+    updateWorkspaceBrowserPosition();
+  });
+
+  workspaceBrowserWindow.on('closed', () => {
+    workspaceBrowserWindow = null;
   });
 }
 
@@ -1538,6 +2021,14 @@ function setupIPC() {
     createAssistantWindow();
   });
 
+  ipcMain.on('open-workspace-browser', () => {
+    createWorkspaceBrowserWindow();
+  });
+
+  ipcMain.on('close-workspace-browser', () => {
+    workspaceBrowserWindow?.close();
+  });
+
   // Close assistant window
   ipcMain.on('close-assistant', () => {
     assistantWindow?.hide();
@@ -1548,9 +2039,11 @@ function setupIPC() {
     showPetContextMenuAtCursor(position.x, position.y);
   });
 
-  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings') => {
+  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'workspace') => {
     if (action === 'settings') {
       openAssistantOnTab('settings');
+    } else if (action === 'workspace') {
+      createWorkspaceBrowserWindow();
     } else {
       openAssistantOnTab('chat');
     }
@@ -1667,6 +2160,26 @@ function setupIPC() {
   // Open file/folder
   ipcMain.on('open-path', (_event, filePath: string) => {
     shell.openPath(filePath);
+  });
+
+  ipcMain.handle('get-current-workspace-info', () => {
+    return getCurrentWorkspaceInfo();
+  });
+
+  ipcMain.handle('list-workspace-directory', (_event, relativePath: string = '') => {
+    return listWorkspaceDirectory(relativePath);
+  });
+
+  ipcMain.handle('open-workspace-path', async (_event, relativePath: string = '') => {
+    return openWorkspacePath(relativePath);
+  });
+
+  ipcMain.handle('reveal-workspace-path', async (_event, relativePath: string = '') => {
+    return revealWorkspacePath(relativePath);
+  });
+
+  ipcMain.handle('preview-workspace-file', (_event, relativePath: string = '') => {
+    return previewWorkspaceFile(relativePath);
   });
 
   // Get settings
@@ -1913,6 +2426,7 @@ function setupIPC() {
       // Also move the chat windows if visible
       updatePetChatPosition();
       updateAssistantPosition();
+      updateWorkspaceBrowserPosition();
       petContextMenuWindow?.hide();
       resetInteractionTimer(); // User is interacting
     }
@@ -1984,8 +2498,7 @@ function setupIPC() {
 
   // Reset onboarding (for testing)
   ipcMain.handle('reset-onboarding', () => {
-    store.set('onboarding.completed', false);
-    store.set('onboarding.skipped', false);
+    resetOnboardingState();
     // Also reset tutorial so it starts fresh after onboarding
     store.set('tutorial.completedAt', null);
     store.set('tutorial.lastStep', 0);
@@ -2018,6 +2531,10 @@ function setupIPC() {
     store.set('tutorial.lastStep', 0);
     store.set('tutorial.wasInterrupted', false);
     store.set('onboarding.workspaceType', data.workspaceType);
+    if (data.workspaceType === 'openclaw') {
+      store.set('onboarding.clawsterWorkspacePath', null);
+      store.set('onboarding.memoryMigrated', false);
+    }
     store.set('clawbot.url', data.gatewayUrl);
     store.set('clawbot.token', data.gatewayToken);
     store.set('watch.folders', data.watchFolders);
@@ -2112,12 +2629,15 @@ function setupIPC() {
         if (fs.existsSync(sourceMemory)) {
           fs.copyFileSync(sourceMemory, destMemory);
           store.set('onboarding.memoryMigrated', true);
+        } else {
+          store.set('onboarding.memoryMigrated', false);
         }
       } else {
         // Starting fresh - delete existing memory if present
         if (fs.existsSync(destMemory)) {
           fs.unlinkSync(destMemory);
         }
+        store.set('onboarding.memoryMigrated', false);
       }
 
       store.set('onboarding.clawsterWorkspacePath', clawsterWorkspace);
@@ -2427,8 +2947,7 @@ function setupTray() {
     {
       label: 'Reset Onboarding',
       click: () => {
-        store.set('onboarding.completed', false);
-        store.set('onboarding.skipped', false);
+        resetOnboardingState();
         dialog.showMessageBox({
           type: 'info',
           title: 'Onboarding Reset',

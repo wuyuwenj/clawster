@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('clawster', {
   toggleAssistant: () => ipcRenderer.send('toggle-assistant'),
   openAssistant: () => ipcRenderer.send('open-assistant'),
   closeAssistant: () => ipcRenderer.send('close-assistant'),
+  openWorkspaceBrowser: () => ipcRenderer.send('open-workspace-browser'),
+  closeWorkspaceBrowser: () => ipcRenderer.send('close-workspace-browser'),
   forcePetSleep: () => ipcRenderer.send('force-pet-sleep'),
   forceActiveAppComment: () => ipcRenderer.invoke('dev-force-active-app-comment'),
   toggleChatbar: () => ipcRenderer.send('toggle-chatbar'),
@@ -35,6 +37,11 @@ contextBridge.exposeInMainWorld('clawster', {
   // External actions
   openExternal: (url: string) => ipcRenderer.send('open-external', url),
   openPath: (path: string) => ipcRenderer.send('open-path', path),
+  getCurrentWorkspaceInfo: () => ipcRenderer.invoke('get-current-workspace-info'),
+  listWorkspaceDirectory: (relativePath: string = '') => ipcRenderer.invoke('list-workspace-directory', relativePath),
+  openWorkspacePath: (relativePath: string = '') => ipcRenderer.invoke('open-workspace-path', relativePath),
+  revealWorkspacePath: (relativePath: string = '') => ipcRenderer.invoke('reveal-workspace-path', relativePath),
+  previewWorkspaceFile: (relativePath: string = '') => ipcRenderer.invoke('preview-workspace-file', relativePath),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
@@ -132,7 +139,7 @@ contextBridge.exposeInMainWorld('clawster', {
   petClicked: () => ipcRenderer.send('pet-clicked'),
   showPetContextMenu: (x: number, y: number) => ipcRenderer.send('show-pet-context-menu', { x, y }),
   hidePetContextMenu: () => ipcRenderer.send('hide-pet-context-menu'),
-  petContextMenuAction: (action: 'chat' | 'settings') => ipcRenderer.send('pet-context-menu-action', action),
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => ipcRenderer.send('pet-context-menu-action', action),
 
   // Tutorial
   tutorialPetClicked: () => ipcRenderer.send('tutorial-pet-clicked'),
@@ -254,10 +261,49 @@ export interface OpenClawWorkspace {
   hasMemory: boolean;
 }
 
+export interface CurrentWorkspaceInfo {
+  workspaceType: 'openclaw' | 'clawster' | null;
+  workspacePath: string | null;
+  exists: boolean;
+}
+
+export interface WorkspaceEntry {
+  name: string;
+  path: string;
+  kind: 'file' | 'directory';
+  createdAt: number;
+  modifiedAt: number;
+  accessedAt: number;
+}
+
+export interface WorkspaceDirectoryResult {
+  success: boolean;
+  currentPath: string;
+  entries: WorkspaceEntry[];
+  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
+}
+
+export interface WorkspaceOpenResult {
+  success: boolean;
+  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
+  message?: string;
+}
+
+export interface WorkspacePreviewResult {
+  success: boolean;
+  path: string;
+  previewKind?: 'markdown' | 'image' | 'json';
+  content?: string;
+  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed' | 'not_file' | 'unsupported_preview' | 'file_too_large' | 'read_failed';
+  message?: string;
+}
+
 export interface ClawsterAPI {
   toggleAssistant: () => void;
   openAssistant: () => void;
   closeAssistant: () => void;
+  openWorkspaceBrowser: () => void;
+  closeWorkspaceBrowser: () => void;
   forcePetSleep: () => void;
   forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
@@ -276,6 +322,11 @@ export interface ClawsterAPI {
   onPetChatReply: (callback: (reply: string) => void) => void;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
+  getCurrentWorkspaceInfo: () => Promise<CurrentWorkspaceInfo>;
+  listWorkspaceDirectory: (relativePath?: string) => Promise<WorkspaceDirectoryResult>;
+  openWorkspacePath: (relativePath?: string) => Promise<WorkspaceOpenResult>;
+  revealWorkspacePath: (relativePath?: string) => Promise<WorkspaceOpenResult>;
+  previewWorkspaceFile: (relativePath?: string) => Promise<WorkspacePreviewResult>;
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   getChatHistory: () => Promise<unknown[]>;
@@ -315,7 +366,7 @@ export interface ClawsterAPI {
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;
-  petContextMenuAction: (action: 'chat' | 'settings') => void;
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => void;
   // Tutorial
   tutorialPetClicked: () => void;
   tutorialNext: () => void;
