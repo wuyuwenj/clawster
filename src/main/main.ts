@@ -1496,13 +1496,14 @@ function updateGameReactionPosition() {
   if (!petWindow || !gameReactionWindow || !gameReactionWindow.isVisible()) return;
 
   const [petX, petY] = petWindow.getPosition();
-  const [petWidth, petHeight] = petWindow.getSize();
-  const [reactWidth] = gameReactionWindow.getSize();
+  const [petWidth] = petWindow.getSize();
+  const [reactWidth, reactHeight] = gameReactionWindow.getSize();
 
+  // Position between game window and pet (above pet)
   const reactX = petX + (petWidth - reactWidth) / 2;
-  const reactY = petY + petHeight + 4;
+  const reactY = petY - reactHeight - 4;
 
-  gameReactionWindow.setPosition(Math.max(0, Math.round(reactX)), Math.round(reactY));
+  gameReactionWindow.setPosition(Math.max(0, Math.round(reactX)), Math.max(0, Math.round(reactY)));
 }
 
 function showGameReaction(text: string) {
@@ -1516,13 +1517,13 @@ function showGameReaction(text: string) {
 
   if (!gameReactionWindow) {
     const [petX, petY] = petWindow.getPosition();
-    const [petWidth, petHeight] = petWindow.getSize();
+    const [petWidth] = petWindow.getSize();
 
     gameReactionWindow = new BrowserWindow({
       width: GAME_REACTION_WIDTH,
       height: GAME_REACTION_HEIGHT,
       x: Math.round(petX + (petWidth - GAME_REACTION_WIDTH) / 2),
-      y: Math.round(petY + petHeight + 4),
+      y: Math.max(0, Math.round(petY - GAME_REACTION_HEIGHT - 4)),
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
