@@ -2516,22 +2516,25 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
     if (!petWindow || petWindow.isDestroyed()) return;
 
     if (gameEvent.type === 'game_over') {
-      let reaction = '';
-      let mood = 'idle';
-      if (gameEvent.winner === 'player') {
-        reaction = "GG! You got me this time 🎉";
-        mood = 'curious';
-      } else if (gameEvent.winner === 'clawster') {
-        reaction = "Hehe, I win! 🦞 Rematch?";
-        mood = 'happy';
-      } else {
-        reaction = "A draw! We're evenly matched 🤝";
-        mood = 'idle';
-      }
       if (!isSleeping) {
+        const mood = gameEvent.winner === 'clawster' ? 'happy' : gameEvent.winner === 'player' ? 'curious' : 'idle';
         petWindow.webContents.send('clawbot-mood', { state: mood });
       }
-      showPetChat({ id: randomUUID(), text: reaction, quickReplies: ['Rematch!', 'New game'] });
+
+      if (clawbot) {
+        const prompt = `You just finished a game with the user. Result: ${gameEvent.winner === 'player' ? 'the user won' : gameEvent.winner === 'clawster' ? 'you won' : 'it was a draw'}. React in 1-2 short sentences. Respond with ONLY the reaction text.`;
+        try {
+          const response = await clawbot.chat(prompt);
+          if (response.text) {
+            showPetChat({ id: randomUUID(), text: response.text, quickReplies: ['Rematch!', 'New game'] });
+          }
+        } catch (error) {
+          console.error('[Game] Failed to get game over reaction:', error);
+          showPetChat({ id: randomUUID(), text: 'Good game! 🎮', quickReplies: ['Rematch!', 'New game'] });
+        }
+      } else {
+        showPetChat({ id: randomUUID(), text: 'Good game! 🎮', quickReplies: ['Rematch!', 'New game'] });
+      }
     } else if (gameEvent.type === 'game_start') {
       if (!isSleeping) {
         petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
