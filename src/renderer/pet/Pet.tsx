@@ -413,7 +413,7 @@ export const Pet: React.FC = () => {
       if (reply === 'thanks') {
         setPetMood('happy');
         setTimeout(() => {
-          if (!sleepLockedRef.current) {
+          if (!sleepLockedRef.current && !gameModeActiveRef.current) {
             setPetMood('idle');
           }
         }, 2000);
@@ -434,7 +434,7 @@ export const Pet: React.FC = () => {
       if (activityEvent.type === 'app_focus_changed') {
         setPetMood('curious');
         setTimeout(() => {
-          if (!sleepLockedRef.current) {
+          if (!sleepLockedRef.current && !gameModeActiveRef.current) {
             setPetMood('idle');
           }
         }, 3000);
@@ -484,7 +484,7 @@ export const Pet: React.FC = () => {
 
     // Listen for idle behaviors
     window.clawster.onIdleBehavior((data) => {
-      if (sleepLockedRef.current) return;
+      if (sleepLockedRef.current || gameModeActiveRef.current) return;
 
       const idleData = data as { type: IdleBehavior; direction?: string };
       // Clear any existing behavior timeout
@@ -626,14 +626,14 @@ export const Pet: React.FC = () => {
     if (reaction.mood) {
       setPetMood(reaction.mood);
       setTimeout(() => {
-        if (!sleepLockedRef.current) {
+        if (!sleepLockedRef.current && !gameModeActiveRef.current) {
           setPetMood('idle');
         }
       }, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
       setTimeout(() => {
-        if (!sleepLockedRef.current) {
+        if (!sleepLockedRef.current && !gameModeActiveRef.current) {
           setIdleBehavior(null);
         }
       }, reaction.duration);
