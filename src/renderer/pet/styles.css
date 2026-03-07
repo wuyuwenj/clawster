@@ -864,7 +864,6 @@
 /* GAME PLAYING STATE - headset + gamepad */
 .lobster-container.state-game-playing .fx-headset {
   opacity: 1;
-  animation: gaming-headset 2.8s ease-in-out infinite;
 }
 
 .lobster-container.state-game-playing .fx-gamepad {
@@ -913,11 +912,6 @@
   0%, 100% { transform: translateX(-10px) translateY(8px) rotate(-10deg); }
   30% { transform: translateX(-9px) translateY(9px) rotate(-6deg); }
   68% { transform: translateX(-11px) translateY(7px) rotate(-13deg); }
-}
-
-@keyframes gaming-headset {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.2px); }
 }
 
 @keyframes gaming-gamepad {
