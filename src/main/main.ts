@@ -146,6 +146,11 @@ const GAME_WINDOW_VERTICAL_GAP = -6;
 
 // Game generation state
 let isGeneratingGame = false;
+let currentGameContext: {
+  rules: string;
+  lastState: unknown;
+  moveHistory: Array<{ who: 'player' | 'clawster'; detail: string }>;
+} | null = null;
 
 const GAME_GENERATION_PROMPT = `Generate a fun, interactive HTML game for the user to play. Based on what you know about the user's interests and personality, create something they'd enjoy.
 
@@ -1631,6 +1636,7 @@ async function generateAndLaunchGame(): Promise<void> {
     return;
   }
   isGeneratingGame = true;
+  currentGameContext = null;
   console.log('[Game] Starting game generation...');
 
   // Show chat popup and set thinking mood
@@ -2468,6 +2474,13 @@ function setupIPC() {
   ipcMain.handle('request-game-move', async (_event, gameState: { rules: string; state: unknown; validMoves?: unknown[] }) => {
     if (!clawbot) return { move: null, error: 'ClawBot not connected' };
 
+    // Track game context
+    if (!currentGameContext) {
+      currentGameContext = { rules: gameState.rules, lastState: gameState.state, moveHistory: [] };
+    } else {
+      currentGameContext.lastState = gameState.state;
+    }
+
     const prompt = `You're playing a game with the user. Make your next move.
 
 Game rules: ${gameState.rules}
@@ -2522,7 +2535,11 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       }
 
       if (clawbot) {
-        const prompt = `You just finished a game with the user. Result: ${gameEvent.winner === 'player' ? 'the user won' : gameEvent.winner === 'clawster' ? 'you won' : 'it was a draw'}. React in 1-2 short sentences. Respond with ONLY the reaction text.`;
+        const result = gameEvent.winner === 'player' ? 'the user won' : gameEvent.winner === 'clawster' ? 'you won' : 'it was a draw';
+        const gameInfo = currentGameContext
+          ? `\nGame: ${currentGameContext.rules}\nFinal state: ${JSON.stringify(currentGameContext.lastState)}\nRecent moves:\n${currentGameContext.moveHistory.map(m => `- ${m.who}: ${m.detail}`).join('\n')}`
+          : '';
+        const prompt = `You just finished a game with the user. Result: ${result}.${gameInfo}\n\nReact in 1-2 short sentences. Reference specific moves or moments from the game if possible. Respond with ONLY the reaction text.`;
         try {
           const response = await clawbot.chat(prompt);
           if (response.text) {
@@ -2540,6 +2557,16 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
         petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
       }
     } else if (gameEvent.type === 'player_move' || gameEvent.type === 'clawster_move') {
+      // Track move history
+      if (currentGameContext) {
+        const who = gameEvent.type === 'player_move' ? 'player' as const : 'clawster' as const;
+        currentGameContext.moveHistory.push({ who, detail: gameEvent.detail || 'unknown' });
+        // Keep last 10 moves to avoid bloating the prompt
+        if (currentGameContext.moveHistory.length > 10) {
+          currentGameContext.moveHistory = currentGameContext.moveHistory.slice(-10);
+        }
+      }
+
       // Mid-game reactions via dedicated reaction window
       if (!clawbot) return;
       const isPlayerMove = gameEvent.type === 'player_move';
