@@ -190,7 +190,13 @@ Call sendGameEvent({ type: 'player_move', detail: '...' }) on player moves.
 
 On Clawster's turn, call requestClawsterMove() and WAIT for the response before updating the board. Show a "Clawster is thinking..." indicator while waiting.
 
-CRITICAL: Output ONLY raw HTML. No markdown fences, no explanations, no text before or after. Start with <!DOCTYPE html> and end with </html>.`;
+CRITICAL INSTRUCTIONS:
+- Output ONLY the raw HTML code. Nothing else.
+- Do NOT use any tools (no file writing, no canvas, no code execution).
+- Do NOT include explanations, descriptions, or markdown fences.
+- Do NOT save any files. Just return the HTML directly in your response.
+- Start your response with <!DOCTYPE html> and end with </html>.
+- No text before <!DOCTYPE html>. No text after </html>.`;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
