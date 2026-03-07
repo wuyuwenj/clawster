@@ -805,12 +805,10 @@
 /* GAME BUILDING STATE - swinging tools */
 .lobster-container.state-game-building .fx-wrench-top {
   opacity: 1;
-  animation: claw-build-right 0.6s ease-in-out infinite alternate;
 }
 
 .lobster-container.state-game-building .fx-hammer-top {
   opacity: 1;
-  animation: claw-build-left 0.6s ease-in-out infinite alternate-reverse;
 }
 
 .lobster-container.state-game-building .fx-hardhat {
