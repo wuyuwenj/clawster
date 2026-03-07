@@ -1640,7 +1640,7 @@ async function generateAndLaunchGame(): Promise<void> {
       text: "Let me cook up a game for you! 🎮",
     });
     if (!isSleeping) {
-      petWindow.webContents.send('clawbot-mood', { state: 'thinking' });
+      petWindow.webContents.send('clawbot-mood', { state: 'game_building' });
     }
   }
 
@@ -1704,7 +1704,7 @@ async function generateAndLaunchGame(): Promise<void> {
     });
 
     if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
-      petWindow.webContents.send('clawbot-mood', { state: 'excited' });
+      petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
     }
   } catch (error) {
     console.error('[Game] Failed to generate game:', error);
@@ -1786,6 +1786,10 @@ function createGameWindow() {
 
   gameWindow.on('closed', () => {
     gameWindow = null;
+    // Reset mood back to idle when game closes
+    if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
+      petWindow.webContents.send('clawbot-mood', { state: 'idle' });
+    }
   });
 }
 
@@ -2530,7 +2534,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       showPetChat({ id: randomUUID(), text: reaction, quickReplies: ['Rematch!', 'New game'] });
     } else if (gameEvent.type === 'game_start') {
       if (!isSleeping) {
-        petWindow.webContents.send('clawbot-mood', { state: 'excited' });
+        petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
       }
     } else if (gameEvent.type === 'player_move' || gameEvent.type === 'clawster_move') {
       // Mid-game reactions via dedicated reaction window

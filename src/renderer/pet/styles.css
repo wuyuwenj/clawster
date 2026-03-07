@@ -265,7 +265,11 @@
 }
 
 .lobster-container .fx-zzz,
-.lobster-container .fx-sweat {
+.lobster-container .fx-sweat,
+.lobster-container .fx-wrench,
+.lobster-container .fx-hammer,
+.lobster-container .fx-headset,
+.lobster-container .fx-gamepad {
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -793,6 +797,97 @@
 
 .lobster-container.state-spin .right-claw {
   transform: translateY(-30px);
+}
+
+/* GAME BUILDING STATE - swinging tools */
+.lobster-container.state-game-building .fx-wrench {
+  opacity: 1;
+  animation: swing-right 0.6s ease-in-out infinite alternate;
+}
+
+.lobster-container.state-game-building .fx-hammer {
+  opacity: 1;
+  animation: swing-left 0.6s ease-in-out infinite alternate-reverse;
+}
+
+.lobster-container.state-game-building .mouth-neutral {
+  display: none;
+}
+
+.lobster-container.state-game-building .mouth-worried {
+  opacity: 1;
+}
+
+.lobster-container.state-game-building .left-claw {
+  animation: claw-build-left 0.6s ease-in-out infinite alternate-reverse;
+}
+
+.lobster-container.state-game-building .right-claw {
+  animation: claw-build-right 0.6s ease-in-out infinite alternate;
+}
+
+.lobster-container.state-game-building .body-group {
+  animation: build-bob 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes swing-left {
+  0% { transform: rotate(-10deg); }
+  100% { transform: rotate(10deg); }
+}
+
+@keyframes swing-right {
+  0% { transform: rotate(10deg); }
+  100% { transform: rotate(-10deg); }
+}
+
+@keyframes claw-build-left {
+  0% { transform: rotate(5deg) translateY(-2px); }
+  100% { transform: rotate(-5deg) translateY(2px); }
+}
+
+@keyframes claw-build-right {
+  0% { transform: rotate(-5deg) translateY(-2px); }
+  100% { transform: rotate(5deg) translateY(2px); }
+}
+
+@keyframes build-bob {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+/* GAME PLAYING STATE - headset + gamepad */
+.lobster-container.state-game-playing .fx-headset {
+  opacity: 1;
+}
+
+.lobster-container.state-game-playing .fx-gamepad {
+  opacity: 1;
+}
+
+.lobster-container.state-game-playing .mouth-neutral {
+  display: none;
+}
+
+.lobster-container.state-game-playing .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.state-game-playing .left-claw {
+  transform: translateX(14px) translateY(10px) rotate(15deg);
+}
+
+.lobster-container.state-game-playing .right-claw {
+  transform: translateX(-14px) translateY(10px) rotate(-15deg);
+}
+
+.lobster-container.state-game-playing .pupils {
+  animation: game-look 2s ease-in-out infinite;
+}
+
+@keyframes game-look {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(2px); }
+  70% { transform: translateX(-2px); }
 }
 
 /* Additional keyframes */
