@@ -186,9 +186,10 @@ It returns a Promise resolving to { move: ... }
 
 Always call sendGameEvent({ type: 'game_start' }) when the game begins.
 Always call sendGameEvent({ type: 'game_over', winner: 'player'|'clawster'|'draw' }) when it ends.
-Call sendGameEvent({ type: 'player_move', detail: '...' }) on player moves.
+Call sendGameEvent({ type: 'player_move', detail: '...' }) when the player makes a move. Include a short description of what they did.
+Call sendGameEvent({ type: 'clawster_move', detail: '...' }) AFTER Clawster makes a move and the board is updated. Include a short description of what Clawster did.
 
-On Clawster's turn, call requestClawsterMove() and WAIT for the response before updating the board. Show a "Clawster is thinking..." indicator while waiting.
+On Clawster's turn, call requestClawsterMove() and WAIT for the response before updating the board. Show a "Clawster is thinking..." indicator while waiting. After updating the board with Clawster's move, call sendGameEvent with type 'clawster_move'.
 
 CRITICAL INSTRUCTIONS:
 - Output ONLY the raw HTML code. Nothing else.
@@ -2396,7 +2397,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
   });
 
   // Game events - trigger Clawster reactions
-  ipcMain.on('game-event', (_event, gameEvent: { type: string; detail?: string; winner?: string }) => {
+  ipcMain.on('game-event', async (_event, gameEvent: { type: string; detail?: string; winner?: string }) => {
     if (!petWindow || petWindow.isDestroyed()) return;
 
     if (gameEvent.type === 'game_over') {
@@ -2419,6 +2420,22 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
     } else if (gameEvent.type === 'game_start') {
       if (!isSleeping) {
         petWindow.webContents.send('clawbot-mood', { state: 'excited' });
+      }
+    } else if (gameEvent.type === 'player_move' || gameEvent.type === 'clawster_move') {
+      // Mid-game reactions
+      if (!clawbot) return;
+      const isPlayerMove = gameEvent.type === 'player_move';
+      const prompt = isPlayerMove
+        ? `You are Clawster, a lobster pet, playing a game with your user. The user just made a move: "${gameEvent.detail || 'unknown'}". React to their move in 1 short sentence (max 8 words). Be playful. Examples: "Ooh bold move!", "Hmm didn't see that coming", "Not bad not bad 👀". Respond with ONLY the reaction text, nothing else.`
+        : `You are Clawster, a lobster pet, playing a game with your user. You just made a move: "${gameEvent.detail || 'unknown'}". React to your OWN move in 1 short sentence (max 8 words). Be confident or cheeky. Examples: "Try to beat THAT 🦞", "Calculated.", "Heh watch this". Respond with ONLY the reaction text, nothing else.`;
+
+      try {
+        const response = await clawbot.chat(prompt);
+        if (response.text) {
+          showPetChat({ id: randomUUID(), text: response.text });
+        }
+      } catch (error) {
+        console.error('[Game] Failed to get move reaction:', error);
       }
     }
   });
