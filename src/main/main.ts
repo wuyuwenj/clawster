@@ -146,6 +146,7 @@ const GAME_WINDOW_VERTICAL_GAP = -6;
 
 // Game generation state
 let isGeneratingGame = false;
+let isInGameMood = false;
 let currentGameContext: {
   rules: string;
   lastState: unknown;
@@ -867,7 +868,7 @@ function isGameWindowActive(): boolean {
 }
 
 function fallAsleep(): void {
-  if (isSleeping || !petWindow) return;
+  if (isSleeping || !petWindow || isInGameMood) return;
   isSleeping = true;
   console.log('[Sleep] Falling asleep - showing doze state');
   petWindow.webContents.send('clawbot-mood', { state: 'doze' });
@@ -884,12 +885,14 @@ function fallAsleep(): void {
 function wakeUp(): void {
   if (!isSleeping || !petWindow) return;
   isSleeping = false;
+  // Don't override game moods with startle/idle
+  if (isInGameMood) return;
   console.log('[Sleep] Waking up - showing startle state');
   petWindow.webContents.send('clawbot-mood', { state: 'startle' });
 
   // After startle animation, return to idle
   setTimeout(() => {
-    if (!isSleeping && petWindow) {
+    if (!isSleeping && !isInGameMood && petWindow) {
       console.log('[Sleep] Now idle');
       petWindow.webContents.send('clawbot-mood', { state: 'idle' });
     }
@@ -1640,7 +1643,8 @@ async function generateAndLaunchGame(): Promise<void> {
   console.log('[Game] Starting game generation...');
 
   // Set building mood (no chat popup)
-  if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
+  isInGameMood = true;
+  if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send('clawbot-mood', { state: 'game_building' });
   }
 
@@ -1696,11 +1700,12 @@ async function generateAndLaunchGame(): Promise<void> {
       console.warn('[Game] Game window was closed before HTML could be sent');
     }
 
-    if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
+    if (petWindow && !petWindow.isDestroyed()) {
       petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
     }
   } catch (error) {
     console.error('[Game] Failed to generate game:', error);
+    isInGameMood = false;
     showPetChat({
       id: randomUUID(),
       text: "Something went wrong. I'll try again later!",
@@ -1779,6 +1784,7 @@ function createGameWindow() {
 
   gameWindow.on('closed', () => {
     gameWindow = null;
+    isInGameMood = false;
     // Reset mood back to idle when game closes
     if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
       petWindow.webContents.send('clawbot-mood', { state: 'idle' });
@@ -2343,6 +2349,11 @@ function startMainApp() {
     }
     if (isSleeping && !isSleepMoodState(moodState)) {
       console.log(`[Sleep] Ignoring mood update while sleeping: ${String(moodState ?? 'unknown')}`);
+      return;
+    }
+    // Don't let external mood changes override game moods
+    if (isInGameMood && moodState !== 'game_building' && moodState !== 'game_playing') {
+      console.log(`[Game] Ignoring mood update during game: ${String(moodState ?? 'unknown')}`);
       return;
     }
     petWindow?.webContents.send('clawbot-mood', data);
