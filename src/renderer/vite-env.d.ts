@@ -160,6 +160,7 @@ interface ClawsterAPI {
   sendGameEvent: (event: unknown) => void;
   onLoadGameHtml: (callback: (html: string) => void) => void;
   onGameReaction: (callback: (message: string) => void) => void;
+  onGameActiveChanged: (callback: (data: { active: boolean }) => void) => void;
   resizeGameReaction: (width: number, height: number) => void;
   removeAllListeners: () => void;
   // Tutorial

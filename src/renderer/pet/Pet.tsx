@@ -231,6 +231,7 @@ export const Pet: React.FC = () => {
   const [showModeOverlay, setShowModeOverlay] = useState(false);
   const [cameraSnapActive, setCameraSnapActive] = useState(false);
   const [cameraFlashActive, setCameraFlashActive] = useState(false);
+  const [gameModeActive, setGameModeActive] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
@@ -239,6 +240,7 @@ export const Pet: React.FC = () => {
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sleepLockedRef = useRef(false);
+  const gameModeActiveRef = useRef(false);
 
   const setPetMood = useCallback((nextMood: Mood) => {
     const sleeping = isSleepMood(nextMood);
@@ -258,6 +260,10 @@ export const Pet: React.FC = () => {
     if (!sleepLockedRef.current) return true;
     return nextMood === 'sleeping' || nextMood === 'doze' || nextMood === 'startle' || nextMood === 'idle' || nextMood === 'game_building' || nextMood === 'game_playing';
   }, []);
+
+  useEffect(() => {
+    gameModeActiveRef.current = gameModeActive;
+  }, [gameModeActive]);
 
   // Cursor tracking for pupils
   useEffect(() => {
@@ -330,6 +336,9 @@ export const Pet: React.FC = () => {
     window.clawster.onDevShowPetModeOverlayChanged((enabled: boolean) => {
       setShowModeOverlay(enabled);
     });
+    window.clawster.onGameActiveChanged((data: { active: boolean }) => {
+      setGameModeActive(Boolean(data?.active));
+    });
 
     // Handle chat messages from main process - show in separate window
     window.clawster.onChatPopup((data: unknown) => {
@@ -340,7 +349,7 @@ export const Pet: React.FC = () => {
         quickReplies: messageData.quickReplies || DEFAULT_QUICK_REPLIES,
       };
       window.clawster.showPetChat(message);
-      if (!sleepLockedRef.current) {
+      if (!sleepLockedRef.current && !gameModeActiveRef.current) {
         setPetMood('curious');
       }
     });
@@ -358,7 +367,7 @@ export const Pet: React.FC = () => {
 
     // Handle chat reply reactions
     window.clawster.onPetChatReply((reply: string) => {
-      if (sleepLockedRef.current) return;
+      if (sleepLockedRef.current || gameModeActiveRef.current) return;
 
       if (reply === 'thanks') {
         setPetMood('happy');
@@ -377,7 +386,7 @@ export const Pet: React.FC = () => {
     });
 
     window.clawster.onActivityEvent((event: unknown) => {
-      if (sleepLockedRef.current) return;
+      if (sleepLockedRef.current || gameModeActiveRef.current) return;
 
       const activityEvent = event as { type: string };
       // React to activity - show curiosity briefly
@@ -563,9 +572,9 @@ export const Pet: React.FC = () => {
       window.clawster.tutorialPetClicked();
     }
 
-    // When sleeping, ignore poke reactions. The click still notifies main
-    // so explicit user interaction can decide whether to wake Clawster.
-    if (sleepLockedRef.current) {
+    // When sleeping or game mode active, ignore local poke reactions.
+    // The click still notifies main process.
+    if (sleepLockedRef.current || gameModeActiveRef.current) {
       window.clawster.petClicked?.();
       return;
     }
