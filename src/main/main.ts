@@ -704,7 +704,7 @@ function seekAttention() {
   if (distance > 600) {
     console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
     // Set excited mood before moving
-    petWindow.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
+    setPetMood('excited');
     animateMoveTo(targetX, targetY, 1500);
   } else {
     console.log('[AttentionSeeker] Too close, not moving');
@@ -867,17 +867,28 @@ function isGameWindowActive(): boolean {
   );
 }
 
+/** Centralized mood setter — blocks non-game moods while game is active */
+function setPetMood(state: string): void {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  const isGameMood = state === 'game_building' || state === 'game_playing';
+  if (isInGameMood && !isGameMood) {
+    console.log(`[Game] Blocking mood '${state}' — game is active`);
+    return;
+  }
+  petWindow.webContents.send('clawbot-mood', { state });
+}
+
 function fallAsleep(): void {
   if (isSleeping || !petWindow || isInGameMood) return;
   isSleeping = true;
   console.log('[Sleep] Falling asleep - showing doze state');
-  petWindow.webContents.send('clawbot-mood', { state: 'doze' });
+  setPetMood('doze');
 
   // After 5 seconds of dozing, go to full sleep
   setTimeout(() => {
     if (isSleeping && petWindow) {
       console.log('[Sleep] Now fully asleep');
-      petWindow.webContents.send('clawbot-mood', { state: 'sleeping' });
+      setPetMood('sleeping');
     }
   }, 5000);
 }
@@ -885,16 +896,14 @@ function fallAsleep(): void {
 function wakeUp(): void {
   if (!isSleeping || !petWindow) return;
   isSleeping = false;
-  // Don't override game moods with startle/idle
-  if (isInGameMood) return;
   console.log('[Sleep] Waking up - showing startle state');
-  petWindow.webContents.send('clawbot-mood', { state: 'startle' });
+  setPetMood('startle');
 
   // After startle animation, return to idle
   setTimeout(() => {
-    if (!isSleeping && !isInGameMood && petWindow) {
+    if (!isSleeping && petWindow) {
       console.log('[Sleep] Now idle');
-      petWindow.webContents.send('clawbot-mood', { state: 'idle' });
+      setPetMood('idle');
     }
   }, 1000);
 }
@@ -1086,7 +1095,7 @@ async function executePetAction(action: PetAction): Promise<void> {
           isSleeping = true;
           console.log(`[Sleep] Entered sleep state via set_mood: ${action.value}`);
         }
-        petWindow.webContents.send('clawbot-mood', { state: action.value });
+        setPetMood(action.value);
       }
       break;
 
@@ -1111,16 +1120,16 @@ async function executePetAction(action: PetAction): Promise<void> {
       break;
 
     case 'snip':
-      petWindow.webContents.send('clawbot-mood', { state: 'curious' });
+      setPetMood('curious');
       setTimeout(() => {
-        petWindow?.webContents.send('clawbot-mood', { state: 'idle' });
+        setPetMood('idle');
       }, 2000);
       break;
 
     case 'wave':
-      petWindow.webContents.send('clawbot-mood', { state: 'happy' });
+      setPetMood('happy');
       setTimeout(() => {
-        petWindow?.webContents.send('clawbot-mood', { state: 'idle' });
+        setPetMood('idle');
       }, 3000);
       break;
 
@@ -1129,7 +1138,7 @@ async function executePetAction(action: PetAction): Promise<void> {
       if (typeof action.x === 'number' && typeof action.y === 'number') {
         const lookX = Math.max(0, Math.min(action.x - 150, screenWidth - 300));
         const lookY = Math.max(0, Math.min(action.y - 150, screenHeight - 300));
-        petWindow.webContents.send('clawbot-mood', { state: 'curious' });
+        setPetMood('curious');
         await animateMoveTo(lookX, lookY, action.duration || 1200);
       }
       break;
@@ -1645,7 +1654,7 @@ async function generateAndLaunchGame(): Promise<void> {
   // Set building mood (no chat popup)
   isInGameMood = true;
   if (petWindow && !petWindow.isDestroyed()) {
-    petWindow.webContents.send('clawbot-mood', { state: 'game_building' });
+    setPetMood('game_building');
   }
 
   // Open game window immediately (shows loading state)
@@ -1701,7 +1710,7 @@ async function generateAndLaunchGame(): Promise<void> {
     }
 
     if (petWindow && !petWindow.isDestroyed()) {
-      petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
+      setPetMood('game_playing');
     }
   } catch (error) {
     console.error('[Game] Failed to generate game:', error);
@@ -1787,7 +1796,7 @@ function createGameWindow() {
     isInGameMood = false;
     // Reset mood back to idle when game closes
     if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
-      petWindow.webContents.send('clawbot-mood', { state: 'idle' });
+      setPetMood('idle');
     }
   });
 }
@@ -2351,12 +2360,7 @@ function startMainApp() {
       console.log(`[Sleep] Ignoring mood update while sleeping: ${String(moodState ?? 'unknown')}`);
       return;
     }
-    // Don't let external mood changes override game moods
-    if (isInGameMood && moodState !== 'game_building' && moodState !== 'game_playing') {
-      console.log(`[Game] Ignoring mood update during game: ${String(moodState ?? 'unknown')}`);
-      return;
-    }
-    petWindow?.webContents.send('clawbot-mood', data);
+    setPetMood(moodState ?? 'idle');
   });
 
   // Listen for cron job results - send to ClawBot for processing
@@ -2386,7 +2390,7 @@ function startMainApp() {
           quickReplies: ['Thanks!', 'Snooze', 'Dismiss'],
         });
         if (!isSleeping) {
-          petWindow?.webContents.send('clawbot-mood', { state: 'excited', reason: 'cron reminder' });
+          setPetMood('excited');
         }
       }
 
@@ -2529,7 +2533,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
     if (gameEvent.type === 'game_over') {
       if (!isSleeping) {
         const mood = gameEvent.winner === 'clawster' ? 'happy' : gameEvent.winner === 'player' ? 'curious' : 'idle';
-        petWindow.webContents.send('clawbot-mood', { state: mood });
+        setPetMood(mood);
       }
 
       if (clawbot) {
@@ -2552,7 +2556,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       }
     } else if (gameEvent.type === 'game_start') {
       if (!isSleeping) {
-        petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
+        setPetMood('game_playing');
       }
     } else if (gameEvent.type === 'player_move' || gameEvent.type === 'clawster_move') {
       // Track move history
