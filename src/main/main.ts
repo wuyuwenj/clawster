@@ -48,6 +48,8 @@ let onboardingWindow: BrowserWindow | null = null;
 let petContextMenuWindow: BrowserWindow | null = null;
 let workspaceBrowserWindow: BrowserWindow | null = null;
 let gameWindow: BrowserWindow | null = null;
+let gameReactionWindow: BrowserWindow | null = null;
+let gameReactionTimeout: NodeJS.Timeout | null = null;
 let tray: Tray | null = null;
 let pendingPetChatReveal = false;
 let petChatRevealTimeout: NodeJS.Timeout | null = null;
@@ -103,7 +105,7 @@ function wireDebugWindowBorder(window: BrowserWindow): void {
 }
 
 function applyDebugWindowBordersToAllWindows(): void {
-  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow, workspaceBrowserWindow, gameWindow];
+  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow, workspaceBrowserWindow, gameWindow, gameReactionWindow];
   for (const window of windows) {
     if (!window || window.isDestroyed()) continue;
     void applyDebugWindowBorder(window);
@@ -652,6 +654,7 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       updateAssistantPosition();
       updateWorkspaceBrowserPosition();
       updateGameWindowPosition();
+      updateGameReactionPosition();
 
       if (progress >= 1) {
         clearInterval(moveAnimation!);
@@ -660,6 +663,7 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       petWindow?.webContents.send('pet-moving', { moving: false });
       updateWorkspaceBrowserPosition();
       updateGameWindowPosition();
+      updateGameReactionPosition();
       resolve();
       }
     }, 16); // ~60fps
@@ -1482,6 +1486,104 @@ function updateGameWindowPosition() {
   browserX = Math.max(0, Math.min(browserX, screenWidth - browserWidth));
 
   gameWindow.setPosition(Math.round(browserX), Math.max(0, Math.round(browserY)));
+}
+
+const GAME_REACTION_WIDTH = 300;
+const GAME_REACTION_HEIGHT = 60;
+const GAME_REACTION_DURATION = 3000;
+
+function updateGameReactionPosition() {
+  if (!petWindow || !gameReactionWindow || !gameReactionWindow.isVisible()) return;
+
+  const [petX, petY] = petWindow.getPosition();
+  const [petWidth, petHeight] = petWindow.getSize();
+  const [reactWidth] = gameReactionWindow.getSize();
+
+  const reactX = petX + (petWidth - reactWidth) / 2;
+  const reactY = petY + petHeight + 4;
+
+  gameReactionWindow.setPosition(Math.max(0, Math.round(reactX)), Math.round(reactY));
+}
+
+function showGameReaction(text: string) {
+  // Clear any existing timeout
+  if (gameReactionTimeout) {
+    clearTimeout(gameReactionTimeout);
+    gameReactionTimeout = null;
+  }
+
+  if (!petWindow) return;
+
+  if (!gameReactionWindow) {
+    const [petX, petY] = petWindow.getPosition();
+    const [petWidth, petHeight] = petWindow.getSize();
+
+    gameReactionWindow = new BrowserWindow({
+      width: GAME_REACTION_WIDTH,
+      height: GAME_REACTION_HEIGHT,
+      x: Math.round(petX + (petWidth - GAME_REACTION_WIDTH) / 2),
+      y: Math.round(petY + petHeight + 4),
+      frame: false,
+      transparent: true,
+      backgroundColor: '#00000000',
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    wireDebugWindowBorder(gameReactionWindow);
+    gameReactionWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    gameReactionWindow.setAlwaysOnTop(true, 'screen-saver');
+    gameReactionWindow.setIgnoreMouseEvents(true);
+
+    if (isDev) {
+      gameReactionWindow.loadURL(`http://localhost:${DEV_PORT}/game-react.html`);
+    } else {
+      gameReactionWindow.loadFile(path.join(__dirname, '../renderer/game-react.html'));
+    }
+
+    gameReactionWindow.on('closed', () => {
+      gameReactionWindow = null;
+      if (gameReactionTimeout) {
+        clearTimeout(gameReactionTimeout);
+        gameReactionTimeout = null;
+      }
+    });
+
+    gameReactionWindow.once('ready-to-show', () => {
+      gameReactionWindow?.showInactive();
+      gameReactionWindow?.webContents.send('game-reaction', text);
+      updateGameReactionPosition();
+
+      gameReactionTimeout = setTimeout(() => {
+        gameReactionWindow?.hide();
+        gameReactionTimeout = null;
+      }, GAME_REACTION_DURATION);
+    });
+  } else {
+    gameReactionWindow.webContents.send('game-reaction', text);
+    updateGameReactionPosition();
+    gameReactionWindow.showInactive();
+
+    gameReactionTimeout = setTimeout(() => {
+      gameReactionWindow?.hide();
+      gameReactionTimeout = null;
+    }, GAME_REACTION_DURATION);
+  }
+}
+
+function hideGameReaction() {
+  if (gameReactionTimeout) {
+    clearTimeout(gameReactionTimeout);
+    gameReactionTimeout = null;
+  }
+  gameReactionWindow?.hide();
 }
 
 function extractHtmlFromResponse(text: string): string | null {
@@ -2347,6 +2449,14 @@ function setupIPC() {
 
   ipcMain.on('close-game', () => {
     gameWindow?.close();
+    hideGameReaction();
+  });
+
+  ipcMain.on('resize-game-reaction', (_event, width: number, height: number) => {
+    if (gameReactionWindow && !gameReactionWindow.isDestroyed()) {
+      gameReactionWindow.setSize(Math.round(width), Math.round(height));
+      updateGameReactionPosition();
+    }
   });
 
   // Game move request - forwards to ClawBot
@@ -2422,7 +2532,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
         petWindow.webContents.send('clawbot-mood', { state: 'excited' });
       }
     } else if (gameEvent.type === 'player_move' || gameEvent.type === 'clawster_move') {
-      // Mid-game reactions
+      // Mid-game reactions via dedicated reaction window
       if (!clawbot) return;
       const isPlayerMove = gameEvent.type === 'player_move';
       const prompt = isPlayerMove
@@ -2432,7 +2542,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       try {
         const response = await clawbot.chat(prompt);
         if (response.text) {
-          showPetChat({ id: randomUUID(), text: response.text });
+          showGameReaction(response.text);
         }
       } catch (error) {
         console.error('[Game] Failed to get move reaction:', error);
@@ -2818,6 +2928,7 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       updateAssistantPosition();
       updateWorkspaceBrowserPosition();
       updateGameWindowPosition();
+      updateGameReactionPosition();
       petContextMenuWindow?.hide();
       resetInteractionTimer(); // User is interacting
     }

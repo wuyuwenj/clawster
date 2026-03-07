@@ -159,6 +159,8 @@ interface ClawsterAPI {
   requestGameMove: (gameState: unknown) => Promise<unknown>;
   sendGameEvent: (event: unknown) => void;
   onLoadGameHtml: (callback: (html: string) => void) => void;
+  onGameReaction: (callback: (message: string) => void) => void;
+  resizeGameReaction: (width: number, height: number) => void;
   removeAllListeners: () => void;
   // Tutorial
   tutorialPetClicked: () => void;

@@ -149,6 +149,10 @@ contextBridge.exposeInMainWorld('clawster', {
   onLoadGameHtml: (callback: (html: string) => void) => {
     ipcRenderer.on('load-game-html', (_event, html) => callback(html));
   },
+  onGameReaction: (callback: (message: string) => void) => {
+    ipcRenderer.on('game-reaction', (_event, message) => callback(message));
+  },
+  resizeGameReaction: (width: number, height: number) => ipcRenderer.send('resize-game-reaction', width, height),
 
   // Tutorial
   tutorialPetClicked: () => ipcRenderer.send('tutorial-pet-clicked'),
@@ -229,6 +233,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('tutorial-ended');
     ipcRenderer.removeAllListeners('tutorial-resume-prompt');
     ipcRenderer.removeAllListeners('load-game-html');
+    ipcRenderer.removeAllListeners('game-reaction');
   },
 });
 
@@ -382,6 +387,8 @@ export interface ClawsterAPI {
   requestGameMove: (gameState: unknown) => Promise<unknown>;
   sendGameEvent: (event: unknown) => void;
   onLoadGameHtml: (callback: (html: string) => void) => void;
+  onGameReaction: (callback: (message: string) => void) => void;
+  resizeGameReaction: (width: number, height: number) => void;
   // Tutorial
   tutorialPetClicked: () => void;
   tutorialNext: () => void;
