@@ -207,6 +207,11 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
     </g>
 
     {/* Top-layer tools so they always render above body/claws */}
+    <g className="fx-hardhat">
+      <path d="M 40 36 Q 64 18 88 36 L 88 40 L 40 40 Z" fill="#f59e0b" stroke="#b45309" strokeWidth="2" />
+      <path d="M 43 34 Q 64 20 85 34" fill="none" stroke="#fcd34d" strokeWidth="2" strokeLinecap="round" />
+      <rect x="36" y="38" width="56" height="6" rx="3" fill="#d97706" stroke="#92400e" strokeWidth="1.5" />
+    </g>
     <g className="fx-hammer-top">
       <g transform="translate(33, 62) rotate(20)">
         <rect x="-1.5" y="-16" width="3" height="20" rx="1" fill="#a0522d" />

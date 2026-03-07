@@ -270,6 +270,7 @@
 .lobster-container .fx-hammer,
 .lobster-container .fx-wrench-top,
 .lobster-container .fx-hammer-top,
+.lobster-container .fx-hardhat,
 .lobster-container .fx-headset,
 .lobster-container .fx-gamepad {
   opacity: 0;
@@ -810,6 +811,10 @@
 .lobster-container.state-game-building .fx-hammer-top {
   opacity: 1;
   animation: claw-build-left 0.6s ease-in-out infinite alternate-reverse;
+}
+
+.lobster-container.state-game-building .fx-hardhat {
+  opacity: 1;
 }
 
 .lobster-container.state-game-building .mouth-neutral {
