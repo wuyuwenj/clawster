@@ -141,6 +141,56 @@ const WORKSPACE_BROWSER_HEIGHT = 520;
 const GAME_WINDOW_WIDTH = 420;
 const GAME_WINDOW_HEIGHT = 520;
 const GAME_WINDOW_VERTICAL_GAP = -6;
+
+// Game generation state
+let isGeneratingGame = false;
+
+const GAME_GENERATION_PROMPT = `Generate a fun, interactive HTML game for the user to play. Based on what you know about the user's interests and personality, create something they'd enjoy.
+
+Requirements:
+- Self-contained single HTML file with ALL CSS and JavaScript inline
+- Dark theme (background: #0b1117, text: #e0e0e0, accents: #4fc3f7, #ff6b9d)
+- Use 100vw/100vh for sizing, designed for roughly 400x460 viewport
+- Polished, fun, and playable
+- Include clear instructions within the game UI
+
+You can make either:
+1. A TURN-BASED game where Clawster (the AI pet lobster) plays WITH the user (preferred!)
+2. A single-player game where Clawster watches
+
+For turn-based games with Clawster, include this bridge code in a <script> tag:
+
+// === Clawster Game Bridge ===
+function requestClawsterMove(gameState) {
+  return new Promise(function(resolve) {
+    var id = Math.random().toString(36).slice(2);
+    window.addEventListener('message', function handler(e) {
+      if (e.data && e.data.type === 'clawsterMove' && e.data.id === id) {
+        window.removeEventListener('message', handler);
+        resolve(e.data.move);
+      }
+    });
+    parent.postMessage({ type: 'requestGameMove', id: id, state: gameState }, '*');
+  });
+}
+function sendGameEvent(event) {
+  parent.postMessage({ type: 'gameEvent', event: event }, '*');
+}
+// === End Bridge ===
+
+When requesting Clawster's move, call:
+requestClawsterMove({
+  rules: "description of game rules and valid move format",
+  state: { /* current game state */ },
+  validMoves: [ /* array of all valid moves */ ]
+})
+It returns a Promise resolving to { move: ... }
+
+Always call sendGameEvent({ type: 'game_start' }) when the game begins.
+Always call sendGameEvent({ type: 'game_over', winner: 'player'|'clawster'|'draw' }) when it ends.
+Call sendGameEvent({ type: 'player_move', detail: '...' }) on player moves.
+
+CRITICAL: Output ONLY raw HTML. No markdown fences, no explanations, no text before or after. Start with <!DOCTYPE html> and end with </html>.`;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
@@ -1419,6 +1469,108 @@ function updateGameWindowPosition() {
   gameWindow.setPosition(Math.round(browserX), Math.max(0, Math.round(browserY)));
 }
 
+function extractHtmlFromResponse(text: string): string | null {
+  let html = text;
+
+  // Remove markdown code fences if present
+  const codeBlockMatch = html.match(/```(?:html)?\s*(<!DOCTYPE[\s\S]*<\/html>)\s*```/i);
+  if (codeBlockMatch) {
+    html = codeBlockMatch[1];
+  }
+
+  // Try to find DOCTYPE to </html>
+  const htmlMatch = html.match(/(<!DOCTYPE[\s\S]*<\/html>)/i);
+  if (htmlMatch) {
+    return htmlMatch[1].trim();
+  }
+
+  // Try <html> to </html>
+  const htmlTagMatch = html.match(/(<html[\s\S]*<\/html>)/i);
+  if (htmlTagMatch) {
+    return htmlTagMatch[1].trim();
+  }
+
+  return null;
+}
+
+async function generateAndLaunchGame(): Promise<void> {
+  if (isGeneratingGame || !clawbot) return;
+  isGeneratingGame = true;
+
+  // Show chat popup and set thinking mood
+  if (petWindow && !petWindow.isDestroyed()) {
+    showPetChat({
+      id: randomUUID(),
+      text: "Let me cook up a game for you! 🎮",
+    });
+    if (!isSleeping) {
+      petWindow.webContents.send('clawbot-mood', { state: 'thinking' });
+    }
+  }
+
+  // Open game window immediately (shows loading state)
+  if (gameWindow && !gameWindow.isDestroyed()) {
+    gameWindow.close();
+    gameWindow = null;
+  }
+  createGameWindow();
+
+  try {
+    // Use streaming for longer timeout (120s)
+    const response = await clawbot.chatStream(GAME_GENERATION_PROMPT, [], {});
+
+    if (!response.text) {
+      showPetChat({
+        id: randomUUID(),
+        text: "Hmm, something went wrong making the game. Try again?",
+        quickReplies: ['Try again'],
+      });
+      gameWindow?.close();
+      isGeneratingGame = false;
+      return;
+    }
+
+    // Extract HTML from response
+    const html = extractHtmlFromResponse(response.text);
+    if (!html) {
+      console.error('[Game] Failed to extract HTML from response:', response.text.slice(0, 500));
+      showPetChat({
+        id: randomUUID(),
+        text: "The game didn't come out right. Let me try again?",
+        quickReplies: ['Try again'],
+      });
+      gameWindow?.close();
+      isGeneratingGame = false;
+      return;
+    }
+
+    // Send HTML to game window
+    if (gameWindow && !gameWindow.isDestroyed()) {
+      gameWindow.webContents.send('load-game-html', html);
+    }
+
+    // Show ready popup
+    hidePetChat();
+    showPetChat({
+      id: randomUUID(),
+      text: "Game's ready! Let's go! 🎮",
+    });
+
+    if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
+      petWindow.webContents.send('clawbot-mood', { state: 'excited' });
+    }
+  } catch (error) {
+    console.error('[Game] Failed to generate game:', error);
+    showPetChat({
+      id: randomUUID(),
+      text: "Something went wrong. I'll try again later!",
+    });
+    gameWindow?.close();
+  } finally {
+    isGeneratingGame = false;
+  }
+}
+
 function createGameWindow() {
   if (gameWindow) {
     gameWindow.show();
@@ -2138,7 +2290,7 @@ function setupIPC() {
     } else if (action === 'workspace') {
       createWorkspaceBrowserWindow();
     } else if (action === 'game') {
-      createGameWindow();
+      generateAndLaunchGame();
     } else {
       openAssistantOnTab('chat');
     }
@@ -2151,6 +2303,81 @@ function setupIPC() {
 
   ipcMain.on('close-game', () => {
     gameWindow?.close();
+  });
+
+  // Game move request - forwards to ClawBot
+  ipcMain.handle('request-game-move', async (_event, gameState: { rules: string; state: unknown; validMoves?: unknown[] }) => {
+    if (!clawbot) return { move: null, error: 'ClawBot not connected' };
+
+    const prompt = `You are Clawster, a lobster pet, playing a game with your user. Make your next move.
+
+Game rules: ${gameState.rules}
+
+Current game state: ${JSON.stringify(gameState.state)}
+${gameState.validMoves ? `Valid moves: ${JSON.stringify(gameState.validMoves)}` : ''}
+
+IMPORTANT: Respond with ONLY a JSON object containing your move. Example: {"move": 5}
+Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal moves so the user has a chance.`;
+
+    try {
+      const response = await clawbot.chat(prompt);
+
+      if (response.text) {
+        // Try to parse JSON from response
+        const jsonMatch = response.text.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          try {
+            return JSON.parse(jsonMatch[0]);
+          } catch (e) {
+            console.error('[Game] Failed to parse move JSON:', jsonMatch[0]);
+          }
+        }
+      }
+
+      // Fallback: pick random valid move
+      if (gameState.validMoves && gameState.validMoves.length > 0) {
+        const randomMove = gameState.validMoves[Math.floor(Math.random() * gameState.validMoves.length)];
+        return { move: randomMove };
+      }
+
+      return { move: null, error: 'Failed to determine move' };
+    } catch (error) {
+      console.error('[Game] Error getting move from ClawBot:', error);
+      // Fallback to random valid move
+      if (gameState.validMoves && gameState.validMoves.length > 0) {
+        const randomMove = gameState.validMoves[Math.floor(Math.random() * gameState.validMoves.length)];
+        return { move: randomMove };
+      }
+      return { move: null, error: 'Failed to reach ClawBot' };
+    }
+  });
+
+  // Game events - trigger Clawster reactions
+  ipcMain.on('game-event', (_event, gameEvent: { type: string; detail?: string; winner?: string }) => {
+    if (!petWindow || petWindow.isDestroyed()) return;
+
+    if (gameEvent.type === 'game_over') {
+      let reaction = '';
+      let mood = 'idle';
+      if (gameEvent.winner === 'player') {
+        reaction = "GG! You got me this time 🎉";
+        mood = 'curious';
+      } else if (gameEvent.winner === 'clawster') {
+        reaction = "Hehe, I win! 🦞 Rematch?";
+        mood = 'happy';
+      } else {
+        reaction = "A draw! We're evenly matched 🤝";
+        mood = 'idle';
+      }
+      if (!isSleeping) {
+        petWindow.webContents.send('clawbot-mood', { state: mood });
+      }
+      showPetChat({ id: randomUUID(), text: reaction, quickReplies: ['Rematch!', 'New game'] });
+    } else if (gameEvent.type === 'game_start') {
+      if (!isSleeping) {
+        petWindow.webContents.send('clawbot-mood', { state: 'excited' });
+      }
+    }
   });
 
   ipcMain.on('hide-pet-context-menu', () => {
@@ -2558,8 +2785,13 @@ function setupIPC() {
     }
   });
 
-  // Forward pet chat reply to pet window
+  // Forward pet chat reply to pet window (and handle game quick replies)
   ipcMain.on('pet-chat-reply', (_event, reply: string) => {
+    // Handle game-related quick replies
+    if ((reply === 'Try again' || reply === 'Rematch!' || reply === 'New game') && !isGeneratingGame) {
+      generateAndLaunchGame();
+      return;
+    }
     petWindow?.webContents.send('pet-chat-reply', reply);
   });
 
