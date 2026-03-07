@@ -63,6 +63,59 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
       strokeWidth="4"
       strokeLinejoin="round"
     />
+    {/* Left Claw */}
+    <g className="left-claw">
+      <path
+        d="M 40 55 A 24 24 0 1 1 10 85 Q 20 80 25 75 Q 20 65 30 70 Z"
+        fill="var(--salmon)"
+        stroke="var(--dark-red)"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <g className="fx-hammer-top">
+        <g transform="rotate(-28 27 71)">
+          <rect x="23" y="62" width="6" height="26" rx="2" fill="#8B5A2B" stroke="#5C3A1E" strokeWidth="2" />
+          <rect x="17" y="56" width="18" height="7" rx="2" fill="#9AA3AD" stroke="#5F6870" strokeWidth="2" />
+          <path
+            d="M 17 59 Q 12 60 11 64 Q 15 63 17 62 Z"
+            fill="#9AA3AD"
+            stroke="#5F6870"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+        </g>
+      </g>
+    </g>
+    {/* Right Claw */}
+    <g className="right-claw">
+      <path
+        d="M 88 55 A 24 24 0 1 0 118 85 Q 108 80 103 75 Q 108 65 98 70 Z"
+        fill="var(--salmon)"
+        stroke="var(--dark-red)"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <g className="fx-wrench-top">
+        <g transform="rotate(26 101 73)">
+          <rect x="99" y="48" width="2" height="14" rx="1" fill="#B0B8C2" stroke="#5F6870" strokeWidth="1.5" />
+          <path
+            d="M 99 48 L 100 43 L 101 48 Z"
+            fill="#8C959E"
+            stroke="#5F6870"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M 97 62 Q 94 66 94 72 Q 94 78 97 82 L 103 82 Q 106 78 106 72 Q 106 66 103 62 Z"
+            fill="#FFD54A"
+            stroke="#C28A00"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          <rect x="97.5" y="80.5" width="5" height="5" rx="1.5" fill="#C28A00" stroke="#A06F00" strokeWidth="1.5" />
+        </g>
+      </g>
+    </g>
     {/* Body Group */}
     <g className="body-group">
       <rect
@@ -148,59 +201,6 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
         />
         <circle className="mouth-worried" cx="64" cy="70" r="2.5" fill="var(--ink)" />
         <circle className="mouth-o" cx="64" cy="70" r="3.4" fill="var(--ink)" />
-      </g>
-    </g>
-    {/* Left Claw */}
-    <g className="left-claw">
-      <path
-        d="M 40 55 A 24 24 0 1 1 10 85 Q 20 80 25 75 Q 20 65 30 70 Z"
-        fill="var(--salmon)"
-        stroke="var(--dark-red)"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <g className="fx-hammer-top">
-        <g transform="rotate(-28 27 71)">
-          <rect x="23" y="62" width="6" height="26" rx="2" fill="#8B5A2B" stroke="#5C3A1E" strokeWidth="2" />
-          <rect x="17" y="56" width="18" height="7" rx="2" fill="#9AA3AD" stroke="#5F6870" strokeWidth="2" />
-          <path
-            d="M 17 59 Q 12 60 11 64 Q 15 63 17 62 Z"
-            fill="#9AA3AD"
-            stroke="#5F6870"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </g>
-      </g>
-    </g>
-    {/* Right Claw */}
-    <g className="right-claw">
-      <path
-        d="M 88 55 A 24 24 0 1 0 118 85 Q 108 80 103 75 Q 108 65 98 70 Z"
-        fill="var(--salmon)"
-        stroke="var(--dark-red)"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <g className="fx-wrench-top">
-        <g transform="rotate(26 101 73)">
-          <rect x="99" y="48" width="2" height="14" rx="1" fill="#B0B8C2" stroke="#5F6870" strokeWidth="1.5" />
-          <path
-            d="M 99 48 L 100 43 L 101 48 Z"
-            fill="#8C959E"
-            stroke="#5F6870"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M 97 62 Q 94 66 94 72 Q 94 78 97 82 L 103 82 Q 106 78 106 72 Q 106 66 103 62 Z"
-            fill="#FFD54A"
-            stroke="#C28A00"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-          <rect x="97.5" y="80.5" width="5" height="5" rx="1.5" fill="#C28A00" stroke="#A06F00" strokeWidth="1.5" />
-        </g>
       </g>
     </g>
     {/* Effects */}
