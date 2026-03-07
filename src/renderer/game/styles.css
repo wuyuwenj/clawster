@@ -70,18 +70,18 @@
 .game-loading-icon {
   width: 56px;
   height: 56px;
-  animation: clawster-spin 1.2s ease-in-out infinite;
-  filter: drop-shadow(0 0 8px rgba(79, 195, 247, 0.3));
+  animation: clawster-pulse 2s ease-in-out infinite;
 }
 
-@keyframes clawster-spin {
-  0% {
-    transform: rotate(0deg) scale(1);
+@keyframes clawster-pulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.7;
+    filter: drop-shadow(0 0 4px rgba(79, 195, 247, 0.2));
   }
   50% {
-    transform: rotate(180deg) scale(1.1);
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
+    transform: scale(1.15) rotate(-8deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(79, 195, 247, 0.5));
   }
 }
