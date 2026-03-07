@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TutorialOverlay } from './TutorialOverlay';
 
-type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o';
+type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'game_building' | 'game_playing';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
 
 interface ChatMessage {
@@ -39,6 +39,10 @@ const moodToState = (mood: Mood): string => {
       return 'state-mouth-o';
     case 'thinking':
       return 'state-worried';
+    case 'game_building':
+      return 'state-game-building';
+    case 'game_playing':
+      return 'state-game-playing';
     default:
       return 'state-idle';
   }
@@ -178,6 +182,45 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
     <g className="fx-sweat">
       <path d="M 35 35 Q 30 45 35 50 Q 40 45 35 35 Z" fill="#87CEFA" opacity="0.8" />
     </g>
+    {/* Game Building - Wrench in right claw */}
+    <g className="fx-wrench">
+      <g transform="translate(95, 62) rotate(-20)">
+        <rect x="-2" y="-18" width="4" height="22" rx="1.5" fill="#888" />
+        <circle cx="0" cy="-18" r="5" fill="none" stroke="#888" strokeWidth="3" />
+      </g>
+    </g>
+    {/* Game Building - Hammer in left claw */}
+    <g className="fx-hammer">
+      <g transform="translate(33, 62) rotate(20)">
+        <rect x="-1.5" y="-16" width="3" height="20" rx="1" fill="#a0522d" />
+        <rect x="-6" y="-22" width="12" height="7" rx="1.5" fill="#666" />
+      </g>
+    </g>
+    {/* Game Playing - Headset */}
+    <g className="fx-headset">
+      <path
+        d="M 38 42 Q 38 24 64 22 Q 90 24 90 42"
+        fill="none"
+        stroke="#333"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <rect x="32" y="38" width="10" height="14" rx="4" fill="#333" />
+      <rect x="86" y="38" width="10" height="14" rx="4" fill="#333" />
+      <rect x="33" y="40" width="8" height="10" rx="3" fill="#4fc3f7" opacity="0.6" />
+      <rect x="87" y="40" width="8" height="10" rx="3" fill="#4fc3f7" opacity="0.6" />
+    </g>
+    {/* Game Playing - Gamepad in claws */}
+    <g className="fx-gamepad">
+      <g transform="translate(64, 88)">
+        <rect x="-16" y="-6" width="32" height="14" rx="6" fill="#333" />
+        <circle cx="-8" cy="0" r="2" fill="#4fc3f7" />
+        <circle cx="8" cy="-2" r="1.5" fill="#ff6b9d" />
+        <circle cx="11" cy="1" r="1.5" fill="#4fc3f7" />
+        <circle cx="8" cy="4" r="1.5" fill="#66bb6a" />
+        <circle cx="5" cy="1" r="1.5" fill="#ffd54f" />
+      </g>
+    </g>
   </svg>
 );
 
@@ -216,7 +259,7 @@ export const Pet: React.FC = () => {
 
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
     if (!sleepLockedRef.current) return true;
-    return nextMood === 'sleeping' || nextMood === 'doze' || nextMood === 'startle' || nextMood === 'idle';
+    return nextMood === 'sleeping' || nextMood === 'doze' || nextMood === 'startle' || nextMood === 'idle' || nextMood === 'game_building' || nextMood === 'game_playing';
   }, []);
 
   // Cursor tracking for pupils
