@@ -240,9 +240,23 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
       </g>
     </g>
     <g className="fx-wrench-top">
-      <g transform="translate(95, 62) rotate(-20)">
-        <rect x="-2" y="-18" width="4" height="22" rx="1.5" fill="#888" />
-        <circle cx="0" cy="-18" r="5" fill="none" stroke="#888" strokeWidth="3" />
+      <g transform="rotate(26 101 73)">
+        <rect x="99" y="48" width="2" height="14" rx="1" fill="#B0B8C2" stroke="#5F6870" strokeWidth="1.5" />
+        <path
+          d="M 99 48 L 100 43 L 101 48 Z"
+          fill="#8C959E"
+          stroke="#5F6870"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 97 62 Q 94 66 94 72 Q 94 78 97 82 L 103 82 Q 106 78 106 72 Q 106 66 103 62 Z"
+          fill="#FFD54A"
+          stroke="#C28A00"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <rect x="97.5" y="80.5" width="5" height="5" rx="1.5" fill="#C28A00" stroke="#A06F00" strokeWidth="1.5" />
       </g>
     </g>
   </svg>
