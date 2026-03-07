@@ -213,8 +213,6 @@ CRITICAL INSTRUCTIONS:
 - No text before <!DOCTYPE html>. No text after </html>.`;
 
 
-// TEMP: disable generation while previewing animation states without token cost.
-const DISABLE_GAME_GENERATION_FOR_ANIMATION_TEST = true;
 
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
@@ -1665,8 +1663,7 @@ async function generateAndLaunchGame(): Promise<void> {
   isInGameMood = true;
   broadcastGameActive(true);
   if (petWindow && !petWindow.isDestroyed()) {
-    // TEMP: preview game_playing animation immediately during the build phase.
-    setPetMood('game_playing');
+    setPetMood('game_building');
   }
 
   // Open game window immediately (shows loading state)
@@ -1675,12 +1672,6 @@ async function generateAndLaunchGame(): Promise<void> {
     gameWindow = null;
   }
   createGameWindow();
-
-  if (DISABLE_GAME_GENERATION_FOR_ANIMATION_TEST) {
-    console.log('[Game] Generation disabled for animation testing. Keeping loading screen active.');
-    isGeneratingGame = false;
-    return;
-  }
 
   try {
     console.log('[Game] Sending generation prompt to ClawBot...');
