@@ -154,11 +154,9 @@ Requirements:
 - Polished, fun, and playable
 - Include clear instructions within the game UI
 
-You can make either:
-1. A TURN-BASED game where Clawster (the AI pet lobster) plays WITH the user (preferred!)
-2. A single-player game where Clawster watches
+The game MUST be turn-based where Clawster (the AI pet lobster) plays WITH the user. Clawster is the opponent. No single-player games.
 
-For turn-based games with Clawster, include this bridge code in a <script> tag:
+Include this bridge code in a <script> tag:
 
 // === Clawster Game Bridge ===
 function requestClawsterMove(gameState) {
@@ -189,6 +187,8 @@ It returns a Promise resolving to { move: ... }
 Always call sendGameEvent({ type: 'game_start' }) when the game begins.
 Always call sendGameEvent({ type: 'game_over', winner: 'player'|'clawster'|'draw' }) when it ends.
 Call sendGameEvent({ type: 'player_move', detail: '...' }) on player moves.
+
+On Clawster's turn, call requestClawsterMove() and WAIT for the response before updating the board. Show a "Clawster is thinking..." indicator while waiting.
 
 CRITICAL: Output ONLY raw HTML. No markdown fences, no explanations, no text before or after. Start with <!DOCTYPE html> and end with </html>.`;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
