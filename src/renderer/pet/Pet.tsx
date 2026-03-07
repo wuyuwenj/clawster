@@ -73,7 +73,7 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
         strokeLinejoin="round"
       />
       <g className="fx-hammer-top">
-        <g transform="translate(-5 0) rotate(-28 27 71)">
+        <g transform="translate(-10 0) rotate(-28 27 71)">
           <rect x="23" y="62" width="6" height="26" rx="2" fill="#8B5A2B" stroke="#5C3A1E" strokeWidth="2" />
           <rect x="17" y="56" width="18" height="7" rx="2" fill="#9AA3AD" stroke="#5F6870" strokeWidth="2" />
           <path
@@ -96,7 +96,7 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
         strokeLinejoin="round"
       />
       <g className="fx-wrench-top">
-        <g transform="translate(5 0) rotate(26 101 73)">
+        <g transform="translate(10 0) rotate(26 101 73)">
           <rect x="99" y="48" width="2" height="14" rx="1" fill="#B0B8C2" stroke="#5F6870" strokeWidth="1.5" />
           <path
             d="M 99 48 L 100 43 L 101 48 Z"
