@@ -870,6 +870,11 @@
   opacity: 1;
 }
 
+/* subtle breathing while gaming */
+.lobster-container.state-game-playing .body-group {
+  animation: breathe 2.8s ease-in-out infinite;
+}
+
 .lobster-container.state-game-playing .mouth-neutral {
   display: none;
 }
