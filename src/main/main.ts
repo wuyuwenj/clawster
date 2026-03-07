@@ -212,8 +212,6 @@ CRITICAL INSTRUCTIONS:
 - Start your response with <!DOCTYPE html> and end with </html>.
 - No text before <!DOCTYPE html>. No text after </html>.`;
 
-// TEMP: turn this on to avoid LLM calls while testing build animation.
-const DISABLE_GAME_GENERATION_FOR_ANIMATION_TEST = true;
 
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
@@ -1673,12 +1671,6 @@ async function generateAndLaunchGame(): Promise<void> {
     gameWindow = null;
   }
   createGameWindow();
-
-  if (DISABLE_GAME_GENERATION_FOR_ANIMATION_TEST) {
-    console.log('[Game] Generation disabled for animation testing. Keeping loading screen active.');
-    isGeneratingGame = false;
-    return;
-  }
 
   try {
     console.log('[Game] Sending generation prompt to ClawBot...');
