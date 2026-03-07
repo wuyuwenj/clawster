@@ -848,6 +848,14 @@ function isWorkspaceBrowserActive(): boolean {
   );
 }
 
+function isGameWindowActive(): boolean {
+  return Boolean(
+    gameWindow
+    && !gameWindow.isDestroyed()
+    && gameWindow.isVisible(),
+  );
+}
+
 function fallAsleep(): void {
   if (isSleeping || !petWindow) return;
   isSleeping = true;
@@ -881,7 +889,7 @@ function wakeUp(): void {
 function startSleepCheck(): void {
   if (sleepCheckInterval) return;
   sleepCheckInterval = setInterval(() => {
-    if (isWorkspaceBrowserActive()) {
+    if (isWorkspaceBrowserActive() || isGameWindowActive()) {
       if (isSleeping) {
         wakeUp();
       }
