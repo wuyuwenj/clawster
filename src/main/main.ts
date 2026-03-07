@@ -1639,15 +1639,9 @@ async function generateAndLaunchGame(): Promise<void> {
   currentGameContext = null;
   console.log('[Game] Starting game generation...');
 
-  // Show chat popup and set thinking mood
-  if (petWindow && !petWindow.isDestroyed()) {
-    showPetChat({
-      id: randomUUID(),
-      text: "Let me cook up a game for you! 🎮",
-    });
-    if (!isSleeping) {
-      petWindow.webContents.send('clawbot-mood', { state: 'game_building' });
-    }
+  // Set building mood (no chat popup)
+  if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
+    petWindow.webContents.send('clawbot-mood', { state: 'game_building' });
   }
 
   // Open game window immediately (shows loading state)
@@ -1701,13 +1695,6 @@ async function generateAndLaunchGame(): Promise<void> {
     } else {
       console.warn('[Game] Game window was closed before HTML could be sent');
     }
-
-    // Show ready popup
-    hidePetChat();
-    showPetChat({
-      id: randomUUID(),
-      text: "Game's ready! Let's go! 🎮",
-    });
 
     if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
       petWindow.webContents.send('clawbot-mood', { state: 'game_playing' });
