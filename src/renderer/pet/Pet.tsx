@@ -198,17 +198,14 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
     </g>
     {/* Game Playing - Headset */}
     <g className="fx-headset">
-      <path
-        d="M 38 42 Q 38 24 64 22 Q 90 24 90 42"
-        fill="none"
-        stroke="#333"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-      <rect x="32" y="38" width="10" height="14" rx="4" fill="#333" />
-      <rect x="86" y="38" width="10" height="14" rx="4" fill="#333" />
-      <rect x="33" y="40" width="8" height="10" rx="3" fill="#4fc3f7" opacity="0.6" />
-      <rect x="87" y="40" width="8" height="10" rx="3" fill="#4fc3f7" opacity="0.6" />
+      <path d="M 30 36 Q 64 6 98 36" fill="none" stroke="#2F3B52" strokeWidth="6" strokeLinecap="round" />
+      <path d="M 32 36 Q 64 14 96 36" fill="none" stroke="#6C7A96" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 30 36 L 30 44" fill="none" stroke="#2F3B52" strokeWidth="6" strokeLinecap="round" />
+      <path d="M 98 36 L 98 44" fill="none" stroke="#2F3B52" strokeWidth="6" strokeLinecap="round" />
+      <rect x="22" y="44" width="12" height="22" rx="5" fill="#2F3B52" stroke="#111827" strokeWidth="2" />
+      <rect x="94" y="44" width="12" height="22" rx="5" fill="#2F3B52" stroke="#111827" strokeWidth="2" />
+      <path d="M 100 56 Q 90 66 78 72" fill="none" stroke="#2F3B52" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="77" cy="73" r="2.8" fill="#2F3B52" />
     </g>
     {/* Game Playing - Gamepad in claws */}
     <g className="fx-gamepad">
