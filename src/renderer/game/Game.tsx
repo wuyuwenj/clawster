@@ -4,7 +4,7 @@ export const Game: React.FC = () => {
   return (
     <div className="game-container">
       <div className="game-titlebar">
-        <span className="game-title">🎮 Play a Game</span>
+        <span className="game-title">🎮 Game with Clawster</span>
         <button
           className="game-close-btn"
           onClick={() => window.clawster.closeGame()}
