@@ -19,6 +19,7 @@ export default defineConfig({
         'screenshot-question': resolve(__dirname, 'src/renderer/screenshot-question.html'),
         'workspace-browser': resolve(__dirname, 'src/renderer/workspace-browser.html'),
         game: resolve(__dirname, 'src/renderer/game.html'),
+        'game-react': resolve(__dirname, 'src/renderer/game-react.html'),
         onboarding: resolve(__dirname, 'src/renderer/onboarding.html'),
       },
     },
