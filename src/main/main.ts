@@ -2594,9 +2594,31 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       // Mid-game reactions via dedicated reaction window
       if (!clawbot) return;
       const isPlayerMove = gameEvent.type === 'player_move';
+      const recentMoves = currentGameContext?.moveHistory?.slice(-5) ?? [];
+      const recentMovesText = recentMoves.length
+        ? recentMoves.map((m) => `- ${m.who}: ${m.detail}`).join('\n')
+        : '- none yet';
+      const rulesText = (currentGameContext?.rules || 'unknown').slice(0, 300);
+      const stateText = currentGameContext?.lastState ? JSON.stringify(currentGameContext.lastState).slice(0, 500) : 'unknown';
       const prompt = isPlayerMove
-        ? `You're playing a game with the user. They just moved: "${gameEvent.detail || 'unknown'}". React in 1 short sentence (max 8 words). Respond with ONLY the reaction text.`
-        : `You're playing a game with the user. You just moved: "${gameEvent.detail || 'unknown'}". React to your own move in 1 short sentence (max 8 words). Respond with ONLY the reaction text.`;
+        ? `You're playing a game with the user.
+Rules: ${rulesText}
+Current state: ${stateText}
+Recent moves:
+${recentMovesText}
+
+The user just moved: "${gameEvent.detail || 'unknown'}".
+React in 1 short sentence (max 8 words). Be specific to the game context.
+Respond with ONLY the reaction text.`
+        : `You're playing a game with the user.
+Rules: ${rulesText}
+Current state: ${stateText}
+Recent moves:
+${recentMovesText}
+
+You just moved: "${gameEvent.detail || 'unknown'}".
+React to your own move in 1 short sentence (max 8 words). Be specific to the game context.
+Respond with ONLY the reaction text.`;
 
       try {
         const response = await clawbot.chat(prompt);
