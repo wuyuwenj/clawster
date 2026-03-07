@@ -153,6 +153,11 @@ let currentGameContext: {
   moveHistory: Array<{ who: 'player' | 'clawster'; detail: string }>;
 } | null = null;
 
+function broadcastGameActive(active: boolean): void {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  petWindow.webContents.send('game-active-changed', { active });
+}
+
 const GAME_GENERATION_PROMPT = `Generate a fun, interactive HTML game for the user to play. Based on what you know about the user's interests and personality, create something they'd enjoy.
 
 Requirements:
@@ -1653,6 +1658,7 @@ async function generateAndLaunchGame(): Promise<void> {
 
   // Set building mood (no chat popup)
   isInGameMood = true;
+  broadcastGameActive(true);
   if (petWindow && !petWindow.isDestroyed()) {
     setPetMood('game_building');
   }
@@ -1715,6 +1721,7 @@ async function generateAndLaunchGame(): Promise<void> {
   } catch (error) {
     console.error('[Game] Failed to generate game:', error);
     isInGameMood = false;
+    broadcastGameActive(false);
     showPetChat({
       id: randomUUID(),
       text: "Something went wrong. I'll try again later!",
@@ -1727,6 +1734,7 @@ async function generateAndLaunchGame(): Promise<void> {
 
 function createGameWindow() {
   if (gameWindow) {
+    broadcastGameActive(true);
     gameWindow.show();
     gameWindow.focus();
     updateGameWindowPosition();
@@ -1778,6 +1786,7 @@ function createGameWindow() {
   }
 
   gameWindow.once('ready-to-show', () => {
+    broadcastGameActive(true);
     gameWindow?.show();
     gameWindow?.focus();
     updateGameWindowPosition();
@@ -1794,6 +1803,7 @@ function createGameWindow() {
   gameWindow.on('closed', () => {
     gameWindow = null;
     isInGameMood = false;
+    broadcastGameActive(false);
     // Reset mood back to idle when game closes
     if (petWindow && !petWindow.isDestroyed() && !isSleeping) {
       setPetMood('idle');

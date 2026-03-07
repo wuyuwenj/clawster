@@ -152,6 +152,9 @@ contextBridge.exposeInMainWorld('clawster', {
   onGameReaction: (callback: (message: string) => void) => {
     ipcRenderer.on('game-reaction', (_event, message) => callback(message));
   },
+  onGameActiveChanged: (callback: (data: { active: boolean }) => void) => {
+    ipcRenderer.on('game-active-changed', (_event, data) => callback(data));
+  },
   resizeGameReaction: (width: number, height: number) => ipcRenderer.send('resize-game-reaction', width, height),
 
   // Tutorial
@@ -234,6 +237,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('tutorial-resume-prompt');
     ipcRenderer.removeAllListeners('load-game-html');
     ipcRenderer.removeAllListeners('game-reaction');
+    ipcRenderer.removeAllListeners('game-active-changed');
   },
 });
 
@@ -388,6 +392,7 @@ export interface ClawsterAPI {
   sendGameEvent: (event: unknown) => void;
   onLoadGameHtml: (callback: (html: string) => void) => void;
   onGameReaction: (callback: (message: string) => void) => void;
+  onGameActiveChanged: (callback: (data: { active: boolean }) => void) => void;
   resizeGameReaction: (width: number, height: number) => void;
   // Tutorial
   tutorialPetClicked: () => void;
