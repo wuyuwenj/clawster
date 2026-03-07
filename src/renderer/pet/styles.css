@@ -873,11 +873,11 @@
 }
 
 .lobster-container.state-game-playing .left-claw {
-  transform: translateX(14px) translateY(10px) rotate(15deg);
+  transform: translateX(10px) translateY(8px) rotate(10deg);
 }
 
 .lobster-container.state-game-playing .right-claw {
-  transform: translateX(-14px) translateY(10px) rotate(-15deg);
+  transform: translateX(-10px) translateY(8px) rotate(-10deg);
 }
 
 .lobster-container.state-game-playing .pupils {

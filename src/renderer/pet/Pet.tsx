@@ -209,14 +209,14 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
     </g>
     {/* Game Playing - Gamepad in claws */}
     <g className="fx-gamepad">
-      <g transform="translate(64, 88)">
-        <rect x="-16" y="-6" width="32" height="14" rx="6" fill="#333" />
-        <circle cx="-8" cy="0" r="2" fill="#4fc3f7" />
-        <circle cx="8" cy="-2" r="1.5" fill="#ff6b9d" />
-        <circle cx="11" cy="1" r="1.5" fill="#4fc3f7" />
-        <circle cx="8" cy="4" r="1.5" fill="#66bb6a" />
-        <circle cx="5" cy="1" r="1.5" fill="#ffd54f" />
-      </g>
+      <rect x="35" y="76" width="58" height="24" rx="12" fill="#06152D" />
+      <rect x="37.5" y="78.5" width="53" height="19" rx="9.5" fill="#35415D" />
+      <rect x="45.5" y="85" width="13" height="4" rx="1.3" fill="#29B8B7" />
+      <rect x="50" y="80.5" width="4" height="13" rx="1.3" fill="#29B8B7" />
+      <circle cx="79" cy="83" r="2.6" fill="#29B8B7" />
+      <circle cx="83" cy="87" r="2.6" fill="#29B8B7" />
+      <circle cx="79" cy="91" r="2.6" fill="#29B8B7" />
+      <circle cx="75" cy="87" r="2.6" fill="#29B8B7" />
     </g>
   </svg>
 );
