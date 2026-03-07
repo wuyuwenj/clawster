@@ -884,11 +884,11 @@
 }
 
 .lobster-container.state-game-playing .left-claw {
-  transform: translateX(10px) translateY(8px) rotate(10deg);
+  animation: gaming-claw-left 0.95s ease-in-out infinite;
 }
 
 .lobster-container.state-game-playing .right-claw {
-  transform: translateX(-10px) translateY(8px) rotate(-10deg);
+  animation: gaming-claw-right 1.25s ease-in-out infinite 0.18s;
 }
 
 .lobster-container.state-game-playing .pupils {
@@ -899,6 +899,18 @@
   0%, 100% { transform: translateX(0); }
   30% { transform: translateX(2px); }
   70% { transform: translateX(-2px); }
+}
+
+@keyframes gaming-claw-left {
+  0%, 100% { transform: translateX(10px) translateY(8px) rotate(10deg); }
+  35% { transform: translateX(11px) translateY(9px) rotate(13deg); }
+  70% { transform: translateX(9px) translateY(7px) rotate(7deg); }
+}
+
+@keyframes gaming-claw-right {
+  0%, 100% { transform: translateX(-10px) translateY(8px) rotate(-10deg); }
+  30% { transform: translateX(-9px) translateY(9px) rotate(-6deg); }
+  68% { transform: translateX(-11px) translateY(7px) rotate(-13deg); }
 }
 
 /* Additional keyframes */
