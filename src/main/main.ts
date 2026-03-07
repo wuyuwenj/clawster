@@ -162,18 +162,30 @@ const GAME_GENERATION_PROMPT = `Generate a fun, interactive HTML game for the us
 
 Requirements:
 - Self-contained single HTML file with ALL CSS and JavaScript inline
-- Dark theme (background: #0b1117, text: #e0e0e0, accents: #4fc3f7, #ff6b9d)
 - Use 100vw/100vh for sizing, designed for roughly 400x460 viewport
 - Polished, fun, and playable
 - Include clear instructions within the game UI
-- Modern UI with animated feedback and flavorful move descriptions
 - Onboarding must be clear within the first ~20 seconds of play
+
+Visual direction (required):
+- Make the game visually striking at first glance (strong contrast, clear hierarchy, polished animations)
+- Adapt visual theme to the user's interests/personality from context (do NOT force a fixed genre/style)
+- Include subtle Clawster/OpenClaw branding touches (title/header treatment, cohesive accent styling)
+- Include at least 3 polish effects: hover states, turn transition animation, game-over flourish
+- Prioritize readability and usability over visual noise
 
 The game MUST be turn-based where Clawster (the AI pet lobster) plays WITH the user. Clawster is the opponent. No single-player games.
 
 Creativity constraints:
 - DO NOT generate connect-4, tic-tac-toe, checkers, chess, battleship, pong variants, or obvious clones of classic board/arcade games.
 - Include at least ONE unique core mechanic that is not a direct copy of a classic game.
+
+Anti-text constraints (required):
+- Do NOT create text-heavy games or long-rule games
+- Core loop must be understandable in under 10 seconds
+- Instructions must be ultra-brief: max 3 bullets, max 8 words each
+- Avoid lore dumps, long paragraphs, or reading-dependent mechanics
+- Communicate primarily through visual cues, interaction, and board state
 
 Include this bridge code in a <script> tag:
 
@@ -217,7 +229,8 @@ CRITICAL INSTRUCTIONS:
 - Do NOT save any files. Just return the HTML directly in your response.
 - Start your response with <!DOCTYPE html> and end with </html>.
 - No text before <!DOCTYPE html>. No text after </html>.
-- If your concept resembles a classic game too closely, regenerate internally and output a more original concept.`;
+- If your concept resembles a classic game too closely, regenerate internally and output a more original concept.
+- If gameplay requires too much reading, regenerate internally with a more visual-first, fast-to-learn design.`;
 
 
 
