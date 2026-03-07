@@ -1499,21 +1499,18 @@ function extractHtmlFromResponse(text: string): string | null {
   return null;
 }
 
-function getGamesDirectory(): string {
-  const gamesDir = path.join(app.getPath('userData'), 'games');
-  if (!fs.existsSync(gamesDir)) {
-    fs.mkdirSync(gamesDir, { recursive: true });
-  }
-  return gamesDir;
-}
-
-function saveGameToFile(html: string): string {
-  const gamesDir = getGamesDirectory();
+async function saveGameToAgent(html: string): Promise<void> {
+  if (!clawbot) return;
   const filename = `game-${Date.now()}.html`;
-  const filePath = path.join(gamesDir, filename);
-  fs.writeFileSync(filePath, html, 'utf-8');
-  console.log(`[Game] Saved game to ${filePath} (${html.length} bytes)`);
-  return filePath;
+  try {
+    console.log(`[Game] Asking agent to save game as ${filename}...`);
+    await clawbot.chat(
+      `Save the following HTML content to the file workspace/games/${filename}. Create the games/ directory if it doesn't exist. Do not respond with anything other than confirming the save. Do not modify the content.\n\n${html}`
+    );
+    console.log(`[Game] Agent save request sent for ${filename}`);
+  } catch (error) {
+    console.error('[Game] Failed to save game via agent:', error);
+  }
 }
 
 async function generateAndLaunchGame(): Promise<void> {
@@ -1576,9 +1573,8 @@ async function generateAndLaunchGame(): Promise<void> {
 
     console.log(`[Game] Extracted HTML: ${html.length} chars`);
 
-    // Save game to local file
-    const savedPath = saveGameToFile(html);
-    console.log(`[Game] Game saved to: ${savedPath}`);
+    // Save game to agent's device (async, non-blocking)
+    saveGameToAgent(html);
 
     // Send HTML to game window
     if (gameWindow && !gameWindow.isDestroyed()) {
