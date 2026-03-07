@@ -1493,9 +1493,30 @@ function extractHtmlFromResponse(text: string): string | null {
   return null;
 }
 
+function getGamesDirectory(): string {
+  const gamesDir = path.join(app.getPath('userData'), 'games');
+  if (!fs.existsSync(gamesDir)) {
+    fs.mkdirSync(gamesDir, { recursive: true });
+  }
+  return gamesDir;
+}
+
+function saveGameToFile(html: string): string {
+  const gamesDir = getGamesDirectory();
+  const filename = `game-${Date.now()}.html`;
+  const filePath = path.join(gamesDir, filename);
+  fs.writeFileSync(filePath, html, 'utf-8');
+  console.log(`[Game] Saved game to ${filePath} (${html.length} bytes)`);
+  return filePath;
+}
+
 async function generateAndLaunchGame(): Promise<void> {
-  if (isGeneratingGame || !clawbot) return;
+  if (isGeneratingGame || !clawbot) {
+    console.log(`[Game] Skipping generation: isGenerating=${isGeneratingGame}, clawbot=${!!clawbot}`);
+    return;
+  }
   isGeneratingGame = true;
+  console.log('[Game] Starting game generation...');
 
   // Show chat popup and set thinking mood
   if (petWindow && !petWindow.isDestroyed()) {
@@ -1516,10 +1537,13 @@ async function generateAndLaunchGame(): Promise<void> {
   createGameWindow();
 
   try {
+    console.log('[Game] Sending generation prompt to ClawBot...');
     // Use streaming for longer timeout (120s)
     const response = await clawbot.chatStream(GAME_GENERATION_PROMPT, [], {});
+    console.log(`[Game] ClawBot response received: ${response.text ? response.text.length + ' chars' : 'empty'}`);
 
     if (!response.text) {
+      console.error('[Game] Empty response from ClawBot');
       showPetChat({
         id: randomUUID(),
         text: "Hmm, something went wrong making the game. Try again?",
@@ -1544,9 +1568,18 @@ async function generateAndLaunchGame(): Promise<void> {
       return;
     }
 
+    console.log(`[Game] Extracted HTML: ${html.length} chars`);
+
+    // Save game to local file
+    const savedPath = saveGameToFile(html);
+    console.log(`[Game] Game saved to: ${savedPath}`);
+
     // Send HTML to game window
     if (gameWindow && !gameWindow.isDestroyed()) {
       gameWindow.webContents.send('load-game-html', html);
+      console.log('[Game] HTML sent to game window');
+    } else {
+      console.warn('[Game] Game window was closed before HTML could be sent');
     }
 
     // Show ready popup
