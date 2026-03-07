@@ -139,7 +139,11 @@ contextBridge.exposeInMainWorld('clawster', {
   petClicked: () => ipcRenderer.send('pet-clicked'),
   showPetContextMenu: (x: number, y: number) => ipcRenderer.send('show-pet-context-menu', { x, y }),
   hidePetContextMenu: () => ipcRenderer.send('hide-pet-context-menu'),
-  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => ipcRenderer.send('pet-context-menu-action', action),
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace' | 'game') => ipcRenderer.send('pet-context-menu-action', action),
+
+  // Game window
+  openGame: () => ipcRenderer.send('open-game'),
+  closeGame: () => ipcRenderer.send('close-game'),
 
   // Tutorial
   tutorialPetClicked: () => ipcRenderer.send('tutorial-pet-clicked'),
@@ -366,7 +370,9 @@ export interface ClawsterAPI {
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;
-  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => void;
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace' | 'game') => void;
+  openGame: () => void;
+  closeGame: () => void;
   // Tutorial
   tutorialPetClicked: () => void;
   tutorialNext: () => void;

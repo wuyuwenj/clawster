@@ -18,6 +18,7 @@ export default defineConfig({
         chatbar: resolve(__dirname, 'src/renderer/chatbar.html'),
         'screenshot-question': resolve(__dirname, 'src/renderer/screenshot-question.html'),
         'workspace-browser': resolve(__dirname, 'src/renderer/workspace-browser.html'),
+        game: resolve(__dirname, 'src/renderer/game.html'),
         onboarding: resolve(__dirname, 'src/renderer/onboarding.html'),
       },
     },
