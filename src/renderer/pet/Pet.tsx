@@ -72,13 +72,6 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
         strokeWidth="4"
         strokeLinejoin="round"
       />
-      {/* Game Building - Hammer in left claw (attached to claw) */}
-      <g className="fx-hammer">
-        <g transform="translate(33, 62) rotate(20)">
-          <rect x="-1.5" y="-16" width="3" height="20" rx="1" fill="#a0522d" />
-          <rect x="-6" y="-22" width="12" height="7" rx="1.5" fill="#666" />
-        </g>
-      </g>
     </g>
     {/* Right Claw */}
     <g className="right-claw">
@@ -89,13 +82,6 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
         strokeWidth="4"
         strokeLinejoin="round"
       />
-      {/* Game Building - Wrench in right claw (attached to claw) */}
-      <g className="fx-wrench">
-        <g transform="translate(95, 62) rotate(-20)">
-          <rect x="-2" y="-18" width="4" height="22" rx="1.5" fill="#888" />
-          <circle cx="0" cy="-18" r="5" fill="none" stroke="#888" strokeWidth="3" />
-        </g>
-      </g>
     </g>
     {/* Body Group */}
     <g className="body-group">
@@ -218,6 +204,20 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
       <circle cx="83" cy="87" r="2.6" fill="#29B8B7" />
       <circle cx="79" cy="91" r="2.6" fill="#29B8B7" />
       <circle cx="75" cy="87" r="2.6" fill="#29B8B7" />
+    </g>
+
+    {/* Top-layer tools so they always render above body/claws */}
+    <g className="fx-hammer-top">
+      <g transform="translate(33, 62) rotate(20)">
+        <rect x="-1.5" y="-16" width="3" height="20" rx="1" fill="#a0522d" />
+        <rect x="-6" y="-22" width="12" height="7" rx="1.5" fill="#666" />
+      </g>
+    </g>
+    <g className="fx-wrench-top">
+      <g transform="translate(95, 62) rotate(-20)">
+        <rect x="-2" y="-18" width="4" height="22" rx="1.5" fill="#888" />
+        <circle cx="0" cy="-18" r="5" fill="none" stroke="#888" strokeWidth="3" />
+      </g>
     </g>
   </svg>
 );

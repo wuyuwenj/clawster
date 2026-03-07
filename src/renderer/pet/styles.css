@@ -268,6 +268,8 @@
 .lobster-container .fx-sweat,
 .lobster-container .fx-wrench,
 .lobster-container .fx-hammer,
+.lobster-container .fx-wrench-top,
+.lobster-container .fx-hammer-top,
 .lobster-container .fx-headset,
 .lobster-container .fx-gamepad {
   opacity: 0;
@@ -800,12 +802,14 @@
 }
 
 /* GAME BUILDING STATE - swinging tools */
-.lobster-container.state-game-building .fx-wrench {
+.lobster-container.state-game-building .fx-wrench-top {
   opacity: 1;
+  animation: claw-build-right 0.6s ease-in-out infinite alternate;
 }
 
-.lobster-container.state-game-building .fx-hammer {
+.lobster-container.state-game-building .fx-hammer-top {
   opacity: 1;
+  animation: claw-build-left 0.6s ease-in-out infinite alternate-reverse;
 }
 
 .lobster-container.state-game-building .mouth-neutral {
