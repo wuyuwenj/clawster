@@ -284,6 +284,10 @@ export const Pet: React.FC = () => {
   const gameModeActiveRef = useRef(false);
 
   const setPetMood = useCallback((nextMood: Mood) => {
+    const isGameMood = nextMood === 'game_building' || nextMood === 'game_playing';
+    // Hard lock: while game mode is active, only allow game moods.
+    if (gameModeActiveRef.current && !isGameMood) return;
+
     const sleeping = isSleepMood(nextMood);
     sleepLockedRef.current = sleeping;
     if (sleeping) {
