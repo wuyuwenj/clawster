@@ -2353,7 +2353,7 @@ function setupIPC() {
   ipcMain.handle('request-game-move', async (_event, gameState: { rules: string; state: unknown; validMoves?: unknown[] }) => {
     if (!clawbot) return { move: null, error: 'ClawBot not connected' };
 
-    const prompt = `You are Clawster, a lobster pet, playing a game with your user. Make your next move.
+    const prompt = `You're playing a game with the user. Make your next move.
 
 Game rules: ${gameState.rules}
 
@@ -2426,8 +2426,8 @@ Play well but not perfectly - keep it fun. Occasionally make slightly suboptimal
       if (!clawbot) return;
       const isPlayerMove = gameEvent.type === 'player_move';
       const prompt = isPlayerMove
-        ? `You are Clawster, a lobster pet, playing a game with your user. The user just made a move: "${gameEvent.detail || 'unknown'}". React to their move in 1 short sentence (max 8 words). Be playful. Examples: "Ooh bold move!", "Hmm didn't see that coming", "Not bad not bad 👀". Respond with ONLY the reaction text, nothing else.`
-        : `You are Clawster, a lobster pet, playing a game with your user. You just made a move: "${gameEvent.detail || 'unknown'}". React to your OWN move in 1 short sentence (max 8 words). Be confident or cheeky. Examples: "Try to beat THAT 🦞", "Calculated.", "Heh watch this". Respond with ONLY the reaction text, nothing else.`;
+        ? `You're playing a game with the user. They just moved: "${gameEvent.detail || 'unknown'}". React in 1 short sentence (max 8 words). Respond with ONLY the reaction text.`
+        : `You're playing a game with the user. You just moved: "${gameEvent.detail || 'unknown'}". React to your own move in 1 short sentence (max 8 words). Respond with ONLY the reaction text.`;
 
       try {
         const response = await clawbot.chat(prompt);
