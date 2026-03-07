@@ -47,6 +47,7 @@ let screenshotQuestionWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
 let petContextMenuWindow: BrowserWindow | null = null;
 let workspaceBrowserWindow: BrowserWindow | null = null;
+let gameWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let pendingPetChatReveal = false;
 let petChatRevealTimeout: NodeJS.Timeout | null = null;
@@ -102,7 +103,7 @@ function wireDebugWindowBorder(window: BrowserWindow): void {
 }
 
 function applyDebugWindowBordersToAllWindows(): void {
-  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow, workspaceBrowserWindow];
+  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow, workspaceBrowserWindow, gameWindow];
   for (const window of windows) {
     if (!window || window.isDestroyed()) continue;
     void applyDebugWindowBorder(window);
@@ -134,9 +135,12 @@ const PET_CHAT_VERTICAL_GAP = -2;
 const ASSISTANT_VERTICAL_GAP = -3;
 const WORKSPACE_BROWSER_VERTICAL_GAP = -6;
 const PET_CONTEXT_MENU_WIDTH = 220;
-const PET_CONTEXT_MENU_HEIGHT = 342;
+const PET_CONTEXT_MENU_HEIGHT = 382;
 const WORKSPACE_BROWSER_WIDTH = 420;
 const WORKSPACE_BROWSER_HEIGHT = 520;
+const GAME_WINDOW_WIDTH = 420;
+const GAME_WINDOW_HEIGHT = 520;
+const GAME_WINDOW_VERTICAL_GAP = -6;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
@@ -590,6 +594,7 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       updatePetChatPosition();
       updateAssistantPosition();
       updateWorkspaceBrowserPosition();
+      updateGameWindowPosition();
 
       if (progress >= 1) {
         clearInterval(moveAnimation!);
@@ -597,6 +602,7 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       store.set('pet.position', { x: targetX, y: targetY });
       petWindow?.webContents.send('pet-moving', { moving: false });
       updateWorkspaceBrowserPosition();
+      updateGameWindowPosition();
       resolve();
       }
     }, 16); // ~60fps
@@ -1397,6 +1403,93 @@ function updateWorkspaceBrowserPosition() {
   workspaceBrowserWindow.setPosition(Math.round(browserX), Math.max(0, Math.round(browserY)));
 }
 
+function updateGameWindowPosition() {
+  if (!petWindow || !gameWindow || !gameWindow.isVisible()) return;
+
+  const [petX, petY] = petWindow.getPosition();
+  const [petWidth] = petWindow.getSize();
+  const [browserWidth, browserHeight] = gameWindow.getSize();
+  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+
+  let browserX = petX + (petWidth - browserWidth) / 2;
+  const browserY = petY - browserHeight + GAME_WINDOW_VERTICAL_GAP;
+
+  browserX = Math.max(0, Math.min(browserX, screenWidth - browserWidth));
+
+  gameWindow.setPosition(Math.round(browserX), Math.max(0, Math.round(browserY)));
+}
+
+function createGameWindow() {
+  if (gameWindow) {
+    gameWindow.show();
+    gameWindow.focus();
+    updateGameWindowPosition();
+    return;
+  }
+
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+
+  let initialX = screenWidth - GAME_WINDOW_WIDTH - 24;
+  let initialY = screenHeight - GAME_WINDOW_HEIGHT - 24;
+
+  if (petWindow) {
+    const [petX, petY] = petWindow.getPosition();
+    const [petWidth] = petWindow.getSize();
+
+    initialX = petX + (petWidth - GAME_WINDOW_WIDTH) / 2;
+    initialY = petY - GAME_WINDOW_HEIGHT + GAME_WINDOW_VERTICAL_GAP;
+    initialX = Math.max(0, Math.min(initialX, screenWidth - GAME_WINDOW_WIDTH));
+    initialY = Math.max(0, initialY);
+  }
+
+  gameWindow = new BrowserWindow({
+    width: GAME_WINDOW_WIDTH,
+    height: GAME_WINDOW_HEIGHT,
+    x: Math.round(initialX),
+    y: Math.round(initialY),
+    frame: false,
+    transparent: false,
+    alwaysOnTop: true,
+    resizable: true,
+    show: false,
+    backgroundColor: '#0b1117',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  wireDebugWindowBorder(gameWindow);
+
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    gameWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+
+  if (isDev) {
+    gameWindow.loadURL(`http://localhost:${DEV_PORT}/game.html`);
+  } else {
+    gameWindow.loadFile(path.join(__dirname, '../renderer/game.html'));
+  }
+
+  gameWindow.once('ready-to-show', () => {
+    gameWindow?.show();
+    gameWindow?.focus();
+    updateGameWindowPosition();
+  });
+
+  gameWindow.on('focus', () => {
+    resetInteractionTimer();
+  });
+
+  gameWindow.on('resize', () => {
+    updateGameWindowPosition();
+  });
+
+  gameWindow.on('closed', () => {
+    gameWindow = null;
+  });
+}
+
 function revealAssistantWindow() {
   if (!assistantWindow || assistantWindow.isDestroyed()) return;
 
@@ -2039,15 +2132,25 @@ function setupIPC() {
     showPetContextMenuAtCursor(position.x, position.y);
   });
 
-  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'workspace') => {
+  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'workspace' | 'game') => {
     if (action === 'settings') {
       openAssistantOnTab('settings');
     } else if (action === 'workspace') {
       createWorkspaceBrowserWindow();
+    } else if (action === 'game') {
+      createGameWindow();
     } else {
       openAssistantOnTab('chat');
     }
     petContextMenuWindow?.hide();
+  });
+
+  ipcMain.on('open-game', () => {
+    createGameWindow();
+  });
+
+  ipcMain.on('close-game', () => {
+    gameWindow?.close();
   });
 
   ipcMain.on('hide-pet-context-menu', () => {
@@ -2427,6 +2530,7 @@ function setupIPC() {
       updatePetChatPosition();
       updateAssistantPosition();
       updateWorkspaceBrowserPosition();
+      updateGameWindowPosition();
       petContextMenuWindow?.hide();
       resetInteractionTimer(); // User is interacting
     }
