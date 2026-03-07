@@ -813,6 +813,7 @@
 
 .lobster-container.state-game-building .fx-hardhat {
   opacity: 1;
+  animation: build-bob 0.6s ease-in-out infinite alternate;
 }
 
 .lobster-container.state-game-building .mouth-neutral {
