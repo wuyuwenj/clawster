@@ -176,10 +176,6 @@ Visual direction (required):
 
 The game MUST be turn-based where Clawster (the AI pet lobster) plays WITH the user. Clawster is the opponent. No single-player games.
 
-Creativity constraints:
-- DO NOT generate connect-4, tic-tac-toe, checkers, chess, battleship, pong variants, or obvious clones of classic board/arcade games.
-- Include at least ONE unique core mechanic that is not a direct copy of a classic game.
-
 Anti-text constraints (required):
 - Do NOT create text-heavy games or long-rule games
 - Core loop must be understandable in under 10 seconds
@@ -1656,28 +1652,52 @@ function extractHtmlFromResponse(text: string): string | null {
   return null;
 }
 
+function gameLog(event: string, details?: Record<string, unknown>): void {
+  const payload = {
+    ts: new Date().toISOString(),
+    event,
+    ...(details || {}),
+  };
+
+  const line = `${JSON.stringify(payload)}\n`;
+  const logPath = path.join(app.getPath('userData'), 'logs', 'game-creation.log');
+
+  try {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    fs.appendFileSync(logPath, line, 'utf8');
+  } catch (error) {
+    console.error('[Game] Failed to write game-creation log:', error);
+  }
+
+  console.log('[GameLog]', payload);
+}
+
 async function saveGameToAgent(html: string): Promise<void> {
   if (!clawbot) return;
   const filename = `game-${Date.now()}.html`;
   try {
-    console.log(`[Game] Asking agent to save game as ${filename}...`);
+    gameLog('save-request-start', { filename, htmlLength: html.length });
     await clawbot.chat(
       `Save the following HTML content to the file workspace/games/${filename}. Create the games/ directory if it doesn't exist. Do not respond with anything other than confirming the save. Do not modify the content.\n\n${html}`
     );
-    console.log(`[Game] Agent save request sent for ${filename}`);
+    gameLog('save-request-sent', { filename });
   } catch (error) {
+    gameLog('save-request-failed', {
+      filename,
+      error: error instanceof Error ? error.message : String(error),
+    });
     console.error('[Game] Failed to save game via agent:', error);
   }
 }
 
 async function generateAndLaunchGame(): Promise<void> {
   if (isGeneratingGame || !clawbot) {
-    console.log(`[Game] Skipping generation: isGenerating=${isGeneratingGame}, clawbot=${!!clawbot}`);
+    gameLog('generation-skipped', { isGeneratingGame, hasClawbot: Boolean(clawbot) });
     return;
   }
   isGeneratingGame = true;
   currentGameContext = null;
-  console.log('[Game] Starting game generation...');
+  gameLog('generation-start');
 
   // Set building mood (no chat popup)
   isInGameMood = true;
@@ -1694,12 +1714,13 @@ async function generateAndLaunchGame(): Promise<void> {
   createGameWindow();
 
   try {
-    console.log('[Game] Sending generation prompt to ClawBot...');
+    gameLog('generation-request-sent', { promptLength: GAME_GENERATION_PROMPT.length });
     // Use streaming for longer timeout (120s)
     const response = await clawbot.chatStream(GAME_GENERATION_PROMPT, [], {});
-    console.log(`[Game] ClawBot response received: ${response.text ? response.text.length + ' chars' : 'empty'}`);
+    gameLog('generation-response-received', { responseTextLength: response.text?.length ?? 0 });
 
     if (!response.text) {
+      gameLog('generation-empty-response');
       console.error('[Game] Empty response from ClawBot');
       showPetChat({
         id: randomUUID(),
@@ -1714,6 +1735,7 @@ async function generateAndLaunchGame(): Promise<void> {
     // Extract HTML from response
     const html = extractHtmlFromResponse(response.text);
     if (!html) {
+      gameLog('generation-html-extraction-failed', { responsePreview: response.text.slice(0, 500) });
       console.error('[Game] Failed to extract HTML from response:', response.text.slice(0, 500));
       showPetChat({
         id: randomUUID(),
