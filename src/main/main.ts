@@ -2676,14 +2676,16 @@ function setupIPC() {
       // 405 means the gateway's HTTP responses endpoint is disabled.
       // Auto-enable it in OpenClaw config and restart the gateway.
       if (response.status === 405) {
-        console.log('[Gateway] 405 detected — enabling HTTP responses endpoint');
+        console.log('[Gateway] 405 detected — enabling HTTP endpoints');
         const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
         try {
           const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
           if (!config.gateway) config.gateway = {};
           if (!config.gateway.http) config.gateway.http = {};
           if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
+          if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
           if (!config.gateway.http.endpoints.responses) config.gateway.http.endpoints.responses = {};
+          config.gateway.http.endpoints.chatCompletions.enabled = true;
           config.gateway.http.endpoints.responses.enabled = true;
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -2977,11 +2979,44 @@ function setupTray() {
   }
 }
 
+// Ensure gateway.http.endpoints are enabled in OpenClaw config.
+// Many users are missing this block, which prevents Clawster from connecting.
+function ensureGatewayHttpEndpoints(): void {
+  const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+  try {
+    if (!fs.existsSync(configPath)) return;
+
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (!config.gateway) return; // No gateway config at all — nothing to patch
+
+    const endpoints = config.gateway.http?.endpoints;
+    const needsChatCompletions = !endpoints?.chatCompletions?.enabled;
+    const needsResponses = !endpoints?.responses?.enabled;
+
+    if (!needsChatCompletions && !needsResponses) return; // Already configured
+
+    console.log('[Gateway] HTTP endpoints missing — auto-injecting into openclaw.json');
+    if (!config.gateway.http) config.gateway.http = {};
+    if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
+    if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
+    if (!config.gateway.http.endpoints.responses) config.gateway.http.endpoints.responses = {};
+    config.gateway.http.endpoints.chatCompletions.enabled = true;
+    config.gateway.http.endpoints.responses.enabled = true;
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.log('[Gateway] HTTP endpoints injected into openclaw.json');
+  } catch (error) {
+    console.error('[Gateway] Failed to ensure HTTP endpoints:', error);
+  }
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
   setupIPC();
   setupAutoUpdater();
   setupTray();
+
+  // Ensure HTTP endpoints are configured before any UI loads
+  ensureGatewayHttpEndpoints();
 
   // Check onboarding status
   const onboardingCompleted = store.get('onboarding.completed') as boolean;
