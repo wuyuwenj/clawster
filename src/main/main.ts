@@ -2039,8 +2039,10 @@ function setupIPC() {
     showPetContextMenuAtCursor(position.x, position.y);
   });
 
-  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'workspace') => {
-    if (action === 'settings') {
+  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'workspace' | 'quit') => {
+    if (action === 'quit') {
+      app.quit();
+    } else if (action === 'settings') {
       openAssistantOnTab('settings');
     } else if (action === 'workspace') {
       createWorkspaceBrowserWindow();

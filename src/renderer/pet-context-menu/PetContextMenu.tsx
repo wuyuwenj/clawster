@@ -1,7 +1,7 @@
 import React from 'react';
 import { Icon } from '@iconify/react';
 
-type MenuAction = 'chat' | 'settings' | 'workspace';
+type MenuAction = 'chat' | 'settings' | 'workspace' | 'quit';
 
 interface MenuItem {
   action: MenuAction;
@@ -84,6 +84,17 @@ export const PetContextMenu: React.FC = () => {
             <span>{link.label}</span>
           </button>
         ))}
+        <div className="menu-divider" />
+        <button
+          type="button"
+          className="menu-item menu-item-quit"
+          tabIndex={-1}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => handleClick('quit')}
+        >
+          <Icon icon="solar:power-linear" width="16" height="16" />
+          <span>Quit Clawster</span>
+        </button>
       </div>
     </div>
   );
