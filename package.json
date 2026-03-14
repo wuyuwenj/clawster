@@ -1,6 +1,6 @@
 {
   "name": "clawster",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": "Yuwen Wu",
   "description": "Desktop pet companion powered by OpenClaw",
   "main": "dist/main/main.js",
