@@ -23,6 +23,15 @@ export type RelayTaskState =
   | 'success'
   | 'error';
 
+export type RelayPairingChallengeState =
+  | 'idle'
+  | 'creating'
+  | 'waiting_for_scan'
+  | 'claimed'
+  | 'exchanging'
+  | 'expired'
+  | 'error';
+
 export type RelayAgentState =
   | 'idle'
   | 'unpaired'
@@ -54,6 +63,11 @@ export interface RelayAgentStatus {
   lastTaskState: RelayTaskState;
   lastTaskResult: string | null;
   lastTaskFinishedAt: number | null;
+  pairingChallengeState: RelayPairingChallengeState;
+  pairingChallengeId: string | null;
+  pairingChallengeQrDataUrl: string | null;
+  pairingChallengeUrl: string | null;
+  pairingChallengeExpiresAt: number | null;
 }
 
 interface RelayAgentServiceOptions {
@@ -69,6 +83,22 @@ type PairAgentResponse = {
   device_id: string;
   name: string;
   agent_token: string;
+};
+
+type PairingChallengeCreateResponse = {
+  challenge_id: string;
+  challenge_token: string;
+  device_id: string;
+  name: string;
+  expires_at: string;
+};
+
+type PairingChallengeStatusResponse = {
+  challenge_id: string;
+  device_id: string;
+  name: string;
+  expires_at: string;
+  status: 'pending' | 'claimed';
 };
 
 type UnpairAgentRequest = {
@@ -107,6 +137,29 @@ interface RelayWebSocket {
   close(code?: number, reason?: string): void;
 }
 
+interface RelayQrCodeApi {
+  toDataURL(
+    text: string,
+    options?: {
+      errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
+      margin?: number;
+      width?: number;
+      color?: {
+        dark?: string;
+        light?: string;
+      };
+    },
+  ): Promise<string>;
+}
+
+interface ActivePairingChallenge {
+  challengeId: string;
+  challengeToken: string;
+  qrValue: string;
+  qrDataUrl: string;
+  expiresAt: number;
+}
+
 const WS_READY_STATE_CONNECTING = 0;
 const WS_READY_STATE_OPEN = 1;
 
@@ -126,6 +179,14 @@ function getWebSocketCtor(): (new (url: string) => RelayWebSocket) | null {
     };
     const nodeCtor = wsModule.WebSocket ?? wsModule.default;
     return typeof nodeCtor === 'function' ? nodeCtor : null;
+  } catch {
+    return null;
+  }
+}
+
+function getQrCodeApi(): RelayQrCodeApi | null {
+  try {
+    return require('qrcode') as RelayQrCodeApi;
   } catch {
     return null;
   }
@@ -185,6 +246,37 @@ function isPairAgentResponse(value: unknown): value is PairAgentResponse {
   );
 }
 
+function isPairingChallengeCreateResponse(value: unknown): value is PairingChallengeCreateResponse {
+  return (
+    isRecord(value) &&
+    typeof value.challenge_id === 'string' &&
+    value.challenge_id.length > 0 &&
+    typeof value.challenge_token === 'string' &&
+    value.challenge_token.length > 0 &&
+    typeof value.device_id === 'string' &&
+    value.device_id.length > 0 &&
+    typeof value.name === 'string' &&
+    value.name.length > 0 &&
+    typeof value.expires_at === 'string' &&
+    value.expires_at.length > 0
+  );
+}
+
+function isPairingChallengeStatusResponse(value: unknown): value is PairingChallengeStatusResponse {
+  return (
+    isRecord(value) &&
+    typeof value.challenge_id === 'string' &&
+    value.challenge_id.length > 0 &&
+    typeof value.device_id === 'string' &&
+    value.device_id.length > 0 &&
+    typeof value.name === 'string' &&
+    value.name.length > 0 &&
+    typeof value.expires_at === 'string' &&
+    value.expires_at.length > 0 &&
+    (value.status === 'pending' || value.status === 'claimed')
+  );
+}
+
 function parseJsonMessage(raw: unknown): unknown {
   if (typeof raw === 'string') {
     return JSON.parse(raw);
@@ -209,6 +301,20 @@ function createReconnectDelayMs(attempt: number): number {
   const exponentialDelay = Math.min(30_000, 1_000 * Math.pow(2, Math.min(attempt - 1, 5)));
   const jitter = Math.floor(Math.random() * 750);
   return exponentialDelay + jitter;
+}
+
+async function getResponseDetail(response: Response): Promise<string> {
+  const rawBody = (await response.text()).trim();
+  if (!rawBody) {
+    return '';
+  }
+
+  try {
+    const parsed = JSON.parse(rawBody) as { detail?: unknown };
+    return typeof parsed.detail === 'string' ? parsed.detail : rawBody;
+  } catch {
+    return rawBody;
+  }
 }
 
 function isSecureStorageAvailable(): boolean {
@@ -270,6 +376,9 @@ export class RelayAgentService extends EventEmitter {
   private socket: RelayWebSocket | null = null;
   private socketGeneration = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private pairingChallengePollTimer: NodeJS.Timeout | null = null;
+  private pairingChallengeGeneration = 0;
+  private activePairingChallenge: ActivePairingChallenge | null = null;
   private started = false;
   private manualStop = false;
   private authenticated = false;
@@ -311,6 +420,11 @@ export class RelayAgentService extends EventEmitter {
       lastTaskState: 'idle',
       lastTaskResult: null,
       lastTaskFinishedAt: null,
+      pairingChallengeState: 'idle',
+      pairingChallengeId: null,
+      pairingChallengeQrDataUrl: null,
+      pairingChallengeUrl: null,
+      pairingChallengeExpiresAt: null,
     };
   }
 
@@ -348,6 +462,9 @@ export class RelayAgentService extends EventEmitter {
     this.reconnectAttempt = 0;
     this.nextReconnectAt = null;
     this.clearReconnectTimer();
+    this.clearPairingChallengeTimer();
+    this.activePairingChallenge = null;
+    this.pairingChallengeGeneration += 1;
     this.disconnectSocket();
     this.updateStatus({
       state: 'stopped',
@@ -359,6 +476,11 @@ export class RelayAgentService extends EventEmitter {
       activeTaskId: null,
       activeCommand: null,
       activeTaskStartedAt: null,
+      pairingChallengeState: 'idle',
+      pairingChallengeId: null,
+      pairingChallengeQrDataUrl: null,
+      pairingChallengeUrl: null,
+      pairingChallengeExpiresAt: null,
     });
     return this.getStatus();
   }
@@ -394,6 +516,7 @@ export class RelayAgentService extends EventEmitter {
   async clearPairing(): Promise<RelayAgentStatus> {
     await this.ensureConfigLoaded();
 
+    this.resetPairingChallengeState();
     this.clearReconnectTimer();
     this.reconnectAttempt = 0;
     this.nextReconnectAt = null;
@@ -441,6 +564,104 @@ export class RelayAgentService extends EventEmitter {
     return this.getStatus();
   }
 
+  async createPairingChallenge(): Promise<RelayAgentStatus> {
+    await this.ensureConfigLoaded();
+
+    if (!this.config) {
+      throw new Error('Relay configuration is not available yet.');
+    }
+
+    if (this.isPaired()) {
+      throw new Error('This Mac is already paired. Forget pairing first if you want a new mobile link.');
+    }
+
+    const qrCodeApi = getQrCodeApi();
+    if (!qrCodeApi) {
+      throw new Error('QR code rendering is unavailable in this Electron runtime.');
+    }
+
+    this.resetPairingChallengeState();
+    this.updateStatus({
+      state: 'pairing',
+      relayConnected: false,
+      pairingRequired: false,
+      lastError: null,
+      pairingChallengeState: 'creating',
+    });
+
+    try {
+      const response = await fetch(`${this.relayHttpBaseUrl}/pairing-challenges`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_id: this.config.deviceId,
+          name: this.config.deviceName,
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await getResponseDetail(response);
+        throw new Error(detail || `Pairing challenge creation failed with status ${response.status}.`);
+      }
+
+      const payload = await response.json();
+      if (!isPairingChallengeCreateResponse(payload)) {
+        throw new Error('Relay pairing challenge response was invalid.');
+      }
+
+      const expiresAt = Date.parse(payload.expires_at);
+      if (!Number.isFinite(expiresAt)) {
+        throw new Error('Relay pairing challenge expiry was invalid.');
+      }
+
+      const qrValue = this.buildPairingChallengeUrl(payload.challenge_token);
+      const qrDataUrl = await qrCodeApi.toDataURL(qrValue, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 320,
+        color: {
+          dark: '#111111',
+          light: '#f7f2eb',
+        },
+      });
+
+      this.activePairingChallenge = {
+        challengeId: payload.challenge_id,
+        challengeToken: payload.challenge_token,
+        qrValue,
+        qrDataUrl,
+        expiresAt,
+      };
+      this.pairingChallengeGeneration += 1;
+
+      this.updateStatus({
+        state: 'pairing',
+        relayConnected: false,
+        pairingRequired: false,
+        lastError: null,
+        pairingChallengeState: 'waiting_for_scan',
+        pairingChallengeId: payload.challenge_id,
+        pairingChallengeQrDataUrl: qrDataUrl,
+        pairingChallengeUrl: qrValue,
+        pairingChallengeExpiresAt: expiresAt,
+      });
+
+      this.schedulePairingChallengePoll(1_000);
+      return this.getStatus();
+    } catch (error) {
+      this.resetPairingChallengeState({
+        state: 'unpaired',
+        relayConnected: false,
+        pairingRequired: true,
+        lastError: normalizeError(error),
+        pairingChallengeState: 'error',
+      });
+      throw error;
+    }
+  }
+
   async pairWithCode(pairingCode: string): Promise<RelayAgentStatus> {
     await this.ensureConfigLoaded();
 
@@ -453,6 +674,7 @@ export class RelayAgentService extends EventEmitter {
       throw new Error('Relay configuration is not available yet.');
     }
 
+    this.resetPairingChallengeState();
     this.updateStatus({
       state: 'pairing',
       relayConnected: false,
@@ -476,7 +698,7 @@ export class RelayAgentService extends EventEmitter {
       });
 
       if (!response.ok) {
-        const detail = (await response.text()).trim();
+        const detail = await getResponseDetail(response);
         throw new Error(detail || `Agent pairing failed with status ${response.status}.`);
       }
 
@@ -484,28 +706,7 @@ export class RelayAgentService extends EventEmitter {
       if (!isPairAgentResponse(payload)) {
         throw new Error('Relay pairing response was invalid.');
       }
-
-      this.config.deviceId = payload.device_id;
-      this.config.deviceName = this.config.deviceName || payload.name || this.defaultDeviceName;
-      this.config.relayAgentId = payload.agent_id;
-      this.config.relayAgentToken = payload.agent_token;
-      await this.saveConfig();
-
-      this.reconnectAttempt = 0;
-      this.nextReconnectAt = null;
-
-      if (this.started) {
-        await this.connect();
-      } else {
-        this.updateStatus({
-          state: 'idle',
-          relayConnected: false,
-          pairingRequired: false,
-          lastError: null,
-          reconnectAttempt: 0,
-          nextReconnectAt: null,
-        });
-      }
+      await this.applyPairingResponse(payload);
 
       return this.getStatus();
     } catch (error) {
@@ -723,6 +924,268 @@ export class RelayAgentService extends EventEmitter {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+  }
+
+  private clearPairingChallengeTimer(): void {
+    if (this.pairingChallengePollTimer) {
+      clearTimeout(this.pairingChallengePollTimer);
+      this.pairingChallengePollTimer = null;
+    }
+  }
+
+  private resetPairingChallengeState(statusPatch?: Partial<RelayAgentStatus>): void {
+    this.clearPairingChallengeTimer();
+    this.activePairingChallenge = null;
+    this.pairingChallengeGeneration += 1;
+    this.updateStatus({
+      pairingChallengeState: 'idle',
+      pairingChallengeId: null,
+      pairingChallengeQrDataUrl: null,
+      pairingChallengeUrl: null,
+      pairingChallengeExpiresAt: null,
+      ...statusPatch,
+    });
+  }
+
+  private buildPairingChallengeUrl(challengeToken: string): string {
+    const params = new URLSearchParams({
+      challenge_token: challengeToken,
+      relay_http_base_url: this.relayHttpBaseUrl,
+    });
+    return `clawster://pair?${params.toString()}`;
+  }
+
+  private schedulePairingChallengePoll(delayMs: number): void {
+    const challenge = this.activePairingChallenge;
+    if (!challenge) {
+      return;
+    }
+
+    const generation = this.pairingChallengeGeneration;
+    const effectiveDelayMs = Math.min(delayMs, Math.max(challenge.expiresAt - Date.now(), 0));
+
+    this.clearPairingChallengeTimer();
+    this.pairingChallengePollTimer = setTimeout(() => {
+      this.pairingChallengePollTimer = null;
+      void this.pollPairingChallenge(generation);
+    }, effectiveDelayMs);
+  }
+
+  private async pollPairingChallenge(generation: number): Promise<void> {
+    const challenge = this.activePairingChallenge;
+    if (!challenge || generation !== this.pairingChallengeGeneration) {
+      return;
+    }
+
+    if (Date.now() >= challenge.expiresAt) {
+      this.handleExpiredPairingChallenge();
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.relayHttpBaseUrl}/pairing-challenges/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          challenge_token: challenge.challengeToken,
+        }),
+      });
+
+      if (generation !== this.pairingChallengeGeneration) {
+        return;
+      }
+
+      if (response.status === 401) {
+        this.handleExpiredPairingChallenge();
+        return;
+      }
+
+      if (!response.ok) {
+        const detail = await getResponseDetail(response);
+        throw new Error(detail || `Pairing challenge status failed with status ${response.status}.`);
+      }
+
+      const payload = await response.json();
+      if (!isPairingChallengeStatusResponse(payload)) {
+        throw new Error('Relay pairing challenge status response was invalid.');
+      }
+
+      const expiresAt = Date.parse(payload.expires_at);
+      if (!Number.isFinite(expiresAt)) {
+        throw new Error('Relay pairing challenge expiry was invalid.');
+      }
+
+      this.activePairingChallenge = {
+        ...challenge,
+        challengeId: payload.challenge_id,
+        expiresAt,
+      };
+
+      if (payload.status === 'claimed') {
+        this.updateStatus({
+          state: 'pairing',
+          relayConnected: false,
+          pairingRequired: false,
+          lastError: null,
+          pairingChallengeState: 'claimed',
+          pairingChallengeId: payload.challenge_id,
+          pairingChallengeExpiresAt: expiresAt,
+        });
+        await this.exchangePairingChallenge(generation);
+        return;
+      }
+
+      this.updateStatus({
+        state: 'pairing',
+        relayConnected: false,
+        pairingRequired: false,
+        lastError: null,
+        pairingChallengeState: 'waiting_for_scan',
+        pairingChallengeId: payload.challenge_id,
+        pairingChallengeExpiresAt: expiresAt,
+      });
+      this.schedulePairingChallengePoll(2_000);
+    } catch (error) {
+      if (generation !== this.pairingChallengeGeneration) {
+        return;
+      }
+
+      this.updateStatus({
+        state: 'pairing',
+        relayConnected: false,
+        pairingRequired: false,
+        lastError: normalizeError(error),
+        pairingChallengeState: 'error',
+      });
+      this.schedulePairingChallengePoll(3_000);
+    }
+  }
+
+  private async exchangePairingChallenge(generation: number): Promise<void> {
+    const challenge = this.activePairingChallenge;
+    if (!challenge || generation !== this.pairingChallengeGeneration) {
+      return;
+    }
+
+    this.updateStatus({
+      state: 'pairing',
+      relayConnected: false,
+      pairingRequired: false,
+      lastError: null,
+      pairingChallengeState: 'exchanging',
+    });
+
+    try {
+      const response = await fetch(`${this.relayHttpBaseUrl}/pairing-challenges/exchange`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          challenge_token: challenge.challengeToken,
+        }),
+      });
+
+      if (generation !== this.pairingChallengeGeneration) {
+        return;
+      }
+
+      if (response.status === 401) {
+        this.handleExpiredPairingChallenge();
+        return;
+      }
+
+      if (response.status === 409) {
+        this.updateStatus({
+          state: 'pairing',
+          relayConnected: false,
+          pairingRequired: false,
+          pairingChallengeState: 'claimed',
+        });
+        this.schedulePairingChallengePoll(1_000);
+        return;
+      }
+
+      if (!response.ok) {
+        const detail = await getResponseDetail(response);
+        throw new Error(detail || `Pairing challenge exchange failed with status ${response.status}.`);
+      }
+
+      const payload = await response.json();
+      if (!isPairAgentResponse(payload)) {
+        throw new Error('Relay pairing exchange response was invalid.');
+      }
+
+      await this.applyPairingResponse(payload);
+    } catch (error) {
+      if (generation !== this.pairingChallengeGeneration) {
+        return;
+      }
+
+      this.updateStatus({
+        state: 'pairing',
+        relayConnected: false,
+        pairingRequired: false,
+        lastError: normalizeError(error),
+        pairingChallengeState: 'error',
+      });
+      this.schedulePairingChallengePoll(3_000);
+    }
+  }
+
+  private handleExpiredPairingChallenge(): void {
+    this.resetPairingChallengeState({
+      state: 'unpaired',
+      relayConnected: false,
+      pairingRequired: true,
+      lastError: 'This QR pairing challenge expired. Generate a fresh code and scan it again.',
+      pairingChallengeState: 'expired',
+    });
+  }
+
+  private async applyPairingResponse(payload: PairAgentResponse): Promise<void> {
+    if (!this.config) {
+      throw new Error('Relay configuration is not available yet.');
+    }
+
+    this.config.deviceId = payload.device_id;
+    this.config.deviceName = payload.name || this.config.deviceName || this.defaultDeviceName;
+    this.config.relayAgentId = payload.agent_id;
+    this.config.relayAgentToken = payload.agent_token;
+    await this.saveConfig();
+
+    this.clearPairingChallengeTimer();
+    this.activePairingChallenge = null;
+    this.pairingChallengeGeneration += 1;
+    this.reconnectAttempt = 0;
+    this.nextReconnectAt = null;
+
+    if (this.started) {
+      this.updateStatus({
+        pairingChallengeState: 'idle',
+        pairingChallengeId: null,
+        pairingChallengeQrDataUrl: null,
+        pairingChallengeUrl: null,
+        pairingChallengeExpiresAt: null,
+      });
+      await this.connect();
+    } else {
+      this.updateStatus({
+        state: 'idle',
+        relayConnected: false,
+        pairingRequired: false,
+        lastError: null,
+        reconnectAttempt: 0,
+        nextReconnectAt: null,
+        pairingChallengeState: 'idle',
+        pairingChallengeId: null,
+        pairingChallengeQrDataUrl: null,
+        pairingChallengeUrl: null,
+        pairingChallengeExpiresAt: null,
+      });
     }
   }
 
@@ -994,6 +1457,7 @@ export class RelayAgentService extends EventEmitter {
   }
 
   private async invalidatePairing(reason: string): Promise<void> {
+    this.resetPairingChallengeState();
     this.clearReconnectTimer();
     this.reconnectAttempt = 0;
     this.nextReconnectAt = null;

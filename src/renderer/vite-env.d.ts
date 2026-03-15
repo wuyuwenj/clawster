@@ -66,6 +66,11 @@ interface RelayAgentStatus {
   lastTaskState: 'idle' | 'running' | 'success' | 'error';
   lastTaskResult: string | null;
   lastTaskFinishedAt: number | null;
+  pairingChallengeState: 'idle' | 'creating' | 'waiting_for_scan' | 'claimed' | 'exchanging' | 'expired' | 'error';
+  pairingChallengeId: string | null;
+  pairingChallengeQrDataUrl: string | null;
+  pairingChallengeUrl: string | null;
+  pairingChallengeExpiresAt: number | null;
 }
 
 interface CurrentWorkspaceInfo {
@@ -150,6 +155,7 @@ interface ClawsterAPI {
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
   getRelayAgentStatus: () => Promise<RelayAgentStatus>;
+  createRelayAgentPairingChallenge: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
   pairRelayAgent: (pairingCode: string) => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
   retryRelayAgent: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
   clearRelayAgentPairing: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
