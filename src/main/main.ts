@@ -23,6 +23,7 @@ import { autoUpdater } from 'electron-updater';
 import sharp from 'sharp';
 import { Watchers } from './watchers';
 import { ClawBotClient } from './clawbot-client';
+import { RelayAgentService, type RelayAgentStatus } from './relay-agent-service';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
@@ -55,11 +56,16 @@ let petChatAutoHideTimeout: NodeJS.Timeout | null = null;
 // Services
 let watchers: Watchers | null = null;
 let clawbot: ClawBotClient | null = null;
+let relayAgentService: RelayAgentService | null = null;
 const store = createStore();
 const tutorialManager = new TutorialManager(store);
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
+const DEFAULT_RELAY_AGENT_WEBSOCKET_URL =
+  process.env.RELAY_AGENT_WS_URL?.trim() || 'wss://openclaw-relay-icy-voice-8804.fly.dev/agent/connect';
+const DEFAULT_RELAY_HTTP_BASE_URL =
+  process.env.RELAY_HTTP_BASE_URL?.trim() || 'https://openclaw-relay-icy-voice-8804.fly.dev';
 const DEV_WINDOW_BORDER_CSS = `
   html, body {
     box-sizing: border-box !important;
@@ -559,6 +565,69 @@ function resetOnboardingState(): void {
   store.set('onboarding.workspaceType', null);
   store.set('onboarding.clawsterWorkspacePath', null);
   store.set('onboarding.memoryMigrated', false);
+}
+
+function readOpenClawConfigFile(): Record<string, unknown> | null {
+  const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+
+  try {
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(content) as unknown;
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch (error) {
+    console.error('Failed to read OpenClaw config:', error);
+  }
+
+  return null;
+}
+
+function getEffectiveClawbotConfig(): { url: string; token: string } {
+  const storedUrl = String(store.get('clawbot.url') || '').trim();
+  const storedToken = String(store.get('clawbot.token') || '').trim();
+
+  if (storedUrl && storedToken) {
+    return { url: storedUrl, token: storedToken };
+  }
+
+  const openClawConfig = readOpenClawConfigFile();
+  const gatewayConfig =
+    openClawConfig && typeof openClawConfig.gateway === 'object' && openClawConfig.gateway !== null
+      ? (openClawConfig.gateway as Record<string, unknown>)
+      : null;
+  const authConfig =
+    gatewayConfig && typeof gatewayConfig.auth === 'object' && gatewayConfig.auth !== null
+      ? (gatewayConfig.auth as Record<string, unknown>)
+      : null;
+
+  const fallbackPort =
+    gatewayConfig && typeof gatewayConfig.port === 'number'
+      ? gatewayConfig.port
+      : typeof gatewayConfig?.port === 'string'
+        ? Number.parseInt(gatewayConfig.port, 10)
+        : 18789;
+  const fallbackUrl = storedUrl || `http://127.0.0.1:${Number.isFinite(fallbackPort) ? fallbackPort : 18789}`;
+  const fallbackToken =
+    storedToken ||
+    (authConfig && typeof authConfig.token === 'string' ? authConfig.token.trim() : '');
+
+  if (!storedUrl && fallbackUrl) {
+    store.set('clawbot.url', fallbackUrl);
+  }
+
+  if (!storedToken && fallbackToken) {
+    store.set('clawbot.token', fallbackToken);
+  }
+
+  return {
+    url: fallbackUrl,
+    token: fallbackToken,
+  };
 }
 
 // Smooth animation to move pet to target position
@@ -1885,12 +1954,41 @@ function startMainApp() {
   }
 
   // Initialize ClawBot client
-  const clawbotUrl = store.get('clawbot.url') as string;
-  const clawbotToken = store.get('clawbot.token') as string;
+  const { url: clawbotUrl, token: clawbotToken } = getEffectiveClawbotConfig();
   const workspaceType = store.get('onboarding.workspaceType') as string | null;
   // Only use 'clawster' agent-id if user chose to create a Clawster workspace
   const agentId = workspaceType === 'clawster' ? 'clawster' : null;
   clawbot = new ClawBotClient(clawbotUrl, clawbotToken, agentId);
+
+  if (!relayAgentService) {
+    relayAgentService = new RelayAgentService({
+      configPath: path.join(app.getPath('userData'), 'relay-agent.json'),
+      relayHttpBaseUrl: DEFAULT_RELAY_HTTP_BASE_URL,
+      relayAgentWebSocketUrl: DEFAULT_RELAY_AGENT_WEBSOCKET_URL,
+      defaultDeviceName: `Clawster on ${os.hostname().split('.')[0] || 'Mac'}`,
+      executeCommand: async (command: string) => {
+        if (!clawbot) {
+          return 'Clawster is not connected to the OpenClaw gateway.';
+        }
+
+        const response = await clawbot.chat(command);
+
+        if (response.action?.payload) {
+          await executePetAction(response.action.payload as PetAction);
+        }
+
+        return response.text?.trim() || 'Clawster completed the command with no output.';
+      },
+    });
+
+    relayAgentService.on('status-changed', (status: RelayAgentStatus) => {
+      assistantWindow?.webContents.send('relay-agent-status-changed', status);
+    });
+  }
+
+  void relayAgentService.start().catch((error) => {
+    console.error('Failed to start relay agent service:', error);
+  });
 
   // Forward connection status changes to all renderer windows
   clawbot.on('connection-changed', (status: { connected: boolean; error: string | null; gatewayUrl: string }) => {
@@ -2205,8 +2303,7 @@ function setupIPC() {
 
     // Update ClawBot client if clawbot settings changed
     if (key.startsWith('clawbot.')) {
-      const url = store.get('clawbot.url') as string;
-      const token = store.get('clawbot.token') as string;
+      const { url, token } = getEffectiveClawbotConfig();
       clawbot?.updateConfig(url, token);
     }
 
@@ -2410,6 +2507,74 @@ function setupIPC() {
     return { connected: false, error: 'ClawBot not initialized', gatewayUrl: '' };
   });
 
+  ipcMain.handle('get-relay-agent-status', () => {
+    return relayAgentService?.getStatus() ?? {
+      state: 'idle',
+      paired: false,
+      pairingRequired: true,
+      relayConnected: false,
+      deviceId: null,
+      deviceName: `Clawster on ${os.hostname().split('.')[0] || 'Mac'}`,
+      relayAgentId: null,
+      relayHttpBaseUrl: DEFAULT_RELAY_HTTP_BASE_URL,
+      relayAgentWebSocketUrl: DEFAULT_RELAY_AGENT_WEBSOCKET_URL,
+      lastError: null,
+      reconnectAttempt: 0,
+      nextReconnectAt: null,
+    };
+  });
+
+  ipcMain.handle('pair-relay-agent', async (_event, pairingCode: string) => {
+    if (!relayAgentService) {
+      return { success: false, error: 'Relay agent service is not available.' };
+    }
+
+    try {
+      const status = await relayAgentService.pairWithCode(pairingCode);
+      return { success: true, status };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        status: relayAgentService.getStatus(),
+      };
+    }
+  });
+
+  ipcMain.handle('retry-relay-agent', async () => {
+    if (!relayAgentService) {
+      return { success: false, error: 'Relay agent service is not available.' };
+    }
+
+    try {
+      const status = await relayAgentService.retryNow();
+      return { success: true, status };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        status: relayAgentService.getStatus(),
+      };
+    }
+  });
+
+  ipcMain.handle('clear-relay-agent-pairing', async () => {
+    if (!relayAgentService) {
+      return { success: false, error: 'Relay agent service is not available.' };
+    }
+
+    try {
+      const status = await relayAgentService.clearPairing();
+      return { success: true, status };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        status: relayAgentService.getStatus(),
+      };
+    }
+  });
+
   // Copy text to clipboard
   ipcMain.handle('copy-to-clipboard', (_event, text: string) => {
     const { clipboard } = require('electron');
@@ -2557,16 +2722,7 @@ function setupIPC() {
 
   // Read OpenClaw config file
   ipcMain.handle('read-openclaw-config', () => {
-    const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-    try {
-      if (fs.existsSync(configPath)) {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        return JSON.parse(content);
-      }
-    } catch (error) {
-      console.error('Failed to read OpenClaw config:', error);
-    }
-    return null;
+    return readOpenClawConfigFile();
   });
 
   // Read OpenClaw workspace files
@@ -3053,6 +3209,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   watchers?.stop();
+  void relayAgentService?.stop();
   stopIdleBehaviors();
   if (idleCheckInterval) {
     clearInterval(idleCheckInterval);

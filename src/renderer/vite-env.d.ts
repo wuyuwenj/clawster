@@ -45,6 +45,21 @@ interface OpenClawWorkspace {
   hasMemory: boolean;
 }
 
+interface RelayAgentStatus {
+  state: 'idle' | 'unpaired' | 'pairing' | 'connecting' | 'connected' | 'reconnecting' | 'stopped' | 'error';
+  paired: boolean;
+  pairingRequired: boolean;
+  relayConnected: boolean;
+  deviceId: string | null;
+  deviceName: string;
+  relayAgentId: string | null;
+  relayHttpBaseUrl: string;
+  relayAgentWebSocketUrl: string;
+  lastError: string | null;
+  reconnectAttempt: number;
+  nextReconnectAt: number | null;
+}
+
 interface CurrentWorkspaceInfo {
   workspaceType: 'openclaw' | 'clawster' | null;
   workspacePath: string | null;
@@ -126,6 +141,11 @@ interface ClawsterAPI {
   askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
+  getRelayAgentStatus: () => Promise<RelayAgentStatus>;
+  pairRelayAgent: (pairingCode: string) => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  retryRelayAgent: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  clearRelayAgentPairing: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  onRelayAgentStatusChange: (callback: (status: RelayAgentStatus) => void) => void;
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
   onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
   onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
