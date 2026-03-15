@@ -43,6 +43,7 @@ export const Assistant: React.FC = () => {
     paired: false,
     pairingRequired: true,
     relayConnected: false,
+    credentialStorage: 'encrypted',
     deviceId: null,
     deviceName: 'Clawster on Mac',
     relayAgentId: null,
@@ -51,6 +52,13 @@ export const Assistant: React.FC = () => {
     lastError: null,
     reconnectAttempt: 0,
     nextReconnectAt: null,
+    activeTaskId: null,
+    activeCommand: null,
+    activeTaskStartedAt: null,
+    lastCommand: null,
+    lastTaskState: 'idle',
+    lastTaskResult: null,
+    lastTaskFinishedAt: null,
   });
   const [relayPairingCode, setRelayPairingCode] = useState('');
   const [relayErrorMessage, setRelayErrorMessage] = useState<string | null>(null);
@@ -548,6 +556,44 @@ export const Assistant: React.FC = () => {
         ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
         : 'bg-white/5 text-neutral-300 border-white/10';
 
+  const relayCredentialLabel =
+    relayStatus.credentialStorage === 'encrypted'
+      ? 'Encrypted at rest'
+      : relayStatus.credentialStorage === 'plaintext'
+        ? 'Plaintext fallback'
+        : 'Secure storage unavailable';
+
+  const relayLastTaskLabel =
+    relayStatus.lastTaskState === 'running'
+      ? 'Running'
+      : relayStatus.lastTaskState === 'success'
+        ? 'Succeeded'
+        : relayStatus.lastTaskState === 'error'
+          ? 'Failed'
+          : 'Idle';
+
+  const relayLastTaskBadgeClass =
+    relayStatus.lastTaskState === 'success'
+      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+      : relayStatus.lastTaskState === 'error'
+        ? 'bg-red-500/15 text-red-200 border-red-500/20'
+        : relayStatus.lastTaskState === 'running'
+          ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
+          : 'bg-white/5 text-neutral-300 border-white/10';
+
+  const formatRelayTimestamp = (timestamp: number | null) => {
+    if (!timestamp) {
+      return 'Never';
+    }
+
+    return new Date(timestamp).toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
   // Clawster Icon (body, tail, eyes - no claws)
   const ClawsterIcon = ({ size = 18 }: { size?: number }) => (
     <svg viewBox="0 0 128 128" width={size} height={size}>
@@ -851,6 +897,52 @@ export const Assistant: React.FC = () => {
                     {relayStatus.relayAgentId || 'Not paired yet'}
                   </p>
                 </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Credential Storage</p>
+                  <p className="mt-1 font-medium text-neutral-200">{relayCredentialLabel}</p>
+                </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Last Finished</p>
+                  <p className="mt-1 font-medium text-neutral-200">{formatRelayTimestamp(relayStatus.lastTaskFinishedAt)}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/8 bg-black/20 p-3.5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-neutral-200">Mobile Command Activity</p>
+                    <p className="text-[11px] leading-5 text-neutral-500 mt-1">
+                      Incoming commands run through the same Clawster persona that powers desktop chat.
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${relayLastTaskBadgeClass}`}>
+                    {relayLastTaskLabel}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 text-[12px] text-neutral-400 md:grid-cols-2">
+                  <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Active Command</p>
+                    <p className="mt-1 text-neutral-200 break-words">
+                      {relayStatus.activeCommand || 'No mobile command is running right now.'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Last Command</p>
+                    <p className="mt-1 text-neutral-200 break-words">
+                      {relayStatus.lastCommand || 'No mobile commands yet.'}
+                    </p>
+                  </div>
+                </div>
+
+                {relayStatus.lastTaskResult && (
+                  <div className="rounded-xl border border-white/8 bg-[#0a0a0a] px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Last Result</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-5 text-neutral-200">
+                      {relayStatus.lastTaskResult}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {!relayStatus.paired && (
@@ -884,25 +976,38 @@ export const Assistant: React.FC = () => {
               )}
 
               {relayStatus.paired && (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => {
-                      void retryRelayAgent();
-                    }}
-                    disabled={relayActionState !== 'idle'}
-                    className="px-4 py-2 rounded-lg bg-white/6 hover:bg-white/10 border border-white/10 text-sm font-medium text-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {relayActionState === 'retrying' ? 'Retrying...' : 'Retry Connection'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      void clearRelayPairing();
-                    }}
-                    disabled={relayActionState !== 'idle'}
-                    className="px-4 py-2 rounded-lg bg-transparent hover:bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {relayActionState === 'clearing' ? 'Clearing...' : 'Forget Pairing'}
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        void retryRelayAgent();
+                      }}
+                      disabled={relayActionState !== 'idle'}
+                      className="px-4 py-2 rounded-lg bg-white/6 hover:bg-white/10 border border-white/10 text-sm font-medium text-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {relayActionState === 'retrying' ? 'Retrying...' : 'Retry Connection'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        void clearRelayPairing();
+                      }}
+                      disabled={relayActionState !== 'idle'}
+                      className="px-4 py-2 rounded-lg bg-transparent hover:bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {relayActionState === 'clearing' ? 'Unpairing...' : 'Forget Pairing'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-neutral-500">
+                    Forget Pairing now revokes this device at the relay before removing the local credentials.
+                  </p>
+                </div>
+              )}
+
+              {relayStatus.paired && relayStatus.credentialStorage !== 'encrypted' && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-100">
+                  {relayStatus.credentialStorage === 'plaintext'
+                    ? 'Relay credentials are stored in plaintext on this device because secure OS storage was unavailable.'
+                    : 'Secure OS credential storage is unavailable in this runtime, so relay credentials cannot be encrypted yet.'}
                 </div>
               )}
 

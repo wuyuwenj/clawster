@@ -249,6 +249,14 @@ const MAX_MARKDOWN_PREVIEW_BYTES = 1024 * 1024 * 2;
 const MAX_IMAGE_PREVIEW_BYTES = 1024 * 1024 * 12;
 const MAX_JSON_PREVIEW_BYTES = 1024 * 1024 * 2;
 
+interface ClawBotMainResponse {
+  text?: string;
+  action?: {
+    type?: string;
+    payload?: unknown;
+  };
+}
+
 function getCurrentWorkspaceType(): WorkspaceType | null {
   const workspaceType = store.get('onboarding.workspaceType');
   return workspaceType === 'openclaw' || workspaceType === 'clawster' ? workspaceType : null;
@@ -1967,16 +1975,7 @@ function startMainApp() {
       relayAgentWebSocketUrl: DEFAULT_RELAY_AGENT_WEBSOCKET_URL,
       defaultDeviceName: `Clawster on ${os.hostname().split('.')[0] || 'Mac'}`,
       executeCommand: async (command: string) => {
-        if (!clawbot) {
-          return 'Clawster is not connected to the OpenClaw gateway.';
-        }
-
-        const response = await clawbot.chat(command);
-
-        if (response.action?.payload) {
-          await executePetAction(response.action.payload as PetAction);
-        }
-
+        const response = await runClawbotMessage(command);
         return response.text?.trim() || 'Clawster completed the command with no output.';
       },
     });
@@ -2088,10 +2087,7 @@ function startMainApp() {
         }
       }
 
-      // Handle any actions from the response
-      if (response.action) {
-        executePetAction(response.action.payload as PetAction);
-      }
+      await applyClawbotResponseSideEffects(response);
     }
   });
 
@@ -2105,6 +2101,66 @@ function startMainApp() {
 // Screen capture - uses native capture for speed
 async function captureScreen(): Promise<string | null> {
   return captureScreenNative();
+}
+
+async function buildClawbotChatPayload(message: string, includeScreen?: boolean) {
+  const chatHistory = (store.get('chatHistory') || []) as Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+  }>;
+  const history = chatHistory
+    .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+    .map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
+
+  const context = await getScreenContext();
+  let fullMessage = message;
+
+  const mentionsScreen = /screen|cursor|mouse|look|where|point|here|there|this/i.test(message);
+  if (includeScreen || mentionsScreen) {
+    const screenCapture = await captureScreenWithContext();
+    if (screenCapture) {
+      fullMessage = `[Screen Context: Cursor at (${screenCapture.cursor.x}, ${screenCapture.cursor.y}), Screen size: ${screenCapture.screenSize.width}x${screenCapture.screenSize.height}, Pet at (${context.petPosition.x}, ${context.petPosition.y})]\n\n${message}`;
+    }
+  }
+
+  return { history, fullMessage };
+}
+
+function maybeShowPetResponse(responseText?: string) {
+  const assistantActive = assistantWindow && assistantWindow.isVisible();
+  const chatbarActive = chatbarWindow && chatbarWindow.isVisible();
+  if (responseText && !responseText.includes('error') && petWindow && !assistantActive && !chatbarActive && !tutorialManager?.getStatus().isActive) {
+    petWindow.webContents.send('chat-popup', {
+      id: randomUUID(),
+      text: responseText,
+      trigger: 'proactive',
+      quickReplies: ['Thanks!', 'Not now'],
+    });
+  }
+}
+
+async function applyClawbotResponseSideEffects(response: ClawBotMainResponse): Promise<void> {
+  if (response.action?.type === 'open_url' && typeof response.action.payload === 'string') {
+    await shell.openExternal(response.action.payload);
+    return;
+  }
+
+  if (response.action?.payload) {
+    await executePetAction(response.action.payload as PetAction);
+  }
+}
+
+async function runClawbotMessage(message: string, includeScreen?: boolean): Promise<ClawBotMainResponse> {
+  const clawbotClient = clawbot;
+  if (!clawbotClient) {
+    return { text: 'ClawBot is not connected.' };
+  }
+
+  const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
+  const response = await clawbotClient.chat(fullMessage, history);
+  await applyClawbotResponseSideEffects(response);
+  maybeShowPetResponse(response.text);
+  return response;
 }
 
 // IPC Handlers
@@ -2365,62 +2421,13 @@ function setupIPC() {
     return await captureScreen();
   });
 
-  // Build chat payload with history and optional screen context
-  const buildClawbotChatPayload = async (message: string, includeScreen?: boolean) => {
-    const chatHistory = (store.get('chatHistory') || []) as Array<{
-      role: 'user' | 'assistant' | 'system';
-      content: string;
-    }>;
-    const history = chatHistory
-      .filter(msg => msg.role === 'user' || msg.role === 'assistant')
-      .map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
-
-    const context = await getScreenContext();
-    let fullMessage = message;
-
-    const mentionsScreen = /screen|cursor|mouse|look|where|point|here|there|this/i.test(message);
-    if (includeScreen || mentionsScreen) {
-      const screenCapture = await captureScreenWithContext();
-      if (screenCapture) {
-        fullMessage = `[Screen Context: Cursor at (${screenCapture.cursor.x}, ${screenCapture.cursor.y}), Screen size: ${screenCapture.screenSize.width}x${screenCapture.screenSize.height}, Pet at (${context.petPosition.x}, ${context.petPosition.y})]\n\n${message}`;
-      }
-    }
-
-    return { history, fullMessage };
-  };
-
-  // Show final response as a speech bubble on the pet when appropriate
-  const maybeShowPetResponse = (responseText?: string) => {
-    const assistantActive = assistantWindow && assistantWindow.isVisible();
-    const chatbarActive = chatbarWindow && chatbarWindow.isVisible();
-    if (responseText && !responseText.includes('error') && petWindow && !assistantActive && !chatbarActive && !tutorialManager?.getStatus().isActive) {
-      petWindow.webContents.send('chat-popup', {
-        id: randomUUID(),
-        text: responseText,
-        trigger: 'proactive',
-        quickReplies: ['Thanks!', 'Not now'],
-      });
-    }
-  };
-
   // Send message to ClawBot (with optional screen context)
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
     if (!clawbot) return { error: 'ClawBot not connected' };
 
     resetInteractionTimer(); // User is chatting
 
-    const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
-
-    const response = await clawbot.chat(fullMessage, history);
-
-    // Handle any actions in the response
-    if (response.action?.payload) {
-      await executePetAction(response.action.payload as PetAction);
-    }
-
-    maybeShowPetResponse(response.text);
-
-    return response;
+    return await runClawbotMessage(message, includeScreen);
   });
 
   // Start streaming a message to ClawBot and emit chunk/end/error events
@@ -2449,9 +2456,7 @@ function setupIPC() {
           },
         });
 
-        if (response.action?.payload) {
-          await executePetAction(response.action.payload as PetAction);
-        }
+        await applyClawbotResponseSideEffects(response);
 
         if (!isChatbarRequest) {
           maybeShowPetResponse(response.text);

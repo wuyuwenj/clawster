@@ -2,13 +2,26 @@ import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname } from 'path';
+import { safeStorage } from 'electron';
 
 interface RelayAgentConfig {
   deviceId: string;
   deviceName: string;
   relayAgentId?: string;
   relayAgentToken?: string;
+  relayAgentTokenEncrypted?: string;
 }
+
+export type RelayCredentialStorage =
+  | 'encrypted'
+  | 'plaintext'
+  | 'unavailable';
+
+export type RelayTaskState =
+  | 'idle'
+  | 'running'
+  | 'success'
+  | 'error';
 
 export type RelayAgentState =
   | 'idle'
@@ -25,6 +38,7 @@ export interface RelayAgentStatus {
   paired: boolean;
   pairingRequired: boolean;
   relayConnected: boolean;
+  credentialStorage: RelayCredentialStorage;
   deviceId: string | null;
   deviceName: string;
   relayAgentId: string | null;
@@ -33,6 +47,13 @@ export interface RelayAgentStatus {
   lastError: string | null;
   reconnectAttempt: number;
   nextReconnectAt: number | null;
+  activeTaskId: string | null;
+  activeCommand: string | null;
+  activeTaskStartedAt: number | null;
+  lastCommand: string | null;
+  lastTaskState: RelayTaskState;
+  lastTaskResult: string | null;
+  lastTaskFinishedAt: number | null;
 }
 
 interface RelayAgentServiceOptions {
@@ -48,6 +69,11 @@ type PairAgentResponse = {
   device_id: string;
   name: string;
   agent_token: string;
+};
+
+type UnpairAgentRequest = {
+  agent_id: string;
+  token: string;
 };
 
 type RelayAuthOkMessage = {
@@ -185,6 +211,53 @@ function createReconnectDelayMs(attempt: number): number {
   return exponentialDelay + jitter;
 }
 
+function isSecureStorageAvailable(): boolean {
+  try {
+    return safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function encryptRelayAgentToken(token: string): string | null {
+  if (!isSecureStorageAvailable()) {
+    return null;
+  }
+
+  try {
+    return safeStorage.encryptString(token).toString('base64');
+  } catch {
+    return null;
+  }
+}
+
+function decryptRelayAgentToken(encryptedToken: string): string | null {
+  if (!isSecureStorageAvailable()) {
+    return null;
+  }
+
+  try {
+    return safeStorage.decryptString(Buffer.from(encryptedToken, 'base64'));
+  } catch {
+    return null;
+  }
+}
+
+function getCredentialStorageState(options: {
+  encryptedTokenPresent: boolean;
+  plaintextTokenPresent: boolean;
+}): RelayCredentialStorage {
+  if (options.encryptedTokenPresent) {
+    return 'encrypted';
+  }
+
+  if (options.plaintextTokenPresent) {
+    return 'plaintext';
+  }
+
+  return isSecureStorageAvailable() ? 'encrypted' : 'unavailable';
+}
+
 export class RelayAgentService extends EventEmitter {
   private readonly configPath: string;
   private readonly relayHttpBaseUrl: string;
@@ -219,6 +292,10 @@ export class RelayAgentService extends EventEmitter {
       paired: false,
       pairingRequired: true,
       relayConnected: false,
+      credentialStorage: getCredentialStorageState({
+        encryptedTokenPresent: false,
+        plaintextTokenPresent: false,
+      }),
       deviceId: null,
       deviceName: this.defaultDeviceName,
       relayAgentId: null,
@@ -227,6 +304,13 @@ export class RelayAgentService extends EventEmitter {
       lastError: null,
       reconnectAttempt: 0,
       nextReconnectAt: null,
+      activeTaskId: null,
+      activeCommand: null,
+      activeTaskStartedAt: null,
+      lastCommand: null,
+      lastTaskState: 'idle',
+      lastTaskResult: null,
+      lastTaskFinishedAt: null,
     };
   }
 
@@ -247,6 +331,9 @@ export class RelayAgentService extends EventEmitter {
         lastError: null,
         reconnectAttempt: 0,
         nextReconnectAt: null,
+        activeTaskId: null,
+        activeCommand: null,
+        activeTaskStartedAt: null,
       });
       return this.getStatus();
     }
@@ -269,6 +356,9 @@ export class RelayAgentService extends EventEmitter {
       lastError: null,
       reconnectAttempt: 0,
       nextReconnectAt: null,
+      activeTaskId: null,
+      activeCommand: null,
+      activeTaskStartedAt: null,
     });
     return this.getStatus();
   }
@@ -287,6 +377,9 @@ export class RelayAgentService extends EventEmitter {
         pairingRequired: true,
         reconnectAttempt: 0,
         nextReconnectAt: null,
+        activeTaskId: null,
+        activeCommand: null,
+        activeTaskStartedAt: null,
       });
       return this.getStatus();
     }
@@ -306,11 +399,32 @@ export class RelayAgentService extends EventEmitter {
     this.nextReconnectAt = null;
     this.disconnectSocket();
 
-    if (this.config) {
-      delete this.config.relayAgentId;
-      delete this.config.relayAgentToken;
-      await this.saveConfig();
+    if (this.config?.relayAgentId && this.config.relayAgentToken) {
+      try {
+        await this.revokeRelayPairing({
+          agent_id: this.config.relayAgentId,
+          token: this.config.relayAgentToken,
+        });
+      } catch (error) {
+        if (this.started && this.isPaired()) {
+          void this.connect().catch((connectError) => {
+            console.error('[RelayAgent] Failed to restore relay connection after unpair error:', connectError);
+          });
+        }
+
+        this.updateStatus({
+          state: this.started ? 'reconnecting' : 'idle',
+          relayConnected: false,
+          pairingRequired: false,
+          lastError: normalizeError(error),
+          reconnectAttempt: this.reconnectAttempt,
+          nextReconnectAt: this.nextReconnectAt,
+        });
+        throw error;
+      }
     }
+
+    await this.clearLocalPairing();
 
     this.updateStatus({
       state: this.started ? 'unpaired' : 'stopped',
@@ -319,6 +433,9 @@ export class RelayAgentService extends EventEmitter {
       lastError: null,
       reconnectAttempt: 0,
       nextReconnectAt: null,
+      activeTaskId: null,
+      activeCommand: null,
+      activeTaskStartedAt: null,
     });
 
     return this.getStatus();
@@ -414,6 +531,7 @@ export class RelayAgentService extends EventEmitter {
 
   private async loadConfig(): Promise<void> {
     let rawConfig: Record<string, unknown> = {};
+    let loadError: string | null = null;
 
     try {
       const existingConfig = await readFile(this.configPath, 'utf8');
@@ -426,6 +544,31 @@ export class RelayAgentService extends EventEmitter {
       if (code !== 'ENOENT') {
         throw error;
       }
+    }
+
+    const encryptedToken =
+      typeof rawConfig.relayAgentTokenEncrypted === 'string' && rawConfig.relayAgentTokenEncrypted.trim()
+        ? rawConfig.relayAgentTokenEncrypted.trim()
+        : undefined;
+    const plaintextToken =
+      typeof rawConfig.relayAgentToken === 'string' && rawConfig.relayAgentToken.trim()
+        ? rawConfig.relayAgentToken.trim()
+        : undefined;
+
+    let relayAgentToken: string | undefined;
+    if (encryptedToken) {
+      const decryptedToken = decryptRelayAgentToken(encryptedToken);
+      if (typeof decryptedToken === 'string' && decryptedToken.trim()) {
+        relayAgentToken = decryptedToken.trim();
+      } else if (plaintextToken) {
+        relayAgentToken = plaintextToken;
+      } else {
+        loadError = isSecureStorageAvailable()
+          ? 'Saved mobile pairing could not be decrypted on this Mac. Pair this device again from Clawster Mobile.'
+          : 'Secure credential storage is unavailable, so the saved mobile pairing could not be loaded.';
+      }
+    } else if (plaintextToken) {
+      relayAgentToken = plaintextToken;
     }
 
     const nextConfig: RelayAgentConfig = {
@@ -441,10 +584,7 @@ export class RelayAgentService extends EventEmitter {
         typeof rawConfig.relayAgentId === 'string' && rawConfig.relayAgentId.trim()
           ? rawConfig.relayAgentId.trim()
           : undefined,
-      relayAgentToken:
-        typeof rawConfig.relayAgentToken === 'string' && rawConfig.relayAgentToken.trim()
-          ? rawConfig.relayAgentToken.trim()
-          : undefined,
+      relayAgentToken,
     };
 
     if (!nextConfig.relayAgentId || !nextConfig.relayAgentToken) {
@@ -459,7 +599,7 @@ export class RelayAgentService extends EventEmitter {
       state: this.isPaired() ? 'idle' : 'unpaired',
       relayConnected: false,
       pairingRequired: !this.isPaired(),
-      lastError: null,
+      lastError: loadError,
       reconnectAttempt: 0,
       nextReconnectAt: null,
     });
@@ -470,12 +610,63 @@ export class RelayAgentService extends EventEmitter {
       return;
     }
 
+    const persistedConfig: RelayAgentConfig = {
+      deviceId: this.config.deviceId,
+      deviceName: this.config.deviceName,
+    };
+
+    if (this.config.relayAgentId && this.config.relayAgentToken) {
+      persistedConfig.relayAgentId = this.config.relayAgentId;
+
+      const encryptedToken = encryptRelayAgentToken(this.config.relayAgentToken);
+      if (encryptedToken) {
+        persistedConfig.relayAgentTokenEncrypted = encryptedToken;
+      } else {
+        persistedConfig.relayAgentToken = this.config.relayAgentToken;
+      }
+    }
+
     await mkdir(dirname(this.configPath), { recursive: true });
-    await writeFile(this.configPath, `${JSON.stringify(this.config, null, 2)}\n`, 'utf8');
+    await writeFile(this.configPath, `${JSON.stringify(persistedConfig, null, 2)}\n`, 'utf8');
+
+    this.updateStatus({
+      credentialStorage: getCredentialStorageState({
+        encryptedTokenPresent: Boolean(persistedConfig.relayAgentTokenEncrypted),
+        plaintextTokenPresent: Boolean(persistedConfig.relayAgentToken),
+      }),
+    });
   }
 
   private isPaired(): boolean {
     return Boolean(this.config?.relayAgentId && this.config?.relayAgentToken);
+  }
+
+  private async clearLocalPairing(): Promise<void> {
+    if (!this.config) {
+      return;
+    }
+
+    delete this.config.relayAgentId;
+    delete this.config.relayAgentToken;
+    delete this.config.relayAgentTokenEncrypted;
+    await this.saveConfig();
+  }
+
+  private async revokeRelayPairing(body: UnpairAgentRequest): Promise<void> {
+    const response = await fetch(`${this.relayHttpBaseUrl}/agent/unpair`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.ok || response.status === 401 || response.status === 404) {
+      return;
+    }
+
+    const detail = (await response.text()).trim();
+    throw new Error(detail || `Agent unpairing failed with status ${response.status}.`);
   }
 
   private updateStatus(patch: Partial<RelayAgentStatus>): void {
@@ -550,6 +741,9 @@ export class RelayAgentService extends EventEmitter {
         lastError: null,
         reconnectAttempt: 0,
         nextReconnectAt: null,
+        activeTaskId: null,
+        activeCommand: null,
+        activeTaskStartedAt: null,
       });
       return;
     }
@@ -683,6 +877,18 @@ export class RelayAgentService extends EventEmitter {
     }
 
     const taskId = randomUUID();
+    const startedAt = Date.now();
+
+    this.updateStatus({
+      activeTaskId: taskId,
+      activeCommand: command,
+      activeTaskStartedAt: startedAt,
+      lastCommand: command,
+      lastTaskState: 'running',
+      lastTaskResult: null,
+      lastTaskFinishedAt: null,
+    });
+
     this.sendTaskMessage({
       type: 'task_started',
       task_id: taskId,
@@ -691,16 +897,36 @@ export class RelayAgentService extends EventEmitter {
 
     try {
       const result = await this.executeCommand(command);
+      const normalizedResult = result.trim() || 'Clawster completed the command with no output.';
       this.sendTaskMessage({
         type: 'task_complete',
         task_id: taskId,
-        result: result.trim() || 'Clawster completed the command with no output.',
+        result: normalizedResult,
+      });
+      this.updateStatus({
+        activeTaskId: null,
+        activeCommand: null,
+        activeTaskStartedAt: null,
+        lastCommand: command,
+        lastTaskState: 'success',
+        lastTaskResult: normalizedResult,
+        lastTaskFinishedAt: Date.now(),
       });
     } catch (error) {
+      const normalizedResult = normalizeError(error);
       this.sendTaskMessage({
         type: 'task_complete',
         task_id: taskId,
-        result: normalizeError(error),
+        result: normalizedResult,
+      });
+      this.updateStatus({
+        activeTaskId: null,
+        activeCommand: null,
+        activeTaskStartedAt: null,
+        lastCommand: command,
+        lastTaskState: 'error',
+        lastTaskResult: normalizedResult,
+        lastTaskFinishedAt: Date.now(),
       });
     }
   }
@@ -773,11 +999,7 @@ export class RelayAgentService extends EventEmitter {
     this.nextReconnectAt = null;
     this.disconnectSocket();
 
-    if (this.config) {
-      delete this.config.relayAgentId;
-      delete this.config.relayAgentToken;
-      await this.saveConfig();
-    }
+    await this.clearLocalPairing();
 
     this.updateStatus({
       state: this.started ? 'unpaired' : 'stopped',
@@ -786,6 +1008,9 @@ export class RelayAgentService extends EventEmitter {
       lastError: reason,
       reconnectAttempt: 0,
       nextReconnectAt: null,
+      activeTaskId: null,
+      activeCommand: null,
+      activeTaskStartedAt: null,
     });
   }
 

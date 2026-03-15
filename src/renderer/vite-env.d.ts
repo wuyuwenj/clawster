@@ -50,6 +50,7 @@ interface RelayAgentStatus {
   paired: boolean;
   pairingRequired: boolean;
   relayConnected: boolean;
+  credentialStorage: 'encrypted' | 'plaintext' | 'unavailable';
   deviceId: string | null;
   deviceName: string;
   relayAgentId: string | null;
@@ -58,6 +59,13 @@ interface RelayAgentStatus {
   lastError: string | null;
   reconnectAttempt: number;
   nextReconnectAt: number | null;
+  activeTaskId: string | null;
+  activeCommand: string | null;
+  activeTaskStartedAt: number | null;
+  lastCommand: string | null;
+  lastTaskState: 'idle' | 'running' | 'success' | 'error';
+  lastTaskResult: string | null;
+  lastTaskFinishedAt: number | null;
 }
 
 interface CurrentWorkspaceInfo {
