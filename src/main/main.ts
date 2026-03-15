@@ -2526,7 +2526,37 @@ function setupIPC() {
       lastError: null,
       reconnectAttempt: 0,
       nextReconnectAt: null,
+      credentialStorage: 'encrypted',
+      activeTaskId: null,
+      activeCommand: null,
+      activeTaskStartedAt: null,
+      lastCommand: null,
+      lastTaskState: 'idle',
+      lastTaskResult: null,
+      lastTaskFinishedAt: null,
+      pairingChallengeState: 'idle',
+      pairingChallengeId: null,
+      pairingChallengeQrDataUrl: null,
+      pairingChallengeUrl: null,
+      pairingChallengeExpiresAt: null,
     };
+  });
+
+  ipcMain.handle('create-relay-agent-pairing-challenge', async () => {
+    if (!relayAgentService) {
+      return { success: false, error: 'Relay agent service is not available.' };
+    }
+
+    try {
+      const status = await relayAgentService.createPairingChallenge();
+      return { success: true, status };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        status: relayAgentService.getStatus(),
+      };
+    }
   });
 
   ipcMain.handle('pair-relay-agent', async (_event, pairingCode: string) => {

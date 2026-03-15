@@ -59,10 +59,15 @@ export const Assistant: React.FC = () => {
     lastTaskState: 'idle',
     lastTaskResult: null,
     lastTaskFinishedAt: null,
+    pairingChallengeState: 'idle',
+    pairingChallengeId: null,
+    pairingChallengeQrDataUrl: null,
+    pairingChallengeUrl: null,
+    pairingChallengeExpiresAt: null,
   });
   const [relayPairingCode, setRelayPairingCode] = useState('');
   const [relayErrorMessage, setRelayErrorMessage] = useState<string | null>(null);
-  const [relayActionState, setRelayActionState] = useState<'idle' | 'pairing' | 'retrying' | 'clearing'>('idle');
+  const [relayActionState, setRelayActionState] = useState<'idle' | 'creating_qr' | 'pairing' | 'retrying' | 'clearing'>('idle');
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
@@ -144,7 +149,7 @@ export const Assistant: React.FC = () => {
     window.clawster.onConnectionStatusChange(setConnectionStatus);
     window.clawster.onRelayAgentStatusChange((status) => {
       setRelayStatus(status);
-      if (status.relayConnected) {
+      if (status.relayConnected || status.pairingChallengeState === 'waiting_for_scan' || status.pairingChallengeState === 'claimed') {
         setRelayErrorMessage(null);
       }
     });
@@ -470,6 +475,28 @@ export const Assistant: React.FC = () => {
     }
   }, [relayActionState, relayPairingCode]);
 
+  const createRelayPairingChallenge = useCallback(async () => {
+    if (relayActionState !== 'idle') return;
+
+    setRelayActionState('creating_qr');
+    setRelayErrorMessage(null);
+
+    try {
+      const result = await window.clawster.createRelayAgentPairingChallenge();
+      if (result.status) {
+        setRelayStatus(result.status);
+      }
+
+      if (!result.success) {
+        setRelayErrorMessage(result.error || 'Unable to generate a QR pairing code right now.');
+      }
+    } catch (error) {
+      setRelayErrorMessage(error instanceof Error ? error.message : 'Unable to generate a QR pairing code right now.');
+    } finally {
+      setRelayActionState('idle');
+    }
+  }, [relayActionState]);
+
   const retryRelayAgent = useCallback(async () => {
     if (relayActionState !== 'idle') return;
 
@@ -593,6 +620,31 @@ export const Assistant: React.FC = () => {
       minute: '2-digit',
     });
   };
+
+  const relayPairingChallengeLabel =
+    relayStatus.pairingChallengeState === 'creating'
+      ? 'Generating QR'
+      : relayStatus.pairingChallengeState === 'waiting_for_scan'
+        ? 'Waiting for scan'
+        : relayStatus.pairingChallengeState === 'claimed'
+          ? 'Scanned by mobile'
+          : relayStatus.pairingChallengeState === 'exchanging'
+            ? 'Finishing pairing'
+            : relayStatus.pairingChallengeState === 'expired'
+              ? 'Expired'
+              : relayStatus.pairingChallengeState === 'error'
+                ? 'Retrying'
+                : 'Not started';
+
+  const relayPairingChallengeBadgeClass =
+    relayStatus.pairingChallengeState === 'waiting_for_scan' ||
+    relayStatus.pairingChallengeState === 'claimed' ||
+    relayStatus.pairingChallengeState === 'exchanging' ||
+    relayStatus.pairingChallengeState === 'creating'
+      ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
+      : relayStatus.pairingChallengeState === 'expired' || relayStatus.pairingChallengeState === 'error'
+        ? 'bg-red-500/15 text-red-200 border-red-500/20'
+        : 'bg-white/5 text-neutral-300 border-white/10';
 
   // Clawster Icon (body, tail, eyes - no claws)
   const ClawsterIcon = ({ size = 18 }: { size?: number }) => (
@@ -946,32 +998,102 @@ export const Assistant: React.FC = () => {
               </div>
 
               {!relayStatus.paired && (
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium text-neutral-300">
-                    Pairing Code
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={relayPairingCode}
-                      onChange={(e) => setRelayPairingCode(e.target.value.toUpperCase())}
-                      placeholder="Paste code from Clawster Mobile"
-                      disabled={relayActionState !== 'idle'}
-                      className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all font-mono tracking-[0.18em] uppercase"
-                    />
-                    <button
-                      onClick={() => {
-                        void pairRelayAgent();
-                      }}
-                      disabled={relayActionState !== 'idle' || !relayPairingCode.trim()}
-                      className="px-4 py-2 rounded-lg bg-[#FF8C69] hover:bg-[#FF8C69]/90 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {relayActionState === 'pairing' ? 'Pairing...' : 'Pair'}
-                    </button>
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-neutral-200">Pair with QR</p>
+                        <p className="text-[11px] leading-5 text-neutral-500 mt-1">
+                          Generate a short-lived QR challenge, scan it from Clawster Mobile, and this Mac will finish pairing automatically.
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${relayPairingChallengeBadgeClass}`}>
+                        {relayPairingChallengeLabel}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-white/10 bg-[#0a0a0a] px-4 py-5 text-center">
+                      {relayStatus.pairingChallengeQrDataUrl ? (
+                        <img
+                          src={relayStatus.pairingChallengeQrDataUrl}
+                          alt="QR code to pair Clawster Mobile"
+                          className="h-48 w-48 rounded-2xl border border-white/10 bg-[#f7f2eb] p-3"
+                        />
+                      ) : (
+                        <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-6 text-[12px] leading-5 text-neutral-500">
+                          Generate a QR challenge to pair this Mac from your phone.
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <p className="text-[12px] text-neutral-300">
+                          {relayStatus.pairingChallengeQrDataUrl
+                            ? 'Open Clawster Mobile, go to devices, and scan this code.'
+                            : 'This QR code stays valid for a short time and can only be used once.'}
+                        </p>
+                        {relayStatus.pairingChallengeExpiresAt && (
+                          <p className="text-[11px] text-neutral-500">
+                            Expires {formatRelayTimestamp(relayStatus.pairingChallengeExpiresAt)}.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            void createRelayPairingChallenge();
+                          }}
+                          disabled={relayActionState !== 'idle'}
+                          className="px-4 py-2 rounded-lg bg-[#FF8C69] hover:bg-[#FF8C69]/90 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {relayActionState === 'creating_qr'
+                            ? 'Generating...'
+                            : relayStatus.pairingChallengeQrDataUrl
+                              ? 'Refresh QR'
+                              : 'Generate QR'}
+                        </button>
+                        {relayStatus.pairingChallengeUrl && (
+                          <button
+                            onClick={() => {
+                              void window.clawster.copyToClipboard(relayStatus.pairingChallengeUrl || '');
+                            }}
+                            disabled={relayActionState !== 'idle'}
+                            className="px-4 py-2 rounded-lg bg-white/6 hover:bg-white/10 border border-white/10 text-sm font-medium text-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Copy Pair Link
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-500">
-                    In Clawster Mobile: open your devices screen, create a pairing code, then paste it here before it expires.
-                  </p>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-neutral-300">
+                      Pairing Code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={relayPairingCode}
+                        onChange={(e) => setRelayPairingCode(e.target.value.toUpperCase())}
+                        placeholder="Paste code from Clawster Mobile"
+                        disabled={relayActionState !== 'idle'}
+                        className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all font-mono tracking-[0.18em] uppercase"
+                      />
+                      <button
+                        onClick={() => {
+                          void pairRelayAgent();
+                        }}
+                        disabled={relayActionState !== 'idle' || !relayPairingCode.trim()}
+                        className="px-4 py-2 rounded-lg bg-[#FF8C69] hover:bg-[#FF8C69]/90 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {relayActionState === 'pairing' ? 'Pairing...' : 'Pair'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Manual code entry still works as a fallback while we finish the mobile QR scan flow.
+                    </p>
+                  </div>
                 </div>
               )}
 

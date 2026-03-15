@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.on('clawbot-connection-changed', (_event, status) => callback(status));
   },
   getRelayAgentStatus: () => ipcRenderer.invoke('get-relay-agent-status'),
+  createRelayAgentPairingChallenge: () => ipcRenderer.invoke('create-relay-agent-pairing-challenge'),
   pairRelayAgent: (pairingCode: string) => ipcRenderer.invoke('pair-relay-agent', pairingCode),
   retryRelayAgent: () => ipcRenderer.invoke('retry-relay-agent'),
   clearRelayAgentPairing: () => ipcRenderer.invoke('clear-relay-agent-pairing'),
@@ -267,6 +268,11 @@ export interface RelayAgentStatus {
   lastTaskState: 'idle' | 'running' | 'success' | 'error';
   lastTaskResult: string | null;
   lastTaskFinishedAt: number | null;
+  pairingChallengeState: 'idle' | 'creating' | 'waiting_for_scan' | 'claimed' | 'exchanging' | 'expired' | 'error';
+  pairingChallengeId: string | null;
+  pairingChallengeQrDataUrl: string | null;
+  pairingChallengeUrl: string | null;
+  pairingChallengeExpiresAt: number | null;
 }
 
 export interface OnboardingData {
@@ -374,6 +380,7 @@ export interface ClawsterAPI {
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
   getRelayAgentStatus: () => Promise<RelayAgentStatus>;
+  createRelayAgentPairingChallenge: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
   pairRelayAgent: (pairingCode: string) => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
   retryRelayAgent: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
   clearRelayAgentPairing: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
