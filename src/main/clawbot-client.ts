@@ -75,6 +75,10 @@ type ChatCompletionsMessage = {
   content: string | ChatCompletionsContentPart[];
 };
 
+const CRON_POLL_INTERVAL_MS = 30_000;
+const CRON_COMMAND_TIMEOUT_MS = 10_000;
+const CRON_FAILURE_MAX_BACKOFF_MS = 5 * 60 * 1000;
+
 // Desktop capabilities prompt - generic, no personality (identity comes from workspace files)
 const SYSTEM_PROMPT = `You are a desktop pet assistant running on the user's computer. You appear as an animated character on the user's screen.
 
@@ -177,6 +181,9 @@ export class ClawBotClient extends EventEmitter {
   private cronPollInterval: NodeJS.Timeout | null = null;
   private cronJobs: CronJob[] = [];
   private lastSeenCronTs: Map<string, number> = new Map();
+  private cronPollInFlight = false;
+  private cronFailureCount = 0;
+  private cronBackoffUntil: number | null = null;
   private preferChatCompletions: boolean = false;
 
   constructor(baseUrl: string, token: string = '', agentId: string | null = null) {
@@ -1018,53 +1025,96 @@ export class ClawBotClient extends EventEmitter {
 
   // List all cron jobs via CLI
   private async listCronJobs(): Promise<CronJob[]> {
-    try {
-      const { stdout } = await execAsync('openclaw cron list --json', {
-        timeout: 10000,
-        env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: this.token },
-      });
-      const data = JSON.parse(stdout);
-      // The CLI might return { jobs: [...] } or just an array
-      const jobs = Array.isArray(data) ? data : (data.jobs || []);
-      return jobs.map((job: { id: string; name?: string; status?: string }) => ({
-        id: job.id,
-        name: job.name || 'Unnamed',
-        status: job.status || 'unknown',
-      }));
-    } catch (error) {
-      console.error('[ClawBot] Failed to list cron jobs:', error);
-      return [];
-    }
+    const { stdout } = await execAsync('openclaw cron list --json', {
+      timeout: CRON_COMMAND_TIMEOUT_MS,
+      env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: this.token },
+    });
+    const data = JSON.parse(stdout);
+    // The CLI might return { jobs: [...] } or just an array
+    const jobs = Array.isArray(data) ? data : (data.jobs || []);
+    return jobs.map((job: { id: string; name?: string; status?: string }) => ({
+      id: job.id,
+      name: job.name || 'Unnamed',
+      status: job.status || 'unknown',
+    }));
   }
 
   // Get recent runs for a specific cron job via CLI
   private async getCronRuns(jobId: string): Promise<CronRunEntry[]> {
-    try {
-      const { stdout } = await execAsync(`openclaw cron runs --id ${jobId} --limit 1`, {
-        timeout: 10000,
-        env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: this.token },
-      });
-      const data: CronRunsResponse = JSON.parse(stdout);
-      return data.entries || [];
-    } catch (error) {
-      console.error(`[ClawBot] Failed to get cron runs for ${jobId}:`, error);
-      return [];
+    const { stdout } = await execAsync(`openclaw cron runs --id ${jobId} --limit 1`, {
+      timeout: CRON_COMMAND_TIMEOUT_MS,
+      env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: this.token },
+    });
+    const data: CronRunsResponse = JSON.parse(stdout);
+    return data.entries || [];
+  }
+
+  private createCronBackoffMs(): number {
+    const multiplier = Math.pow(2, Math.max(0, this.cronFailureCount - 1));
+    return Math.min(CRON_FAILURE_MAX_BACKOFF_MS, CRON_POLL_INTERVAL_MS * multiplier);
+  }
+
+  private normalizeCronError(error: unknown): string {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+
+    if (typeof error === 'string' && error.trim()) {
+      return error.trim();
+    }
+
+    return String(error);
+  }
+
+  private recordCronPollingFailure(context: string, error: unknown): void {
+    this.cronFailureCount += 1;
+    const delayMs = this.createCronBackoffMs();
+    this.cronBackoffUntil = Date.now() + delayMs;
+    this.cronJobs = [];
+
+    const shouldLog =
+      this.cronFailureCount <= 2 ||
+      this.cronFailureCount === 5 ||
+      this.cronFailureCount % 10 === 0;
+
+    if (shouldLog) {
+      console.warn(
+        `[ClawBot] ${context}. Backing off cron polling for ${Math.round(delayMs / 1000)}s: ${this.normalizeCronError(error)}`,
+      );
     }
   }
 
-  // Start polling for cron job results (every 30 seconds)
-  private async startCronPolling(): Promise<void> {
-    // Initial fetch of cron jobs
-    console.log('[ClawBot] Starting cron polling...');
-    this.cronJobs = await this.listCronJobs();
-    console.log(`[ClawBot] Found ${this.cronJobs.length} cron jobs:`, this.cronJobs.map(j => j.name));
+  private clearCronPollingFailure(): void {
+    if (this.cronFailureCount > 0 || this.cronBackoffUntil !== null) {
+      console.log('[ClawBot] Cron polling recovered.');
+    }
 
-    // Poll every 30 seconds
-    this.cronPollInterval = setInterval(async () => {
-      if (!this.connected) return;
+    this.cronFailureCount = 0;
+    this.cronBackoffUntil = null;
+  }
 
-      // Refresh job list periodically (in case new jobs are added)
-      this.cronJobs = await this.listCronJobs();
+  private async pollCronJobs(): Promise<void> {
+    if (this.cronPollInFlight) {
+      return;
+    }
+
+    if (!this.connected) {
+      await this.checkConnection();
+      if (!this.connected) {
+        return;
+      }
+    }
+
+    if (this.cronBackoffUntil !== null && Date.now() < this.cronBackoffUntil) {
+      return;
+    }
+
+    this.cronPollInFlight = true;
+
+    try {
+      const jobs = await this.listCronJobs();
+      this.clearCronPollingFailure();
+      this.cronJobs = jobs;
 
       for (const job of this.cronJobs) {
         const runs = await this.getCronRuns(job.id);
@@ -1073,11 +1123,9 @@ export class ClawBotClient extends EventEmitter {
         const latestRun = runs[0];
         const lastSeen = this.lastSeenCronTs.get(job.id) || 0;
 
-        // Check if this is a new run we haven't seen
         if (latestRun.ts > lastSeen) {
           this.lastSeenCronTs.set(job.id, latestRun.ts);
 
-          // Emit for any run with a summary (ok or skipped with content)
           if (latestRun.summary) {
             console.log(`[ClawBot] New cron result for "${job.name}" (${latestRun.status}):`, latestRun.summary.slice(0, 100));
             this.emit('cronResult', {
@@ -1098,7 +1146,25 @@ export class ClawBotClient extends EventEmitter {
           }
         }
       }
-    }, 30000);
+    } catch (error) {
+      this.recordCronPollingFailure('Cron polling failed', error);
+    } finally {
+      this.cronPollInFlight = false;
+    }
+  }
+
+  // Start polling for cron job results (every 30 seconds)
+  private startCronPolling(): void {
+    console.log('[ClawBot] Starting cron polling...');
+    void this.pollCronJobs().then(() => {
+      if (this.cronFailureCount === 0) {
+        console.log(`[ClawBot] Found ${this.cronJobs.length} cron jobs:`, this.cronJobs.map(j => j.name));
+      }
+    });
+
+    this.cronPollInterval = setInterval(() => {
+      void this.pollCronJobs();
+    }, CRON_POLL_INTERVAL_MS);
   }
 
   destroy(): void {

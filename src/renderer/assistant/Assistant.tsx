@@ -38,6 +38,36 @@ export const Assistant: React.FC = () => {
     error: null,
     gatewayUrl: '',
   });
+  const [relayStatus, setRelayStatus] = useState<RelayAgentStatus>({
+    state: 'idle',
+    paired: false,
+    pairingRequired: true,
+    relayConnected: false,
+    credentialStorage: 'encrypted',
+    deviceId: null,
+    deviceName: 'Clawster on Mac',
+    relayAgentId: null,
+    relayHttpBaseUrl: '',
+    relayAgentWebSocketUrl: '',
+    lastError: null,
+    reconnectAttempt: 0,
+    nextReconnectAt: null,
+    activeTaskId: null,
+    activeCommand: null,
+    activeTaskStartedAt: null,
+    lastCommand: null,
+    lastTaskState: 'idle',
+    lastTaskResult: null,
+    lastTaskFinishedAt: null,
+    pairingChallengeState: 'idle',
+    pairingChallengeId: null,
+    pairingChallengeQrDataUrl: null,
+    pairingChallengeUrl: null,
+    pairingChallengeExpiresAt: null,
+  });
+  const [relayPairingCode, setRelayPairingCode] = useState('');
+  const [relayErrorMessage, setRelayErrorMessage] = useState<string | null>(null);
+  const [relayActionState, setRelayActionState] = useState<'idle' | 'creating_qr' | 'pairing' | 'retrying' | 'clearing'>('idle');
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
@@ -113,9 +143,16 @@ export const Assistant: React.FC = () => {
     });
 
     window.clawster.getClawbotStatus().then(setConnectionStatus);
+    window.clawster.getRelayAgentStatus().then(setRelayStatus);
 
     // Listen for connection status changes
     window.clawster.onConnectionStatusChange(setConnectionStatus);
+    window.clawster.onRelayAgentStatusChange((status) => {
+      setRelayStatus(status);
+      if (status.relayConnected || status.pairingChallengeState === 'waiting_for_scan' || status.pairingChallengeState === 'claimed') {
+        setRelayErrorMessage(null);
+      }
+    });
 
     window.clawster.onActivityEvent((event: unknown) => {
       const activityEvent = event as ActivityEvent;
@@ -412,6 +449,101 @@ export const Assistant: React.FC = () => {
     setSettings(newSettings as Record<string, unknown>);
   }, []);
 
+  const pairRelayAgent = useCallback(async () => {
+    const pairingCode = relayPairingCode.trim();
+    if (!pairingCode || relayActionState !== 'idle') return;
+
+    setRelayActionState('pairing');
+    setRelayErrorMessage(null);
+
+    try {
+      const result = await window.clawster.pairRelayAgent(pairingCode);
+      if (result.status) {
+        setRelayStatus(result.status);
+      }
+
+      if (!result.success) {
+        setRelayErrorMessage(result.error || 'Unable to pair with Clawster Mobile right now.');
+        return;
+      }
+
+      setRelayPairingCode('');
+    } catch (error) {
+      setRelayErrorMessage(error instanceof Error ? error.message : 'Unable to pair with Clawster Mobile right now.');
+    } finally {
+      setRelayActionState('idle');
+    }
+  }, [relayActionState, relayPairingCode]);
+
+  const createRelayPairingChallenge = useCallback(async () => {
+    if (relayActionState !== 'idle') return;
+
+    setRelayActionState('creating_qr');
+    setRelayErrorMessage(null);
+
+    try {
+      const result = await window.clawster.createRelayAgentPairingChallenge();
+      if (result.status) {
+        setRelayStatus(result.status);
+      }
+
+      if (!result.success) {
+        setRelayErrorMessage(result.error || 'Unable to generate a QR pairing code right now.');
+      }
+    } catch (error) {
+      setRelayErrorMessage(error instanceof Error ? error.message : 'Unable to generate a QR pairing code right now.');
+    } finally {
+      setRelayActionState('idle');
+    }
+  }, [relayActionState]);
+
+  const retryRelayAgent = useCallback(async () => {
+    if (relayActionState !== 'idle') return;
+
+    setRelayActionState('retrying');
+    setRelayErrorMessage(null);
+
+    try {
+      const result = await window.clawster.retryRelayAgent();
+      if (result.status) {
+        setRelayStatus(result.status);
+      }
+
+      if (!result.success) {
+        setRelayErrorMessage(result.error || 'Unable to retry the mobile relay right now.');
+      }
+    } catch (error) {
+      setRelayErrorMessage(error instanceof Error ? error.message : 'Unable to retry the mobile relay right now.');
+    } finally {
+      setRelayActionState('idle');
+    }
+  }, [relayActionState]);
+
+  const clearRelayPairing = useCallback(async () => {
+    if (relayActionState !== 'idle') return;
+
+    setRelayActionState('clearing');
+    setRelayErrorMessage(null);
+
+    try {
+      const result = await window.clawster.clearRelayAgentPairing();
+      if (result.status) {
+        setRelayStatus(result.status);
+      }
+
+      if (!result.success) {
+        setRelayErrorMessage(result.error || 'Unable to clear the mobile pairing right now.');
+        return;
+      }
+
+      setRelayPairingCode('');
+    } catch (error) {
+      setRelayErrorMessage(error instanceof Error ? error.message : 'Unable to clear the mobile pairing right now.');
+    } finally {
+      setRelayActionState('idle');
+    }
+  }, [relayActionState]);
+
   const closeWindow = useCallback(() => {
     window.clawster.closeAssistant();
   }, []);
@@ -428,6 +560,91 @@ export const Assistant: React.FC = () => {
         return type;
     }
   };
+
+  const relayStatusLabel =
+    relayStatus.state === 'connected'
+      ? 'Connected'
+      : relayStatus.state === 'pairing'
+        ? 'Pairing'
+        : relayStatus.state === 'connecting'
+          ? 'Connecting'
+          : relayStatus.state === 'reconnecting'
+            ? 'Reconnecting'
+            : relayStatus.state === 'stopped'
+              ? 'Stopped'
+              : relayStatus.paired
+                ? 'Disconnected'
+                : 'Not Paired';
+
+  const relayStatusBadgeClass =
+    relayStatus.state === 'connected'
+      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+      : relayStatus.state === 'pairing' || relayStatus.state === 'connecting' || relayStatus.state === 'reconnecting'
+        ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
+        : 'bg-white/5 text-neutral-300 border-white/10';
+
+  const relayCredentialLabel =
+    relayStatus.credentialStorage === 'encrypted'
+      ? 'Encrypted at rest'
+      : relayStatus.credentialStorage === 'plaintext'
+        ? 'Plaintext fallback'
+        : 'Secure storage unavailable';
+
+  const relayLastTaskLabel =
+    relayStatus.lastTaskState === 'running'
+      ? 'Running'
+      : relayStatus.lastTaskState === 'success'
+        ? 'Succeeded'
+        : relayStatus.lastTaskState === 'error'
+          ? 'Failed'
+          : 'Idle';
+
+  const relayLastTaskBadgeClass =
+    relayStatus.lastTaskState === 'success'
+      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+      : relayStatus.lastTaskState === 'error'
+        ? 'bg-red-500/15 text-red-200 border-red-500/20'
+        : relayStatus.lastTaskState === 'running'
+          ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
+          : 'bg-white/5 text-neutral-300 border-white/10';
+
+  const formatRelayTimestamp = (timestamp: number | null) => {
+    if (!timestamp) {
+      return 'Never';
+    }
+
+    return new Date(timestamp).toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const relayPairingChallengeLabel =
+    relayStatus.pairingChallengeState === 'creating'
+      ? 'Generating QR'
+      : relayStatus.pairingChallengeState === 'waiting_for_scan'
+        ? 'Waiting for scan'
+        : relayStatus.pairingChallengeState === 'claimed'
+          ? 'Scanned by mobile'
+          : relayStatus.pairingChallengeState === 'exchanging'
+            ? 'Finishing pairing'
+            : relayStatus.pairingChallengeState === 'expired'
+              ? 'Expired'
+              : relayStatus.pairingChallengeState === 'error'
+                ? 'Retrying'
+                : 'Not started';
+
+  const relayPairingChallengeBadgeClass =
+    relayStatus.pairingChallengeState === 'waiting_for_scan' ||
+    relayStatus.pairingChallengeState === 'claimed' ||
+    relayStatus.pairingChallengeState === 'exchanging' ||
+    relayStatus.pairingChallengeState === 'creating'
+      ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
+      : relayStatus.pairingChallengeState === 'expired' || relayStatus.pairingChallengeState === 'error'
+        ? 'bg-red-500/15 text-red-200 border-red-500/20'
+        : 'bg-white/5 text-neutral-300 border-white/10';
 
   // Clawster Icon (body, tail, eyes - no claws)
   const ClawsterIcon = ({ size = 18 }: { size?: number }) => (
@@ -689,7 +906,248 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 2: Watching */}
+          {/* Group 2: Mobile Relay */}
+          <div className="pt-4 border-t border-white/5">
+            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+              Mobile Relay
+            </h3>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-neutral-200">
+                    Pair Clawster Mobile
+                  </p>
+                  <p className="text-[12px] leading-5 text-neutral-500 mt-1">
+                    Create a one-time pairing code in the mobile app, paste it here, and Clawster will keep the relay bridge running automatically in the background.
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${relayStatusBadgeClass}`}>
+                  {relayStatusLabel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 text-[12px] text-neutral-400 md:grid-cols-2">
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Device Name</p>
+                  <p className="mt-1 font-medium text-neutral-200">{relayStatus.deviceName}</p>
+                </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Pairing State</p>
+                  <p className="mt-1 font-medium text-neutral-200">
+                    {relayStatus.paired ? 'Paired to Clawster Mobile' : 'Waiting for first pairing'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Device ID</p>
+                  <p className="mt-1 font-mono text-[11px] text-neutral-300 break-all">
+                    {relayStatus.deviceId || 'Will be created on first launch'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Relay Agent</p>
+                  <p className="mt-1 font-mono text-[11px] text-neutral-300 break-all">
+                    {relayStatus.relayAgentId || 'Not paired yet'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Credential Storage</p>
+                  <p className="mt-1 font-medium text-neutral-200">{relayCredentialLabel}</p>
+                </div>
+                <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Last Finished</p>
+                  <p className="mt-1 font-medium text-neutral-200">{formatRelayTimestamp(relayStatus.lastTaskFinishedAt)}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/8 bg-black/20 p-3.5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-neutral-200">Mobile Command Activity</p>
+                    <p className="text-[11px] leading-5 text-neutral-500 mt-1">
+                      Incoming commands run through the same Clawster persona that powers desktop chat.
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${relayLastTaskBadgeClass}`}>
+                    {relayLastTaskLabel}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 text-[12px] text-neutral-400 md:grid-cols-2">
+                  <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Active Command</p>
+                    <p className="mt-1 text-neutral-200 break-words">
+                      {relayStatus.activeCommand || 'No mobile command is running right now.'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Last Command</p>
+                    <p className="mt-1 text-neutral-200 break-words">
+                      {relayStatus.lastCommand || 'No mobile commands yet.'}
+                    </p>
+                  </div>
+                </div>
+
+                {relayStatus.lastTaskResult && (
+                  <div className="rounded-xl border border-white/8 bg-[#0a0a0a] px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Last Result</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-5 text-neutral-200">
+                      {relayStatus.lastTaskResult}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {!relayStatus.paired && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-neutral-200">Pair with QR</p>
+                        <p className="text-[11px] leading-5 text-neutral-500 mt-1">
+                          Generate a short-lived QR challenge, scan it from Clawster Mobile, and this Mac will finish pairing automatically.
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${relayPairingChallengeBadgeClass}`}>
+                        {relayPairingChallengeLabel}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-white/10 bg-[#0a0a0a] px-4 py-5 text-center">
+                      {relayStatus.pairingChallengeQrDataUrl ? (
+                        <img
+                          src={relayStatus.pairingChallengeQrDataUrl}
+                          alt="QR code to pair Clawster Mobile"
+                          className="h-48 w-48 rounded-2xl border border-white/10 bg-[#f7f2eb] p-3"
+                        />
+                      ) : (
+                        <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-6 text-[12px] leading-5 text-neutral-500">
+                          Generate a QR challenge to pair this Mac from your phone.
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <p className="text-[12px] text-neutral-300">
+                          {relayStatus.pairingChallengeQrDataUrl
+                            ? 'Open Clawster Mobile, go to devices, and scan this code.'
+                            : 'This QR code stays valid for a short time and can only be used once.'}
+                        </p>
+                        {relayStatus.pairingChallengeExpiresAt && (
+                          <p className="text-[11px] text-neutral-500">
+                            Expires {formatRelayTimestamp(relayStatus.pairingChallengeExpiresAt)}.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            void createRelayPairingChallenge();
+                          }}
+                          disabled={relayActionState !== 'idle'}
+                          className="px-4 py-2 rounded-lg bg-[#FF8C69] hover:bg-[#FF8C69]/90 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {relayActionState === 'creating_qr'
+                            ? 'Generating...'
+                            : relayStatus.pairingChallengeQrDataUrl
+                              ? 'Refresh QR'
+                              : 'Generate QR'}
+                        </button>
+                        {relayStatus.pairingChallengeUrl && (
+                          <button
+                            onClick={() => {
+                              void window.clawster.copyToClipboard(relayStatus.pairingChallengeUrl || '');
+                            }}
+                            disabled={relayActionState !== 'idle'}
+                            className="px-4 py-2 rounded-lg bg-white/6 hover:bg-white/10 border border-white/10 text-sm font-medium text-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Copy Pair Link
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-neutral-300">
+                      Pairing Code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={relayPairingCode}
+                        onChange={(e) => setRelayPairingCode(e.target.value.toUpperCase())}
+                        placeholder="Paste code from Clawster Mobile"
+                        disabled={relayActionState !== 'idle'}
+                        className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all font-mono tracking-[0.18em] uppercase"
+                      />
+                      <button
+                        onClick={() => {
+                          void pairRelayAgent();
+                        }}
+                        disabled={relayActionState !== 'idle' || !relayPairingCode.trim()}
+                        className="px-4 py-2 rounded-lg bg-[#FF8C69] hover:bg-[#FF8C69]/90 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {relayActionState === 'pairing' ? 'Pairing...' : 'Pair'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Manual code entry still works as a fallback while we finish the mobile QR scan flow.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {relayStatus.paired && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        void retryRelayAgent();
+                      }}
+                      disabled={relayActionState !== 'idle'}
+                      className="px-4 py-2 rounded-lg bg-white/6 hover:bg-white/10 border border-white/10 text-sm font-medium text-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {relayActionState === 'retrying' ? 'Retrying...' : 'Retry Connection'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        void clearRelayPairing();
+                      }}
+                      disabled={relayActionState !== 'idle'}
+                      className="px-4 py-2 rounded-lg bg-transparent hover:bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {relayActionState === 'clearing' ? 'Unpairing...' : 'Forget Pairing'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-neutral-500">
+                    Forget Pairing now revokes this device at the relay before removing the local credentials.
+                  </p>
+                </div>
+              )}
+
+              {relayStatus.paired && relayStatus.credentialStorage !== 'encrypted' && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-100">
+                  {relayStatus.credentialStorage === 'plaintext'
+                    ? 'Relay credentials are stored in plaintext on this device because secure OS storage was unavailable.'
+                    : 'Secure OS credential storage is unavailable in this runtime, so relay credentials cannot be encrypted yet.'}
+                </div>
+              )}
+
+              {(relayErrorMessage || relayStatus.lastError) && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-[12px] text-red-100">
+                  {relayErrorMessage || relayStatus.lastError}
+                </div>
+              )}
+
+              {relayStatus.state === 'reconnecting' && (
+                <p className="text-[11px] text-neutral-500">
+                  Clawster will keep retrying automatically{relayStatus.reconnectAttempt > 0 ? ` (attempt ${relayStatus.reconnectAttempt})` : ''}.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Group 3: Watching */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Watching
@@ -728,7 +1186,7 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 3: Pet Behavior */}
+          {/* Group 4: Pet Behavior */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Pet Behavior
@@ -777,7 +1235,7 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 4: Keyboard Shortcuts */}
+          {/* Group 5: Keyboard Shortcuts */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Keyboard Shortcuts
@@ -804,7 +1262,7 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 5: Developer */}
+          {/* Group 6: Developer */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Developer

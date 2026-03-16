@@ -69,6 +69,14 @@ contextBridge.exposeInMainWorld('clawster', {
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => {
     ipcRenderer.on('clawbot-connection-changed', (_event, status) => callback(status));
   },
+  getRelayAgentStatus: () => ipcRenderer.invoke('get-relay-agent-status'),
+  createRelayAgentPairingChallenge: () => ipcRenderer.invoke('create-relay-agent-pairing-challenge'),
+  pairRelayAgent: (pairingCode: string) => ipcRenderer.invoke('pair-relay-agent', pairingCode),
+  retryRelayAgent: () => ipcRenderer.invoke('retry-relay-agent'),
+  clearRelayAgentPairing: () => ipcRenderer.invoke('clear-relay-agent-pairing'),
+  onRelayAgentStatusChange: (callback: (status: RelayAgentStatus) => void) => {
+    ipcRenderer.on('relay-agent-status-changed', (_event, status) => callback(status as RelayAgentStatus));
+  },
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => {
     ipcRenderer.on('clawbot-stream-chunk', (_event, data) => callback(data));
   },
@@ -201,6 +209,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('clawbot-suggestion');
     ipcRenderer.removeAllListeners('clawbot-mood');
     ipcRenderer.removeAllListeners('clawbot-connection-changed');
+    ipcRenderer.removeAllListeners('relay-agent-status-changed');
     ipcRenderer.removeAllListeners('clawbot-stream-chunk');
     ipcRenderer.removeAllListeners('clawbot-stream-end');
     ipcRenderer.removeAllListeners('clawbot-stream-error');
@@ -236,6 +245,34 @@ export interface ScreenContext {
   petPosition: { x: number; y: number };
   screenSize: { width: number; height: number };
   image?: string;
+}
+
+export interface RelayAgentStatus {
+  state: 'idle' | 'unpaired' | 'pairing' | 'connecting' | 'connected' | 'reconnecting' | 'stopped' | 'error';
+  paired: boolean;
+  pairingRequired: boolean;
+  relayConnected: boolean;
+  credentialStorage: 'encrypted' | 'plaintext' | 'unavailable';
+  deviceId: string | null;
+  deviceName: string;
+  relayAgentId: string | null;
+  relayHttpBaseUrl: string;
+  relayAgentWebSocketUrl: string;
+  lastError: string | null;
+  reconnectAttempt: number;
+  nextReconnectAt: number | null;
+  activeTaskId: string | null;
+  activeCommand: string | null;
+  activeTaskStartedAt: number | null;
+  lastCommand: string | null;
+  lastTaskState: 'idle' | 'running' | 'success' | 'error';
+  lastTaskResult: string | null;
+  lastTaskFinishedAt: number | null;
+  pairingChallengeState: 'idle' | 'creating' | 'waiting_for_scan' | 'claimed' | 'exchanging' | 'expired' | 'error';
+  pairingChallengeId: string | null;
+  pairingChallengeQrDataUrl: string | null;
+  pairingChallengeUrl: string | null;
+  pairingChallengeExpiresAt: number | null;
 }
 
 export interface OnboardingData {
@@ -342,6 +379,12 @@ export interface ClawsterAPI {
   startClawbotStream: (message: string, includeScreen?: boolean) => Promise<{ requestId?: string; error?: string }>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
+  getRelayAgentStatus: () => Promise<RelayAgentStatus>;
+  createRelayAgentPairingChallenge: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  pairRelayAgent: (pairingCode: string) => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  retryRelayAgent: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  clearRelayAgentPairing: () => Promise<{ success: boolean; error?: string; status?: RelayAgentStatus }>;
+  onRelayAgentStatusChange: (callback: (status: RelayAgentStatus) => void) => void;
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
   onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
   onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
