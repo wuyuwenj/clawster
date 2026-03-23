@@ -1,0 +1,557 @@
+:root,
+:host,
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root,
+:host {
+  --clawster-shell: #ff8c69;
+  --clawster-shell-dark: #8b3a3a;
+  --clawster-accent: #0e8c89;
+  --clawster-accent-dark: #095f5d;
+  --clawster-ink: #1b1714;
+  --clawster-cream: #fff8ef;
+  --clawster-panel: rgba(21, 16, 14, 0.7);
+  --clawster-panel-soft: rgba(255, 248, 239, 0.08);
+  --clawster-panel-border: rgba(255, 255, 255, 0.22);
+  --clawster-glow: rgba(255, 140, 105, 0.28);
+  --clawster-highlight: rgba(255, 255, 255, 0.34);
+  color: var(--clawster-cream);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, rgba(255, 140, 105, 0.2), transparent 24%),
+    linear-gradient(180deg, #2a201d 0%, #16100f 45%, #0c0908 100%);
+}
+
+.clawster-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999999;
+}
+
+.clawster-widget {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+  pointer-events: none;
+  transition: transform 0.95s cubic-bezier(0.22, 0.9, 0.28, 1);
+}
+
+.clawster-widget.is-moving {
+  filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.24));
+}
+
+.chat-shell {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-bubble {
+  position: relative;
+  max-width: min(480px, calc(100vw - 24px));
+  min-width: 120px;
+  padding: 8px 16px;
+  border-radius: 16px;
+  color: rgba(255, 248, 239, 0.95);
+  font-size: 30px;
+  line-height: 1.15;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
+    rgba(43, 35, 32, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 10px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px) saturate(120%);
+}
+
+.chat-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(43, 35, 32, 0.9);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.chat-bubble-text {
+  display: block;
+}
+
+.chat-input-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: min(430px, calc(100vw - 28px));
+  pointer-events: auto;
+}
+
+.chat-input-glass {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding: 1px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.chat-input-glow {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+    rgba(76, 73, 72, 0.01);
+  backdrop-filter: blur(14px) saturate(120%);
+}
+
+.chat-input-row input {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--clawster-cream);
+  padding: 13px 18px;
+  outline: none;
+  font-size: 30px;
+  text-align: left;
+}
+
+.chat-input-row input::placeholder {
+  color: rgba(255, 248, 239, 0.5);
+}
+
+.pet-shell {
+  width: 333px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  pointer-events: auto;
+}
+
+.lobster-container {
+  width: 333px;
+  height: 333px;
+  appearance: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: grab;
+  position: relative;
+  transition: transform 0.2s ease;
+  touch-action: none;
+}
+
+.lobster-container:hover {
+  transform: scale(1.02);
+}
+
+.clawster-widget.is-dragging .lobster-container {
+  cursor: grabbing;
+}
+
+.lobster-container.facing-right svg {
+  transform: scaleX(-1);
+}
+
+.lobster-container svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter:
+    drop-shadow(0 26px 44px rgba(0, 0, 0, 0.22))
+    drop-shadow(0 10px 24px rgba(255, 140, 105, 0.18));
+}
+
+.lobster-container .body-group {
+  transform-origin: 64px 100px;
+  transition: all 0.3s;
+}
+
+.lobster-container .left-claw,
+.lobster-container .right-claw {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lobster-container .left-claw {
+  transform-origin: 30px 70px;
+}
+
+.lobster-container .right-claw {
+  transform-origin: 98px 70px;
+}
+
+.lobster-container .eye-open {
+  transform-origin: 50% 50%;
+  animation: blink 5s infinite;
+}
+
+.lobster-container .eye-closed,
+.lobster-container .mouth-happy,
+.lobster-container .mouth-mad,
+.lobster-container .mouth-worried,
+.lobster-container .mouth-o,
+.lobster-container .fx-zzz,
+.lobster-container .fx-sweat,
+.lobster-container .fx-alert {
+  opacity: 0;
+}
+
+.lobster-container .pupils {
+  animation: dart 6s infinite;
+}
+
+.lobster-container.tracking-cursor .pupils {
+  animation: none;
+}
+
+.lobster-container.is-moving {
+  animation: glide 0.9s ease-in-out infinite;
+}
+
+.lobster-container.state-idle .body-group {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.lobster-container.state-idle .left-claw {
+  animation: bobLeft 3s ease-in-out infinite;
+}
+
+.lobster-container.state-idle .right-claw {
+  animation: bobRight 3s ease-in-out infinite 0.5s;
+}
+
+.lobster-container.state-happy {
+  animation: bounce 0.85s ease-in-out infinite;
+}
+
+.lobster-container.state-happy .left-claw {
+  transform: translateY(-15px) rotate(-30deg);
+}
+
+.lobster-container.state-happy .right-claw {
+  transform: translateY(-15px) rotate(30deg);
+}
+
+.lobster-container.state-happy .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-happy .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.gesture-wave .left-claw {
+  animation: waveClaw 0.44s ease-in-out 3;
+}
+
+.lobster-container.gesture-wave .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.gesture-wave .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.state-snip .right-claw {
+  animation: snip 0.3s ease-in-out infinite;
+}
+
+.lobster-container.state-snip .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-snip .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.gesture-snip .right-claw {
+  animation: snip 0.26s ease-in-out 4;
+}
+
+.lobster-container.gesture-snip .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.gesture-snip .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.state-sleep .body-group,
+.lobster-container.state-doze .body-group {
+  animation: breathe 5s ease-in-out infinite;
+}
+
+.lobster-container.state-sleep .left-claw,
+.lobster-container.state-doze .left-claw {
+  transform: translateY(10px) rotate(10deg);
+}
+
+.lobster-container.state-sleep .right-claw,
+.lobster-container.state-doze .right-claw {
+  transform: translateY(10px) rotate(-10deg);
+}
+
+.lobster-container.state-sleep .eye-open,
+.lobster-container.state-doze .eye-open {
+  opacity: 0;
+  animation: none;
+}
+
+.lobster-container.state-sleep .eye-closed,
+.lobster-container.state-doze .eye-closed {
+  opacity: 1;
+}
+
+.lobster-container.state-sleep .fx-zzz,
+.lobster-container.state-doze .fx-zzz {
+  opacity: 1;
+  animation: floatUp 2s linear infinite;
+}
+
+.lobster-container.state-worried {
+  animation: shiver 0.22s infinite;
+}
+
+.lobster-container.state-worried .body-group {
+  transform: scale(0.9) translateY(10px);
+}
+
+.lobster-container.state-worried .left-claw {
+  transform: translateX(10px) rotate(40deg);
+}
+
+.lobster-container.state-worried .right-claw {
+  transform: translateX(-10px) rotate(-40deg);
+}
+
+.lobster-container.state-worried .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-worried .mouth-worried {
+  opacity: 1;
+}
+
+.lobster-container.state-worried .fx-sweat {
+  opacity: 1;
+  animation: drip 1.5s infinite;
+}
+
+.lobster-container.state-crossed .body-group {
+  animation: shiver 0.5s ease-in-out infinite;
+}
+
+.lobster-container.state-crossed .left-claw {
+  transform: translate(16px, 8px) rotate(26deg);
+}
+
+.lobster-container.state-crossed .right-claw {
+  transform: translate(-16px, 8px) rotate(-26deg);
+}
+
+.lobster-container.state-crossed .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-crossed .mouth-mad {
+  opacity: 1;
+}
+
+.lobster-container.state-spin {
+  animation: fullSpin 1.1s cubic-bezier(0.55, 0.08, 0.68, 0.53);
+}
+
+.lobster-container.state-proud .body-group {
+  transform: translateY(-6px) scale(1.03);
+}
+
+.lobster-container.state-proud .left-claw {
+  transform: translateY(-8px) rotate(-18deg);
+}
+
+.lobster-container.state-proud .right-claw {
+  transform: translateY(-8px) rotate(18deg);
+}
+
+.lobster-container.state-proud .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-proud .mouth-happy {
+  opacity: 1;
+}
+
+.lobster-container.state-startle .body-group {
+  animation: jump 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.lobster-container.state-startle .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.state-startle .mouth-worried {
+  opacity: 1;
+}
+
+.lobster-container.state-startle .left-claw {
+  transform: translateY(-20px) rotate(-45deg);
+}
+
+.lobster-container.state-startle .right-claw {
+  transform: translateY(-20px) rotate(45deg);
+}
+
+.lobster-container.state-startle .fx-alert {
+  opacity: 1;
+  animation: popIn 0.3s ease-out forwards;
+}
+
+.lobster-container.state-mouth-o .mouth-neutral,
+.lobster-container.state-mouth-o .mouth-happy,
+.lobster-container.state-mouth-o .mouth-worried {
+  opacity: 0;
+}
+
+.lobster-container.state-mouth-o .mouth-o {
+  opacity: 1;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  50% { transform: scaleY(0.92) scaleX(1.03); }
+}
+
+@keyframes bobLeft {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(-8deg); }
+}
+
+@keyframes bobRight {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(8deg); }
+}
+
+@keyframes blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+@keyframes dart {
+  0%, 20%, 100% { transform: translateX(0); }
+  10%, 15% { transform: translateX(-3px); }
+  80%, 85% { transform: translateX(3px); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes glide {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shiver {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
+}
+
+@keyframes snip {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(-25deg) scale(1.1); }
+}
+
+@keyframes fullSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes floatUp {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translate(15px, -30px) scale(1.2); opacity: 0; }
+}
+
+@keyframes drip {
+  0% { transform: translateY(0); opacity: 1; }
+  80% { transform: translateY(15px); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes jump {
+  0% { transform: translateY(0); }
+  45% { transform: translateY(-18px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes waveClaw {
+  0%, 100% { transform: translateY(-8px) rotate(-12deg); }
+  50% { transform: translateY(-18px) rotate(-40deg); }
+}
+
+@media (max-width: 640px) {
+  .clawster-widget {
+    width: fit-content;
+  }
+
+  .chat-shell {
+    top: 4px;
+  }
+
+  .pet-shell,
+  .lobster-container {
+    width: 200px;
+    height: 200px;
+  }
+
+  .chat-bubble {
+    min-width: 200px;
+    max-width: min(400px, calc(100vw - 20px));
+    font-size: 13px;
+  }
+
+  .chat-input-row {
+    width: min(340px, calc(100vw - 20px));
+  }
+
+  .chat-input-row input {
+    font-size: 14px;
+    padding: 12px 15px;
+  }
+}
