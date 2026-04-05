@@ -152,7 +152,7 @@ interface ClawsterAPI {
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;
-  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => void;
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace' | 'quit') => void;
   removeAllListeners: () => void;
   // Tutorial
   tutorialPetClicked: () => void;

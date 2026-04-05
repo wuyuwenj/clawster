@@ -1,0 +1,238 @@
+{
+  "title": "Clawster Electron to Tauri v2 Rewrite",
+  "description": "Full 1:1 port of Clawster desktop pet app from Electron to Tauri v2. Rust backend replaces Electron main process; React frontend is preserved with IPC bridge adapted to Tauri invoke/listen.",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Tauri v2 project scaffolding",
+      "description": "Initialize Tauri v2 project structure alongside existing React frontend. Configure Cargo.toml, tauri.conf.json, capabilities, and Vite integration.",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "src-tauri/ directory exists with Cargo.toml, tauri.conf.json, src/main.rs, src/lib.rs",
+        "Cargo.toml includes tauri v2, serde, serde_json, tokio dependencies",
+        "tauri.conf.json configures app identifier 'com.clawster.app', main window, and build commands",
+        "npm run tauri dev launches the app with the React frontend (vite dev server) without errors",
+        "A basic transparent, frameless window appears on screen"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Persistent config store (Rust)",
+      "description": "Implement Rust equivalent of electron-store using tauri-plugin-store or custom JSON file store. Mirror the full StoreSchema from store.ts.",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "src-tauri/src/store.rs exists with StoreSchema struct matching all fields from Electron store.ts",
+        "Default values match the Electron defaults exactly (clawbot url, watch settings, pet settings, hotkeys, onboarding, tutorial, dev)",
+        "Store reads/writes persist to disk across app restarts",
+        "get_settings and update_settings Tauri commands are registered and callable from frontend"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Multi-window management",
+      "description": "Create all 8 windows matching Electron: pet, pet-chat, assistant, chatbar, screenshot-question, onboarding, pet-context-menu, workspace-browser. Each window must use its corresponding HTML entry point.",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Pet window: transparent, frameless, always-on-top, 164x164, click-through when not interacting",
+        "All 8 window creation functions exist in src-tauri/src/windows.rs",
+        "Each window loads its correct HTML entry point (e.g., pet.html, assistant.html, chatbar.html)",
+        "Window positioning logic works: pet-chat anchors above pet, assistant anchors above pet, workspace-browser anchors above pet",
+        "Windows can be shown/hidden via Tauri commands"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Frontend IPC bridge (Tauri invoke/listen)",
+      "description": "Replace preload.ts window.clawster API with a Tauri-compatible bridge. All ~80 IPC methods must be ported to use @tauri-apps/api invoke() and listen().",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "src/renderer/tauri-bridge.ts exists exporting a ClawsterAPI-compatible object",
+        "All invoke-based methods (getSettings, updateSettings, captureScreen, sendToClawbot, etc.) call Tauri invoke()",
+        "All event listeners (onClawbotMood, onActivityEvent, onPetMoving, etc.) use Tauri listen()",
+        "All send-based methods (dragPet, petClicked, toggleAssistant, etc.) call Tauri invoke() or emit()",
+        "window.clawster is populated from the bridge (no preload.ts needed)",
+        "TypeScript compiles with no errors"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "ClawBot HTTP client (Rust)",
+      "description": "Port ClawBotClient from TypeScript to Rust using reqwest. Support Responses API, Chat Completions fallback, SSE streaming, connection health checks, suggestion polling, event sending, and cron polling.",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "src-tauri/src/clawbot.rs exists with ClawBotClient struct",
+        "Health check, suggestion polling, and event sending work via reqwest",
+        "chat() method supports Responses API with Chat Completions fallback",
+        "chatStream() method supports SSE streaming via both APIs",
+        "Action parsing (parseActionFromResponse) correctly extracts action JSON blocks from response text",
+        "Cron job polling works and emits events to frontend",
+        "Connection status changes emit events to all windows"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "File and app watchers (Rust)",
+      "description": "Port Watchers class to Rust. File watching via notify crate, active app detection via macOS accessibility APIs.",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "src-tauri/src/watchers.rs exists with file watcher using notify crate",
+        "File watcher emits file_added, file_changed, file_deleted events matching Electron format",
+        "Active app watcher detects frontmost app name on macOS",
+        "Window title detection works via osascript JXA (matching window-title.ts logic)",
+        "Watchers respect store settings (watch.activeApp, watch.sendWindowTitles, watch.folders)",
+        "Activity events are forwarded to ClawBot and emitted to frontend windows"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Pet behaviors (Rust)",
+      "description": "Port all pet behavior systems: attention seeker, idle behaviors (blink, look_around, snip_claws, yawn, stretch, wiggle, wander), sleep/wake cycle, pet movement animation, and pet action execution.",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "animateMoveTo smoothly moves pet window at ~60fps with ease-out curve",
+        "Attention seeker periodically moves pet toward cursor when distance > 600px",
+        "All 7 idle behaviors fire with correct weighted randomization",
+        "Sleep system: pet dozes after 60s idle, fully sleeps after 5s more, wakes on interaction with startle animation",
+        "Pet actions (set_mood, move_to, move_to_cursor, snip, wave, look_at) all work from ClawBot responses",
+        "Pet dragging updates position and anchored windows follow"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Screen capture (Rust)",
+      "description": "Port screen capture: native macOS screencapture command, permission checking, camera snap animation coordination, and captureScreenWithContext.",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "captureScreen Tauri command captures screen on macOS via screencapture CLI",
+        "Permission status check works (granted/denied/not-determined/restricted)",
+        "Camera snap animation is triggered before capture with correct timing delays",
+        "captureScreenWithContext returns image + cursor position + screen size",
+        "Screenshot question flow works end-to-end (capture → show question window → send to ClawBot)"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Global hotkeys and system tray",
+      "description": "Port global shortcuts (openChat, captureScreen, openAssistant) and system tray with menu items.",
+      "priority": 9,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Global hotkeys register on app start using tauri-plugin-global-shortcut",
+        "Default hotkeys match Electron: Cmd+Shift+Space (chat), Cmd+Shift+/ (capture), Cmd+Shift+A (assistant)",
+        "Hotkeys can be updated at runtime when settings change",
+        "System tray shows with correct icon and menu (Open Assistant, Open Chat, Settings, Quit)",
+        "Tray menu actions work correctly"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Onboarding and tutorial system",
+      "description": "Port onboarding flow (workspace setup, gateway validation, personality config) and tutorial manager (10-step interactive tutorial).",
+      "priority": 10,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Onboarding window shows on first launch when onboarding.completed is false",
+        "Gateway validation (validateGateway command) tests connection to OpenClaw",
+        "Workspace creation (createClawsterWorkspace) creates directory structure with identity/soul files",
+        "OpenClaw workspace detection reads ~/.openclaw config and workspace",
+        "Tutorial manager tracks 10 steps with correct progression logic",
+        "Tutorial cursor tracking and follow behavior work for step 4",
+        "Tutorial skip/resume/replay all work correctly"
+      ]
+    },
+    {
+      "id": "US-011",
+      "title": "Workspace browser and file preview",
+      "description": "Port workspace file browser: directory listing, file opening, path revealing, and file preview (markdown, JSON, images including HEIC transcoding).",
+      "priority": 11,
+      "passes": true,
+      "acceptanceCriteria": [
+        "listWorkspaceDirectory returns entries with name, path, kind, timestamps",
+        "openWorkspacePath opens files/dirs in system default app",
+        "revealWorkspacePath shows item in Finder",
+        "previewWorkspaceFile supports markdown, JSON (pretty-printed), and image previews",
+        "HEIC images are transcoded to PNG via sharp or sips fallback",
+        "Path traversal is prevented (outside_workspace error for ../ paths)",
+        "File size limits are enforced (2MB markdown/JSON, 12MB images)"
+      ]
+    },
+    {
+      "id": "US-012",
+      "title": "Auto-updater and build configuration",
+      "description": "Configure tauri-plugin-updater for auto-updates, macOS code signing and notarization, and build targets matching Electron (DMG, ZIP for Mac).",
+      "priority": 12,
+      "passes": true,
+      "acceptanceCriteria": [
+        "tauri.conf.json has updater config pointing to clawster.pet/downloads",
+        "macOS signing identity configured (Yuwen Wu 39428U49B4)",
+        "npm run tauri build produces a working DMG and ZIP for macOS arm64",
+        "Auto-updater checks for updates on app start",
+        "App version matches package.json version"
+      ]
+    },
+    {
+      "id": "US-013",
+      "title": "Tutorial system (full implementation)",
+      "description": "Replace tutorial stub commands with full TutorialManager implementation matching Electron's 10-step interactive tutorial with cursor tracking, follow behavior, step progression, and events.",
+      "priority": 13,
+      "passes": true,
+      "acceptanceCriteria": [
+        "TutorialManager struct in src-tauri/src/tutorial.rs with 10-step progression",
+        "Tutorial commands (tutorial_pet_clicked, tutorial_next, tutorial_skip, tutorial_resume, tutorial_start_over, tutorial_open_panel) all have real implementations",
+        "Tutorial emits tutorial-step, tutorial-hint, tutorial-ended, tutorial-resume-prompt events",
+        "Step 4 cursor tracking and follow behavior work",
+        "Pet window expand/contract for tutorial speech bubble works",
+        "replay_tutorial resets state and starts from step 1",
+        "get_tutorial_status returns real isActive/currentStep/completed values"
+      ]
+    },
+    {
+      "id": "US-014",
+      "title": "Idle detection and chat popup suggestions",
+      "description": "Port idle detection system (5-min threshold) and proactive chat popup suggestions triggered by idle state and app switches.",
+      "priority": 14,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Idle detection timer fires after 5 minutes of no activity",
+        "sendChatPopup function sends idle/app_switch/proactive triggers to ClawBot",
+        "Chat popup events emitted to pet window with id, text, trigger, quickReplies",
+        "App switch chat cooldown (60s) prevents spam",
+        "Idle timer resets on user activity (pet click, chat, etc.)"
+      ]
+    },
+    {
+      "id": "US-015",
+      "title": "App launch on startup",
+      "description": "Implement setLaunchOnStartup for macOS (login items), respecting the onboarding launchOnStartup setting.",
+      "priority": 15,
+      "passes": true,
+      "acceptanceCriteria": [
+        "set_launch_on_startup Tauri command exists",
+        "On macOS: creates/removes login item via osascript or launchd plist",
+        "Onboarding complete handler calls set_launch_on_startup with user's choice",
+        "Setting persists across app restarts"
+      ]
+    },
+    {
+      "id": "US-016",
+      "title": "Runtime panic fix - deferred async initialization",
+      "description": "Fix the 'no reactor running' panic that occurs when tokio::spawn/tauri::async_runtime::spawn is called during setup() before the Tauri runtime is ready.",
+      "priority": 16,
+      "passes": true,
+      "acceptanceCriteria": [
+        "App starts without panic on 'npm run tauri:dev'",
+        "Pet window appears on screen",
+        "Background polling (ClawBot connection check) starts after app launch",
+        "No 'there is no reactor running' error in console"
+      ]
+    }
+  ]
+}

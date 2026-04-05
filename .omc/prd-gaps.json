@@ -1,0 +1,127 @@
+{
+  "title": "Clawster Tauri Rewrite - Gap Fixes",
+  "description": "Fix all missing/incomplete features identified in the architect comparison between Electron and Tauri implementations.",
+  "stories": [
+    {
+      "id": "GAP-001",
+      "title": "CRITICAL: Global hotkey registration",
+      "description": "Register 3 global shortcuts from store (openChat, captureScreen, openAssistant). Hotkeys toggle windows and notify tutorial manager.",
+      "priority": 1,
+      "passes": false,
+      "acceptanceCriteria": [
+        "register_hotkeys() function exists and is called during app startup",
+        "Cmd+Shift+Space toggles chatbar window",
+        "Cmd+Shift+/ triggers screenshot capture and opens screenshot-question window",
+        "Cmd+Shift+A toggles assistant window",
+        "Hotkeys read from store settings, not hardcoded",
+        "Tutorial manager is notified when openChat or openAssistant hotkey is pressed",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-002",
+      "title": "CRITICAL: Onboarding flow orchestration",
+      "description": "Show onboarding window on first launch instead of pet. After onboarding completes/skips, close onboarding and start main app (pet, services, tutorial).",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "If onboarding.completed is false and onboarding.skipped is false, show onboarding window instead of pet",
+        "Pet window stays hidden until onboarding completes",
+        "onboarding_complete command closes onboarding window and calls startMainApp equivalent",
+        "onboarding_skip command closes onboarding window and calls startMainApp equivalent",
+        "startMainApp creates pet window, registers hotkeys, initializes ClawBot, starts watchers and tutorial",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-003",
+      "title": "CRITICAL: update_settings side effects",
+      "description": "When settings change via update_settings, trigger side effects: restart watchers for watch.*, re-register hotkeys for hotkeys.*, update ClawBot config for clawbot.*, emit events for pet/dev settings.",
+      "priority": 3,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Changing watch.activeApp or watch.folders triggers watcher restart",
+        "Changing hotkeys.* re-registers global shortcuts",
+        "Changing clawbot.url or clawbot.token updates ClawBot client config",
+        "Changing pet.transparentWhenSleeping emits pet-transparent-sleep-changed event",
+        "Changing dev.showPetModeOverlay emits dev-show-pet-mode-overlay-changed event",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-004",
+      "title": "HIGH: send_to_clawbot with chat history, screen context, and action execution",
+      "description": "Fix send_to_clawbot and start_clawbot_stream to include chat history from store, auto-detect screen keywords, execute pet actions from response, and show pet response bubble.",
+      "priority": 4,
+      "passes": false,
+      "acceptanceCriteria": [
+        "send_to_clawbot reads chat history from store and passes it to clawbot.chat()",
+        "start_clawbot_stream reads chat history from store and passes it to clawbot.chat_stream()",
+        "If includeScreen is true, screen context is captured and appended to message",
+        "After response, pet actions from ClawBot response are executed via execute_pet_action",
+        "Response text is emitted as chat-popup to pet window (unless from chatbar)",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-005",
+      "title": "HIGH: ClawBot analyzeScreen with image support",
+      "description": "Implement full analyzeScreen in ClawBot client supporting Responses API with input_image, Chat Completions fallback with image_url, and file path fallback.",
+      "priority": 5,
+      "passes": false,
+      "acceptanceCriteria": [
+        "analyze_screen() method exists on ClawBotClient",
+        "Sends image via Responses API input_image part with base64 source",
+        "Falls back to Chat Completions with image_url if Responses returns 404/405",
+        "ask_about_screen command uses analyze_screen() instead of plain chat()",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-006",
+      "title": "HIGH: Pet window saved position restore and response action structure",
+      "description": "Restore pet saved position on launch. Fix ClawBot response action structure to match frontend expectations (action.payload wrapping).",
+      "priority": 6,
+      "passes": false,
+      "acceptanceCriteria": [
+        "On startup, pet window position is restored from store pet.position",
+        "If no saved position, defaults to bottom-right corner",
+        "Pet window uses setAlwaysOnTop with screen-saver level on macOS",
+        "ClawBotResponse.action wraps as {type, payload} matching Electron format",
+        "pet-drag command saves position to store and hides context menu",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-007",
+      "title": "MEDIUM: Window blur-to-hide and pet chat auto-hide",
+      "description": "Add on-blur auto-hide for chatbar, context menu, screenshot-question windows. Add pet chat auto-hide timer (10s).",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Chatbar window hides when it loses focus",
+        "Pet context menu window hides when it loses focus",
+        "Screenshot question window hides when it loses focus",
+        "Pet chat auto-hides after 10 seconds (PET_CHAT_AUTO_HIDE_MS)",
+        "Pet chat auto-hide timer resets on interaction",
+        "Cargo build succeeds with 0 errors"
+      ]
+    },
+    {
+      "id": "GAP-008",
+      "title": "MEDIUM: OpenClaw config filenames and tutorial step 4 cursor tracking",
+      "description": "Fix OpenClaw config to read correct filename (openclaw.json). Fix workspace file names (IDENTITY.md/SOUL.md uppercase). Implement tutorial step 4 cursor tracking and follow behavior.",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "read_openclaw_config reads ~/.openclaw/openclaw.json (not config.yaml)",
+        "read_openclaw_workspace reads IDENTITY.md and SOUL.md (uppercase)",
+        "create_clawster_workspace writes IDENTITY.md and SOUL.md (uppercase) and saves workspace path to store",
+        "Tutorial step 4 starts cursor tracking - when cursor > 200px from pet, pet follows",
+        "After 2 follow moves or catching cursor, advances to step 5",
+        "Tutorial start() moves pet to screen center first",
+        "Cargo build succeeds with 0 errors"
+      ]
+    }
+  ]
+}

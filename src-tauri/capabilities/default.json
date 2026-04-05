@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicosxt/tauri-v2-schema/master/capability.json",
+  "identifier": "default",
+  "description": "Default capabilities for Clawster",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:window:allow-create",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-close",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-ignore-cursor-events",
+    "core:window:allow-set-decorations",
+    "core:window:allow-set-skip-taskbar",
+    "core:window:allow-is-visible",
+    "core:window:allow-center",
+    "core:event:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
+    "shell:allow-open",
+    "global-shortcut:default",
+    "store:default",
+    "notification:default",
+    "updater:default"
+  ]
+}
