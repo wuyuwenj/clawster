@@ -17,10 +17,14 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
-    "start": "electron ."
+    "start": "electron .",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@iconify/react": "^6.0.2",
+    "@tauri-apps/api": "^2.10.1",
     "active-win": "^8.1.0",
     "chokidar": "^3.5.3",
     "dotenv": "^17.3.1",
@@ -31,6 +35,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

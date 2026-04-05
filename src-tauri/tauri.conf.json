@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicosxt/tauri-v2-schema/master/tauri.conf.json",
+  "productName": "Clawster",
+  "version": "0.1.5",
+  "identifier": "com.clawster.app",
+  "build": {
+    "beforeDevCommand": "npm run dev:renderer",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build:renderer",
+    "frontendDist": "../dist/renderer"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "pet",
+        "title": "Clawster",
+        "url": "/pet.html",
+        "width": 164,
+        "height": 164,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": false
+      }
+    ],
+    "trayIcon": {
+      "id": "main",
+      "iconPath": "icons/tray-icon.png",
+      "iconAsTemplate": true
+    },
+    "security": {
+      "csp": "default-src 'self' http://localhost:* https://fonts.cdnfonts.com https://fonts.gstatic.com; img-src 'self' data: blob: http://localhost:*; style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com; script-src 'self' 'unsafe-inline' http://localhost:*; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://localhost:*; font-src 'self' https://fonts.cdnfonts.com https://fonts.gstatic.com data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "targets": "all",
+    "macOS": {
+      "signingIdentity": "Yuwen Wu (39428U49B4)",
+      "minimumSystemVersion": "10.15"
+    }
+  },
+  "plugins": {}
+}

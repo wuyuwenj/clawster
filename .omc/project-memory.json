@@ -1,0 +1,427 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775351674043,
+  "projectRoot": "/Users/jamesww/Desktop/code/clawster-tauri-rewrite",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "react",
+        "version": "18.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "18.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "vite",
+        "version": "5.0.0",
+        "category": "build"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
+      "dev:main": "tsc -p tsconfig.main.json && electron .",
+      "dev:renderer": "vite",
+      "build": "npm run build:renderer && npm run build:main",
+      "build:main": "tsc -p tsconfig.main.json",
+      "build:renderer": "vite build",
+      "dist": "npm run build && electron-builder",
+      "dist:mac": "npm run build && electron-builder --mac",
+      "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landign-electronbuilder/public/downloads/Clawster-*mac* ../clawster-landign-electronbuilder/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/latest-mac.yml ../clawster-landign-electronbuilder/public/downloads/",
+      "dist:win": "npm run build && electron-builder --win",
+      "dist:linux": "npm run build && electron-builder --linux",
+      "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
+      "start": "electron ."
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "assets",
+      "scripts",
+      "src"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "assets": {
+      "path": "assets",
+      "purpose": "Static assets",
+      "fileCount": 6,
+      "lastAccessed": 1775351674020,
+      "keyFiles": [
+        "demo.mp4",
+        "icon.png",
+        "icon.svg",
+        "tray-icon.png",
+        "tray-icon.svg"
+      ]
+    },
+    "clawster-assets": {
+      "path": "clawster-assets",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1775351674021,
+      "keyFiles": [
+        "lobster-master.svg"
+      ]
+    },
+    "openclaw": {
+      "path": "openclaw",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1775351674023,
+      "keyFiles": [
+        "IDENTITY.md",
+        "README.md",
+        "SOUL.md"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1775351674023,
+      "keyFiles": [
+        "build-icons.mjs"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1775351674023,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src-tauri/src/lib.rs",
+      "accessCount": 51,
+      "lastAccessed": 1775414610074,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/commands.rs",
+      "accessCount": 42,
+      "lastAccessed": 1775416374065,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/clawbot.rs",
+      "accessCount": 31,
+      "lastAccessed": 1775414916807,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/pet.rs",
+      "accessCount": 28,
+      "lastAccessed": 1775416387230,
+      "type": "file"
+    },
+    {
+      "path": "src/main/main.ts",
+      "accessCount": 26,
+      "lastAccessed": 1775414019576,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/workspace.rs",
+      "accessCount": 12,
+      "lastAccessed": 1775415716677,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/onboarding.rs",
+      "accessCount": 11,
+      "lastAccessed": 1775414120794,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/windows.rs",
+      "accessCount": 10,
+      "lastAccessed": 1775407544748,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/store.rs",
+      "accessCount": 10,
+      "lastAccessed": 1775414935954,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 9,
+      "lastAccessed": 1775407539026,
+      "type": "directory"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "accessCount": 9,
+      "lastAccessed": 1775414591592,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/tauri-bridge.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775407570902,
+      "type": "file"
+    },
+    {
+      "path": "src/main/clawbot-client.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775407586370,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/tutorial.rs",
+      "accessCount": 5,
+      "lastAccessed": 1775407552689,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/watchers.rs",
+      "accessCount": 5,
+      "lastAccessed": 1775407559154,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 4,
+      "lastAccessed": 1775353052992,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "accessCount": 4,
+      "lastAccessed": 1775354519148,
+      "type": "file"
+    },
+    {
+      "path": "src/main/preload.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775407569617,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/hotkeys.rs",
+      "accessCount": 4,
+      "lastAccessed": 1775414953105,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer",
+      "accessCount": 4,
+      "lastAccessed": 1775416340926,
+      "type": "directory"
+    },
+    {
+      "path": "src-tauri/src/screen.rs",
+      "accessCount": 3,
+      "lastAccessed": 1775407577984,
+      "type": "file"
+    },
+    {
+      "path": "vite.config.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775353025599,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/pet/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353550268,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/assistant/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353551202,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/chatbar/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353568637,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/onboarding/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353569566,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/pet-chat/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353570804,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/pet-context-menu/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353571689,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/screenshot-question/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353572726,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/workspace-browser/main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775353573490,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/vite-env.d.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775354450592,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src",
+      "accessCount": 2,
+      "lastAccessed": 1775406682990,
+      "type": "directory"
+    },
+    {
+      "path": "src/main/tutorial.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775407552395,
+      "type": "file"
+    },
+    {
+      "path": "src/main/watchers.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775407558205,
+      "type": "file"
+    },
+    {
+      "path": "src/main/store.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775407559570,
+      "type": "file"
+    },
+    {
+      "path": "src/main/window-title.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775407570721,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1775351720631,
+      "type": "file"
+    },
+    {
+      "path": "CLAUDE.md",
+      "accessCount": 1,
+      "lastAccessed": 1775351720850,
+      "type": "file"
+    },
+    {
+      "path": "src/shared/types.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775351749796,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/capabilities/default.json",
+      "accessCount": 1,
+      "lastAccessed": 1775352996179,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "accessCount": 1,
+      "lastAccessed": 1775352997213,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/pet.html",
+      "accessCount": 1,
+      "lastAccessed": 1775353538246,
+      "type": "file"
+    },
+    {
+      "path": "src/renderer/pet-context-menu/PetContextMenu.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1775353605741,
+      "type": "file"
+    },
+    {
+      "path": "tsconfig.json",
+      "accessCount": 1,
+      "lastAccessed": 1775354424277,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 1,
+      "lastAccessed": 1775354528213,
+      "type": "directory"
+    },
+    {
+      "path": "src/main",
+      "accessCount": 1,
+      "lastAccessed": 1775406660256,
+      "type": "directory"
+    },
+    {
+      "path": "src/renderer/pet/Pet.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1775416351541,
+      "type": "directory"
+    },
+    {
+      "path": "src/renderer/pet-chat/PetChat.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1775418145642,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

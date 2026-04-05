@@ -5,3 +5,7 @@ release/
 *.log
 .env
 electron-builder.env
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/

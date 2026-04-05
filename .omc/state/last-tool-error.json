@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"/Users/jamesww/Desktop/code/clawster-tauri-rewrite/src/main/clawbot-client.ts\"}",
+  "error": "File content (11095 tokens) exceeds maximum allowed tokens (10000). Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.",
+  "timestamp": "2026-04-05T16:45:51.809Z",
+  "retry_count": 1
+}

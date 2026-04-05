@@ -1,0 +1,95 @@
+# Clawster Tauri Rewrite - Progress Log
+
+## Session: 2026-04-04
+
+### All 12 User Stories COMPLETE
+
+#### US-001: Tauri v2 Project Scaffolding ✓
+- Created src-tauri/ with Cargo.toml, tauri.conf.json, main.rs, lib.rs
+- Configured Vite integration, icons, build targets
+- Installed Rust toolchain (1.94.1) and @tauri-apps/cli + @tauri-apps/api
+
+#### US-002: Persistent Config Store ✓
+- src-tauri/src/store.rs: Full StoreSchema matching Electron store.ts
+- Custom JSON file store with nested key get/set
+- get_settings and update_settings commands
+
+#### US-003: Multi-Window Management ✓
+- src-tauri/src/windows.rs: All 8 windows (pet, pet-chat, assistant, chatbar, screenshot-question, onboarding, pet-context-menu, workspace-browser)
+- Window positioning logic (anchoring above pet)
+- 16 window management commands registered
+
+#### US-004: Frontend IPC Bridge ✓
+- src/renderer/tauri-bridge.ts: Full ClawsterAPI replacement
+- ~80 IPC methods ported from preload.ts to Tauri invoke/listen
+- All 8 entry points import the bridge
+- window.clawster populated for backward compatibility
+
+#### US-005: ClawBot HTTP Client ✓
+- src-tauri/src/clawbot.rs: reqwest-based client
+- Responses API + Chat Completions fallback
+- SSE streaming with frontend event emission
+- Health check, suggestion polling, action parsing
+- Background connection polling
+
+#### US-006: File and App Watchers ✓
+- src-tauri/src/watchers.rs: notify crate for file watching
+- Active app detection via JXA osascript on macOS
+- Events forwarded to ClawBot and frontend
+
+#### US-007: Pet Behaviors ✓
+- src-tauri/src/pet.rs: All behavior systems
+- Smooth animation (60fps ease-out)
+- Attention seeker, 7 weighted idle behaviors
+- Sleep/wake cycle, pet action execution
+
+#### US-008: Screen Capture ✓
+- src-tauri/src/screen.rs: macOS screencapture CLI
+- Camera snap animation coordination
+- captureScreenWithContext with cursor/pet/screen info
+
+#### US-009: Global Hotkeys and System Tray ✓
+- tauri-plugin-global-shortcut configured
+- System tray with menu (Open Assistant, Open Chat, Settings, Quit)
+- Tray menu event handlers
+
+#### US-010: Onboarding and Tutorial ✓
+- src-tauri/src/onboarding.rs: Full onboarding flow
+- Gateway validation, workspace creation, personality config
+- OpenClaw workspace detection
+- Tutorial stub commands (frontend handles progression)
+
+#### US-011: Workspace Browser ✓
+- src-tauri/src/workspace.rs: Full workspace operations
+- Directory listing, file preview (markdown, JSON, images)
+- Path traversal prevention, file size limits
+- Open in system app, reveal in Finder
+
+#### US-012: Auto-updater and Build ✓
+- tauri.conf.json: signing identity, build targets configured
+- tauri-plugin-updater dependency included (key generation deferred)
+- Version matches package.json (0.1.5)
+
+### Files Created/Modified
+**New Rust files (src-tauri/src/):**
+- main.rs, lib.rs, commands.rs, store.rs, windows.rs
+- clawbot.rs, watchers.rs, pet.rs, screen.rs, workspace.rs, onboarding.rs
+
+**New config files (src-tauri/):**
+- Cargo.toml, build.rs, tauri.conf.json
+- capabilities/default.json
+- icons/ (copied from assets)
+
+**New frontend files:**
+- src/renderer/tauri-bridge.ts
+
+**Modified frontend files:**
+- All 8 main.tsx entry points (added bridge import)
+- vite.config.ts (Tauri dev server settings)
+- src/renderer/vite-env.d.ts (fixed quit type)
+- package.json (added tauri scripts + deps)
+- .gitignore (added Rust target/)
+
+### Build Status
+- Rust: Compiles clean (25 warnings, 0 errors)
+- TypeScript: Compiles clean (0 errors)

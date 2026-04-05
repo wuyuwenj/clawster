@@ -1,0 +1,61 @@
+{
+  "title": "Unit Tests for Tauri Rewrite Pure Functions",
+  "stories": [
+    {
+      "id": "TEST-001",
+      "title": "ClawBot action parsing tests",
+      "priority": 1,
+      "passes": false,
+      "acceptanceCriteria": [
+        "parse_action_from_response extracts valid action JSON from ```action blocks",
+        "parse_action_from_response handles malformed JSON with regex fallback",
+        "parse_action_from_response returns (text, None) when no action block exists",
+        "extract_text_from_payload handles Responses API format",
+        "extract_text_from_payload handles Chat Completions format",
+        "extract_delta_from_stream handles both stream formats",
+        "to_clawbot_response wraps action as {type, payload}",
+        "cargo test passes for clawbot module"
+      ]
+    },
+    {
+      "id": "TEST-002",
+      "title": "Store get/set and nested value tests",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "get_nested_value retrieves top-level keys",
+        "get_nested_value retrieves nested dot-separated keys",
+        "set_nested_value sets top-level keys",
+        "set_nested_value sets nested keys",
+        "set_nested_value returns error for invalid paths",
+        "StoreSchema default values match Electron exactly",
+        "cargo test passes for store module"
+      ]
+    },
+    {
+      "id": "TEST-003",
+      "title": "Workspace path traversal and preview tests",
+      "priority": 3,
+      "passes": false,
+      "acceptanceCriteria": [
+        "get_preview_kind returns 'markdown' for .md files",
+        "get_preview_kind returns 'json' for .json files",
+        "get_preview_kind returns 'image' for .png/.jpg files",
+        "get_preview_kind returns None for unsupported types",
+        "get_image_mime returns correct MIME types",
+        "cargo test passes for workspace module"
+      ]
+    },
+    {
+      "id": "TEST-004",
+      "title": "Hotkey normalization tests",
+      "priority": 4,
+      "passes": false,
+      "acceptanceCriteria": [
+        "normalize_hotkey replaces CommandOrControl with CmdOrCtrl",
+        "normalize_hotkey leaves plain shortcuts unchanged",
+        "cargo test passes for hotkeys module"
+      ]
+    }
+  ]
+}
