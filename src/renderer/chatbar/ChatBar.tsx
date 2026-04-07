@@ -278,7 +278,6 @@ export const ChatBar: React.FC = () => {
           text: '...',
           quickReplies: [],
         });
-        window.clawster.closeChatbar();
 
         pendingUserMessageRef.current = message;
         const started = await window.clawster.startClawbotStream(message);
@@ -345,15 +344,6 @@ export const ChatBar: React.FC = () => {
     }
   };
 
-  // Handle mouse enter/leave to toggle click-through behavior
-  const handleMouseEnter = () => {
-    window.clawster.setChatbarIgnoreMouse(false);
-  };
-
-  const handleMouseLeave = () => {
-    window.clawster.setChatbarIgnoreMouse(true);
-  };
-
   // Clawster Icon (body, tail, eyes - no claws)
   const ClawsterIcon = ({ size = 24 }: { size?: number }) => (
     <svg viewBox="0 0 128 128" width={size} height={size}>
@@ -368,13 +358,17 @@ export const ChatBar: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-start pt-4 px-4">
-      <div
-        className="w-full max-w-2xl animate-slide-in"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.05)] flex flex-col overflow-hidden backdrop-blur-xl">
+    <div className="w-full h-full flex flex-col">
+      <div className="w-full h-full">
+        <div className="bg-[#0f0f0f] h-full flex flex-col overflow-hidden">
+
+          {/* Drag handle */}
+          <div
+            className="h-5 flex items-center justify-center cursor-grab active:cursor-grabbing shrink-0"
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          >
+            <div className="w-8 h-1 rounded-full bg-white/10" />
+          </div>
 
           {/* Input Area */}
           <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-3 p-3">

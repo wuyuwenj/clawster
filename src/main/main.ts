@@ -1669,13 +1669,17 @@ function createChatbarWindow() {
     x: Math.round((screenWidth - chatbarWidth) / 2),
     y: Math.round(screenHeight / 3),
     frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
+    transparent: false,
+    backgroundColor: '#0f0f0f',
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
+    movable: true,
     show: false,
     skipTaskbar: true,
-    hasShadow: false,
+    hasShadow: true,
+    minWidth: 300,
+    minHeight: 80,
+    roundedCorners: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1686,9 +1690,6 @@ function createChatbarWindow() {
 
   chatbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-  // Make transparent areas click-through
-  chatbarWindow.setIgnoreMouseEvents(true, { forward: true });
-
   if (isDev) {
     chatbarWindow.loadURL(`http://localhost:${DEV_PORT}/chatbar.html`);
   } else {
@@ -1697,11 +1698,6 @@ function createChatbarWindow() {
 
   chatbarWindow.once('ready-to-show', () => {
     chatbarWindow?.show();
-  });
-
-  // Hide on blur (click outside)
-  chatbarWindow.on('blur', () => {
-    chatbarWindow?.hide();
   });
 
   chatbarWindow.on('closed', () => {
