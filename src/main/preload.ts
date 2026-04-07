@@ -79,6 +79,23 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.on('clawbot-stream-error', (_event, data) => callback(data));
   },
 
+  // Mouth animation (pet talking)
+  sendMouthShape: (shape: string | null) => ipcRenderer.send('pet-mouth-shape', shape),
+  onMouthShape: (callback: (shape: string | null) => void) => {
+    ipcRenderer.on('pet-mouth-shape', (_event, shape) => callback(shape));
+  },
+
+  // Speech recognition
+  startSpeechRecognition: () => ipcRenderer.invoke('speech-start'),
+  stopSpeechRecognition: () => ipcRenderer.invoke('speech-stop'),
+  checkSpeechPermission: () => ipcRenderer.invoke('speech-permission-status'),
+  onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => {
+    ipcRenderer.on('speech-result', (_event, data) => callback(data));
+  },
+  onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => {
+    ipcRenderer.on('speech-error', (_event, data) => callback(data));
+  },
+
   // Clipboard
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
 
@@ -219,6 +236,9 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('tutorial-hint');
     ipcRenderer.removeAllListeners('tutorial-ended');
     ipcRenderer.removeAllListeners('tutorial-resume-prompt');
+    ipcRenderer.removeAllListeners('speech-result');
+    ipcRenderer.removeAllListeners('speech-error');
+    ipcRenderer.removeAllListeners('pet-mouth-shape');
   },
 });
 
@@ -345,6 +365,13 @@ export interface ClawsterAPI {
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
   onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
   onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
+  sendMouthShape: (shape: string | null) => void;
+  onMouthShape: (callback: (shape: string | null) => void) => void;
+  startSpeechRecognition: () => Promise<{ success: boolean; error?: string }>;
+  stopSpeechRecognition: () => Promise<void>;
+  checkSpeechPermission: () => Promise<{ mic: string; speech: string }>;
+  onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => void;
+  onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => void;
   copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: PetAction) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;

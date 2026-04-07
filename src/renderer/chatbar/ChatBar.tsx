@@ -21,11 +21,13 @@ export const ChatBar: React.FC = () => {
   const [response, setResponse] = useState<string | null>(null);
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
   const activePetPopupIdRef = useRef<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
@@ -35,6 +37,28 @@ export const ChatBar: React.FC = () => {
     // Listen for cron results
     window.clawster.onCronResult((data) => {
       setResponse(data.summary);
+    });
+
+    // Speech recognition events
+    window.clawster.onSpeechResult((data) => {
+      if (data.type === 'partial') {
+        setInput(data.text);
+      } else if (data.type === 'final') {
+        setInput(data.text);
+        setIsRecording(false);
+        // Auto-submit after a short delay to let state update
+        if (data.text.trim()) {
+          setTimeout(() => {
+            formRef.current?.requestSubmit();
+          }, 100);
+        }
+      }
+    });
+    window.clawster.onSpeechError((data) => {
+      setIsRecording(false);
+      if (data.message) {
+        setResponse(data.message);
+      }
     });
 
     window.clawster.onClawbotStreamChunk((data) => {
@@ -121,14 +145,39 @@ export const ChatBar: React.FC = () => {
 
   // Handle keyboard shortcuts
   useEffect(() => {
+    let spaceHeld = false;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         window.clawster.closeChatbar();
       }
+      // Hold space to talk (only when input is not focused)
+      if (e.key === ' ' && !spaceHeld && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        spaceHeld = true;
+        window.clawster.startSpeechRecognition().then((result) => {
+          if (result.success) {
+            setIsRecording(true);
+            setInput('');
+          }
+        });
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' && spaceHeld) {
+        spaceHeld = false;
+        window.clawster.stopSpeechRecognition();
+        setIsRecording(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []);
 
   // Capture screenshot
@@ -159,6 +208,24 @@ export const ChatBar: React.FC = () => {
   const handleClearScreenshot = () => {
     setScreenshot(null);
     inputRef.current?.focus();
+  };
+
+  // Toggle speech recognition
+  const handleMicToggle = async () => {
+    if (isRecording) {
+      await window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    } else {
+      console.log('Starting speech recognition...');
+      const result = await window.clawster.startSpeechRecognition();
+      console.log('Speech start result:', result);
+      if (result.success) {
+        setIsRecording(true);
+        setInput('');
+      } else if (result.error) {
+        setResponse(result.error);
+      }
+    }
   };
 
   const handleCopyCommand = async () => {
@@ -310,7 +377,7 @@ export const ChatBar: React.FC = () => {
         <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.05)] flex flex-col overflow-hidden backdrop-blur-xl">
 
           {/* Input Area */}
-          <form onSubmit={handleSubmit} className="flex items-center gap-3 p-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-3 p-3">
             {/* Abstract Clawster Icon */}
             <div className="w-10 h-10 rounded-xl bg-[#FF8C69]/10 flex items-center justify-center border border-[#FF8C69]/20 shrink-0">
               <ClawsterIcon size={24} />
@@ -350,6 +417,21 @@ export const ChatBar: React.FC = () => {
               ) : (
                 <Icon icon="solar:camera-linear" className="text-lg" />
               )}
+            </button>
+
+            {/* Mic button */}
+            <button
+              type="button"
+              onClick={handleMicToggle}
+              disabled={isLoading}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isRecording
+                  ? 'text-red-400 bg-red-500/10 animate-pulse'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+              title={isRecording ? 'Stop recording' : 'Voice input'}
+            >
+              <Icon icon={isRecording ? 'solar:stop-bold' : 'solar:microphone-linear'} className="text-lg" />
             </button>
 
             {/* Input */}

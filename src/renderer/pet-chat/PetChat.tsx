@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { MarkdownMessage } from '../components/MarkdownMessage';
+import { animalese } from '../utils/animalese';
 
 interface ChatMessage {
   id: string;
@@ -26,6 +27,25 @@ export const PetChat: React.FC = () => {
       setIsLoading(false);
     });
   }, []);
+
+  // Play Animalese voice and drive mouth animation when a new message arrives
+  const lastSpokenTextRef = useRef<string>('');
+  useEffect(() => {
+    // Set up viseme callback to forward mouth shapes to Pet window
+    animalese.onViseme((shape) => {
+      window.clawster.sendMouthShape(shape);
+    });
+    return () => {
+      animalese.onViseme(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (message && !isLoading && message.text && message.text !== '...' && message.text !== lastSpokenTextRef.current) {
+      lastSpokenTextRef.current = message.text;
+      animalese.speak(message.text);
+    }
+  }, [message?.id, message?.text, isLoading]);
 
   const reportContentSize = useCallback(() => {
     const element = contentRef.current;
