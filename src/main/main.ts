@@ -15,7 +15,7 @@ import {
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { exec, execFile, execSync } from 'child_process';
+import { exec, execFile, execSync, spawn, ChildProcess } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
@@ -51,6 +51,17 @@ let tray: Tray | null = null;
 let pendingPetChatReveal = false;
 let petChatRevealTimeout: NodeJS.Timeout | null = null;
 let petChatAutoHideTimeout: NodeJS.Timeout | null = null;
+
+// Speech recognition
+let speechProcess: ChildProcess | null = null;
+let speechSender: Electron.WebContents | null = null;
+
+function getSpeechHelperPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'speech-helper');
+  }
+  return path.join(__dirname, '../../native/speech-helper/speech-helper');
+}
 
 // Services
 let watchers: Watchers | null = null;
@@ -1266,6 +1277,7 @@ function showPetChat(message: { id: string; text: string; quickReplies?: string[
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        autoplayPolicy: 'no-user-gesture-required',
       },
     });
     wireDebugWindowBorder(petChatWindow);
@@ -2376,6 +2388,138 @@ function setupIPC() {
     return { requestId };
   });
 
+  // Speech recognition - check permissions
+  ipcMain.handle('speech-permission-status', async () => {
+    if (process.platform !== 'darwin') {
+      return { mic: 'denied', speech: 'denied' };
+    }
+
+    const micStatus = systemPreferences.getMediaAccessStatus('microphone');
+
+    try {
+      const helperPath = getSpeechHelperPath();
+      const { stdout } = await execFileAsync(helperPath, ['--check-permissions']);
+      const result = JSON.parse(stdout.trim());
+      return { mic: micStatus, speech: result.speech || 'not-determined' };
+    } catch {
+      return { mic: micStatus, speech: 'not-determined' };
+    }
+  });
+
+  // Speech recognition - start recording
+  ipcMain.handle('speech-start', async (event): Promise<{ success: boolean; error?: string }> => {
+    if (process.platform !== 'darwin') {
+      return { success: false, error: 'Speech recognition is only available on macOS' };
+    }
+
+    if (speechProcess) {
+      return { success: false, error: 'Already recording' };
+    }
+
+    // Check and request mic permission
+    const micStatus = systemPreferences.getMediaAccessStatus('microphone');
+    if (micStatus === 'not-determined') {
+      const granted = await systemPreferences.askForMediaAccess('microphone');
+      if (!granted) {
+        return { success: false, error: 'Microphone permission denied. Please enable in System Settings > Privacy & Security > Microphone.' };
+      }
+    } else if (micStatus !== 'granted') {
+      return { success: false, error: 'Microphone permission denied. Please enable in System Settings > Privacy & Security > Microphone.' };
+    }
+
+    const sender = event.sender;
+    speechSender = sender;
+
+    try {
+      const helperPath = getSpeechHelperPath();
+      speechProcess = spawn(helperPath);
+
+      let buffer = '';
+
+      speechProcess.stdout?.on('data', (data: Buffer) => {
+        buffer += data.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (sender.isDestroyed()) return;
+
+            console.log('speech-helper:', JSON.stringify(msg));
+            if (msg.type === 'status' && msg.state === 'ready') {
+              // Binary is ready, send start command
+              speechProcess?.stdin?.write('start\n');
+            } else if (msg.type === 'partial' || msg.type === 'final') {
+              sender.send('speech-result', msg);
+            } else if (msg.type === 'error') {
+              // Detect Dictation/Siri disabled and provide actionable guidance
+              if (msg.message && (msg.message.includes('Dictation') || msg.message.includes('Siri'))) {
+                msg.message = 'Speech recognition requires Dictation to be enabled. Go to System Settings → Keyboard → Dictation and turn it on.';
+                msg.openSettings = true;
+              }
+              sender.send('speech-error', msg);
+            } else if (msg.type === 'status') {
+              console.log('speech-helper status:', msg.state);
+            }
+          } catch {
+            // ignore malformed JSON
+          }
+        }
+      });
+
+      speechProcess.stderr?.on('data', (data: Buffer) => {
+        console.error('speech-helper stderr:', data.toString());
+      });
+
+      speechProcess.on('error', (err) => {
+        console.error('speech-helper spawn error:', err);
+        if (!sender.isDestroyed()) {
+          sender.send('speech-error', { type: 'error', message: err.message });
+        }
+        speechProcess = null;
+        speechSender = null;
+      });
+
+      speechProcess.on('exit', (code) => {
+        console.log('speech-helper exited with code:', code);
+        // Notify renderer that recording has stopped
+        if (!sender.isDestroyed()) {
+          sender.send('speech-error', { type: 'error', message: `Speech helper exited (code ${code})` });
+        }
+        speechProcess = null;
+        speechSender = null;
+      });
+
+      return { success: true };
+    } catch (error) {
+      speechProcess = null;
+      speechSender = null;
+      return { success: false, error: 'Failed to start speech recognition' };
+    }
+  });
+
+  // Speech recognition - stop recording
+  ipcMain.handle('speech-stop', async () => {
+    if (speechProcess) {
+      speechProcess.stdin?.write('stop\n');
+
+      // Force-kill after 3 seconds if it doesn't exit gracefully
+      const killTimeout = setTimeout(() => {
+        if (speechProcess) {
+          speechProcess.kill();
+          speechProcess = null;
+          speechSender = null;
+        }
+      }, 3000);
+
+      speechProcess.on('exit', () => {
+        clearTimeout(killTimeout);
+      });
+    }
+  });
+
   // Get screen context (cursor position, pet position, etc.)
   ipcMain.handle('get-screen-context', async () => {
     return await getScreenContext();
@@ -2418,6 +2562,13 @@ function setupIPC() {
   });
 
   // Drag pet window
+  // Forward mouth shape from PetChat to Pet window
+  ipcMain.on('pet-mouth-shape', (_event, shape: string | null) => {
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents.send('pet-mouth-shape', shape);
+    }
+  });
+
   ipcMain.on('pet-drag', (_event, deltaX: number, deltaY: number) => {
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
@@ -3052,6 +3203,11 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  if (speechProcess) {
+    speechProcess.kill();
+    speechProcess = null;
+    speechSender = null;
+  }
   watchers?.stop();
   stopIdleBehaviors();
   if (idleCheckInterval) {
