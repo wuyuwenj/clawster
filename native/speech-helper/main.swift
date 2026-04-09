@@ -59,6 +59,8 @@ class SpeechManager {
     private var recognitionTask: SFSpeechRecognitionTask?
     private let speechRecognizer: SFSpeechRecognizer?
     private var isRecording = false
+    private var pendingStartSequence: Int?
+    private var nextStartSequence = 0
     private var silenceTimer: DispatchWorkItem?
     private let silenceTimeout: TimeInterval = 1.5
 
@@ -101,7 +103,7 @@ class SpeechManager {
     }
 
     func startRecording() {
-        guard !isRecording else {
+        guard !isRecording && pendingStartSequence == nil else {
             emitError("Already recording")
             return
         }
@@ -111,8 +113,14 @@ class SpeechManager {
             return
         }
 
+        nextStartSequence += 1
+        let startSequence = nextStartSequence
+        pendingStartSequence = startSequence
+
         requestPermissions { [weak self] granted in
             guard let self = self else { return }
+            guard self.pendingStartSequence == startSequence else { return }
+            self.pendingStartSequence = nil
             if !granted {
                 emitError("Microphone or speech recognition permission denied. Please enable in System Settings > Privacy & Security.")
                 return
@@ -199,6 +207,12 @@ class SpeechManager {
     }
 
     func stopRecording() {
+        if pendingStartSequence != nil {
+            pendingStartSequence = nil
+            emitStatus("stopped")
+            return
+        }
+
         guard isRecording else { return }
 
         cancelSilenceTimer()
@@ -212,10 +226,11 @@ class SpeechManager {
 
     private func cleanupRecording() {
         cancelSilenceTimer()
+        pendingStartSequence = nil
         if audioEngine.isRunning {
             audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
         }
+        audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest = nil
         recognitionTask = nil
         isRecording = false

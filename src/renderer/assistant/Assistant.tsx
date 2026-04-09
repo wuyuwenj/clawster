@@ -318,6 +318,20 @@ export const Assistant: React.FC = () => {
     }
   }, [messages]);
 
+  const handleSpeechStartFailure = useCallback((error?: string) => {
+    if (!error || error === 'Speech recognition start cancelled') {
+      return;
+    }
+
+    const errorMsg: Message = {
+      id: crypto.randomUUID(),
+      role: 'system',
+      content: error,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, errorMsg]);
+  }, []);
+
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
     const prompt = input.trim();
@@ -399,34 +413,54 @@ export const Assistant: React.FC = () => {
   // Hold space to talk (only when not typing in a text field)
   useEffect(() => {
     let spaceHeld = false;
+    let recognitionAttemptId = 0;
+
+    const releaseHoldToTalk = () => {
+      if (!spaceHeld) return;
+      spaceHeld = false;
+      recognitionAttemptId += 1;
+      window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       if (e.key === ' ' && !spaceHeld && tag !== 'textarea' && tag !== 'input') {
         e.preventDefault();
         spaceHeld = true;
+        const attemptId = ++recognitionAttemptId;
         window.clawster.startSpeechRecognition().then((result) => {
+          if (attemptId !== recognitionAttemptId || !spaceHeld) {
+            return;
+          }
           if (result.success) {
             setIsRecording(true);
             setInput('');
+            return;
           }
+          spaceHeld = false;
+          handleSpeechStartFailure(result.error);
         });
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === ' ' && spaceHeld) {
-        spaceHeld = false;
-        window.clawster.stopSpeechRecognition();
-        setIsRecording(false);
+        releaseHoldToTalk();
       }
+    };
+
+    const handleWindowBlur = () => {
+      releaseHoldToTalk();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
     };
   }, []);
 
@@ -447,9 +481,11 @@ export const Assistant: React.FC = () => {
       if (result.success) {
         setIsRecording(true);
         setInput('');
+      } else {
+        handleSpeechStartFailure(result.error);
       }
     }
-  }, [isRecording]);
+  }, [handleSpeechStartFailure, isRecording]);
 
   const captureScreen = useCallback(async () => {
     // Check permission first - if denied, show message

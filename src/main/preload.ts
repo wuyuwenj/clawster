@@ -1,4 +1,22 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+
+type ListenerCleanup = () => void;
+
+function onIpc<T>(channel: string, callback: (data: T) => void): ListenerCleanup {
+  const listener = (_event: IpcRendererEvent, data: T) => callback(data);
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+function onIpcNoArgs(channel: string, callback: () => void): ListenerCleanup {
+  const listener = () => callback();
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
 
 // Expose protected methods to renderer
 contextBridge.exposeInMainWorld('clawster', {
@@ -27,11 +45,12 @@ contextBridge.exposeInMainWorld('clawster', {
   resizePetChat: (width: number, height: number) => ipcRenderer.send('resize-pet-chat', width, height),
   petChatInteracted: () => ipcRenderer.send('pet-chat-interacted'),
   onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => {
-    ipcRenderer.on('chat-message', (_event, message) => callback(message));
+    return onIpc('chat-message', callback);
   },
+  onPetChatHidden: (callback: () => void) => onIpcNoArgs('pet-chat-hidden', callback),
   petChatReply: (reply: string) => ipcRenderer.send('pet-chat-reply', reply),
   onPetChatReply: (callback: (reply: string) => void) => {
-    ipcRenderer.on('pet-chat-reply', (_event, reply) => callback(reply));
+    return onIpc('pet-chat-reply', callback);
   },
 
   // External actions
@@ -67,22 +86,22 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.invoke('start-clawbot-stream', message, includeScreen),
   getClawbotStatus: () => ipcRenderer.invoke('clawbot-status'),
   onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => {
-    ipcRenderer.on('clawbot-connection-changed', (_event, status) => callback(status));
+    return onIpc('clawbot-connection-changed', callback);
   },
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => {
-    ipcRenderer.on('clawbot-stream-chunk', (_event, data) => callback(data));
+    return onIpc('clawbot-stream-chunk', callback);
   },
   onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => {
-    ipcRenderer.on('clawbot-stream-end', (_event, data) => callback(data));
+    return onIpc('clawbot-stream-end', callback);
   },
   onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => {
-    ipcRenderer.on('clawbot-stream-error', (_event, data) => callback(data));
+    return onIpc('clawbot-stream-error', callback);
   },
 
   // Mouth animation (pet talking)
   sendMouthShape: (shape: string | null) => ipcRenderer.send('pet-mouth-shape', shape),
   onMouthShape: (callback: (shape: string | null) => void) => {
-    ipcRenderer.on('pet-mouth-shape', (_event, shape) => callback(shape));
+    return onIpc('pet-mouth-shape', callback);
   },
 
   // Speech recognition
@@ -90,10 +109,10 @@ contextBridge.exposeInMainWorld('clawster', {
   stopSpeechRecognition: () => ipcRenderer.invoke('speech-stop'),
   checkSpeechPermission: () => ipcRenderer.invoke('speech-permission-status'),
   onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => {
-    ipcRenderer.on('speech-result', (_event, data) => callback(data));
+    return onIpc('speech-result', callback);
   },
   onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => {
-    ipcRenderer.on('speech-error', (_event, data) => callback(data));
+    return onIpc('speech-error', callback);
   },
 
   // Clipboard
@@ -119,10 +138,10 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.on('clawbot-mood', (_event, data) => callback(data));
   },
   onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => {
-    ipcRenderer.on('cron-result', (_event, data) => callback(data));
+    return onIpc('cron-result', callback);
   },
   onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => {
-    ipcRenderer.on('cron-error', (_event, data) => callback(data));
+    return onIpc('cron-error', callback);
   },
   onChatPopup: (callback: (data: unknown) => void) => {
     ipcRenderer.on('chat-popup', (_event, data) => callback(data));
@@ -143,13 +162,13 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.on('idle-behavior', (_event, data) => callback(data));
   },
   onChatSync: (callback: () => void) => {
-    ipcRenderer.on('chat-sync', () => callback());
+    return onIpcNoArgs('chat-sync', callback);
   },
   onSwitchToChat: (callback: () => void) => {
-    ipcRenderer.on('switch-to-chat', () => callback());
+    return onIpcNoArgs('switch-to-chat', callback);
   },
   onSwitchToSettings: (callback: () => void) => {
-    ipcRenderer.on('switch-to-settings', () => callback());
+    return onIpcNoArgs('switch-to-settings', callback);
   },
 
   // Pet interactions
@@ -239,6 +258,9 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('speech-result');
     ipcRenderer.removeAllListeners('speech-error');
     ipcRenderer.removeAllListeners('pet-mouth-shape');
+    ipcRenderer.removeAllListeners('chat-message');
+    ipcRenderer.removeAllListeners('pet-chat-reply');
+    ipcRenderer.removeAllListeners('pet-chat-hidden');
   },
 });
 
@@ -337,9 +359,10 @@ export interface ClawsterAPI {
   hidePetChat: () => void;
   resizePetChat: (width: number, height: number) => void;
   petChatInteracted: () => void;
-  onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => void;
+  onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => ListenerCleanup;
+  onPetChatHidden: (callback: () => void) => ListenerCleanup;
   petChatReply: (reply: string) => void;
-  onPetChatReply: (callback: (reply: string) => void) => void;
+  onPetChatReply: (callback: (reply: string) => void) => ListenerCleanup;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
   getCurrentWorkspaceInfo: () => Promise<CurrentWorkspaceInfo>;
@@ -361,17 +384,17 @@ export interface ClawsterAPI {
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
   startClawbotStream: (message: string, includeScreen?: boolean) => Promise<{ requestId?: string; error?: string }>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
-  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
-  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
-  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
-  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => ListenerCleanup;
+  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => ListenerCleanup;
+  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => ListenerCleanup;
+  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => ListenerCleanup;
   sendMouthShape: (shape: string | null) => void;
-  onMouthShape: (callback: (shape: string | null) => void) => void;
+  onMouthShape: (callback: (shape: string | null) => void) => ListenerCleanup;
   startSpeechRecognition: () => Promise<{ success: boolean; error?: string }>;
   stopSpeechRecognition: () => Promise<void>;
   checkSpeechPermission: () => Promise<{ mic: string; speech: string }>;
-  onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => void;
-  onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => void;
+  onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => ListenerCleanup;
+  onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => ListenerCleanup;
   copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: PetAction) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
@@ -381,15 +404,17 @@ export interface ClawsterAPI {
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;
+  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => ListenerCleanup;
+  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => ListenerCleanup;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
-  onChatSync: (callback: () => void) => void;
-  onSwitchToChat: (callback: () => void) => void;
-  onSwitchToSettings: (callback: () => void) => void;
+  onChatSync: (callback: () => void) => ListenerCleanup;
+  onSwitchToChat: (callback: () => void) => ListenerCleanup;
+  onSwitchToSettings: (callback: () => void) => ListenerCleanup;
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;

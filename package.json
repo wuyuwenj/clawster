@@ -6,7 +6,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
-    "dev:main": "tsc -p tsconfig.main.json && electron .",
+    "dev:main": "npm run build:speech && tsc -p tsconfig.main.json && electron .",
     "dev:renderer": "vite",
     "build": "npm run build:speech && npm run build:renderer && npm run build:main",
     "build:speech": "bash scripts/build-speech-helper.sh",
@@ -78,7 +78,13 @@
         "NSAppleEventsUsageDescription": "Clawster needs this to detect which app you're using.",
         "NSMicrophoneUsageDescription": "Clawster needs microphone access for voice input.",
         "NSSpeechRecognitionUsageDescription": "Clawster uses speech recognition to convert your voice to text."
-      }
+      },
+      "extraResources": [
+        {
+          "from": "native/speech-helper/speech-helper",
+          "to": "speech-helper"
+        }
+      ]
     },
     "win": {
       "target": [
@@ -137,10 +143,6 @@
       {
         "from": "openclaw",
         "to": "openclaw"
-      },
-      {
-        "from": "native/speech-helper/speech-helper",
-        "to": "speech-helper"
       }
     ],
     "directories": {

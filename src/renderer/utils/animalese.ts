@@ -60,7 +60,8 @@ class AnimaleseEngine {
   private audioCtx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
   private isPlaying = false;
-  private cancelFlag = false;
+  private playbackToken = 0;
+  private pendingTimeout: number | null = null;
   private volume = 0.15;
   private pitch = 1.25; // Slightly pitched up for Clawster's cute digital vibe
   private speed = 60; // ms per character
@@ -157,14 +158,20 @@ class AnimaleseEngine {
     if (!text || text.trim().length === 0) return;
 
     this.isPlaying = true;
-    this.cancelFlag = false;
+    const playbackToken = ++this.playbackToken;
 
     const chars = Array.from(text);
     let charIndex = 0;
 
     return new Promise<void>((resolve) => {
       const playNext = () => {
-        if (this.cancelFlag || charIndex >= chars.length) {
+        if (this.playbackToken !== playbackToken) {
+          resolve();
+          return;
+        }
+
+        if (charIndex >= chars.length) {
+          this.clearPendingTimeout();
           this.isPlaying = false;
           this.visemeCallback?.(null);
           resolve();
@@ -189,7 +196,7 @@ class AnimaleseEngine {
         const delay = this.playCharSound(char, ctx.currentTime + 0.01);
 
         // Schedule next character
-        setTimeout(playNext, delay);
+        this.pendingTimeout = window.setTimeout(playNext, delay);
       };
 
       playNext();
@@ -203,9 +210,17 @@ class AnimaleseEngine {
 
   /** Stop any currently playing speech */
   stop() {
-    this.cancelFlag = true;
+    this.playbackToken += 1;
+    this.clearPendingTimeout();
     this.isPlaying = false;
     this.visemeCallback?.(null);
+  }
+
+  private clearPendingTimeout() {
+    if (this.pendingTimeout !== null) {
+      window.clearTimeout(this.pendingTimeout);
+      this.pendingTimeout = null;
+    }
   }
 
   get playing(): boolean {
