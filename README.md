@@ -4,7 +4,7 @@
 
 Clawster is the first AI pet and desktop pet built on OpenClaw. All AI processing runs locally on your machine. No cloud, no API keys, no data leaves your computer.
 
-**[Website](https://clawster.pet)** · **[Download for Mac](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-arm64.dmg)**
+**[Website](https://clawster.pet)** · **[Download for Mac (Apple Silicon)](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-arm64.dmg)** · **[Download for Mac (Intel)](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-x64.dmg)**
 
 ![Clawster Demo](https://img.shields.io/badge/status-beta-orange) ![License](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 
@@ -64,9 +64,12 @@ This AI desktop pet expresses itself through 12 animated moods:
 
 **For most users:** Download the app directly — no terminal needed.
 
-**[Download Clawster for Mac (Apple Silicon)](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-arm64.dmg)**
+- **[Download Clawster for Mac (Apple Silicon)](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-arm64.dmg)**
+- **[Download Clawster for Mac (Intel)](https://github.com/wuyuwenj/clawster/releases/download/v0.1.3/Clawster-0.1.3-x64.dmg)**
 
 Open the DMG, drag Clawster to Applications, and launch. The 8-step onboarding wizard guides you through everything.
+
+> **Not sure which Mac you have?** Click  > About This Mac. If it says "Apple M1/M2/M3/M4" you have Apple Silicon. If it says "Intel" you have an Intel Mac.
 
 ## Getting Started (from source)
 
