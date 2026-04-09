@@ -55,12 +55,189 @@ let petChatAutoHideTimeout: NodeJS.Timeout | null = null;
 // Speech recognition
 let speechProcess: ChildProcess | null = null;
 let speechSender: Electron.WebContents | null = null;
+let speechHelperReady = false;
+let speechSessionActive = false;
+let speechStartPending = false;
+let speechHelperStartup: Promise<ChildProcess> | null = null;
+let speechProcessExitExpected = false;
+let speechStartSequence = 0;
 
 function getSpeechHelperPath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'speech-helper');
   }
   return path.join(__dirname, '../../native/speech-helper/speech-helper');
+}
+
+function getSpeechEventSender(): Electron.WebContents | null {
+  if (speechSender?.isDestroyed()) {
+    speechSender = null;
+  }
+  return speechSender;
+}
+
+function formatSpeechHelperExit(code: number | null, signal: NodeJS.Signals | null): string {
+  if (signal) {
+    return `Speech helper exited unexpectedly (signal ${signal})`;
+  }
+  if (code === null) {
+    return 'Speech helper exited unexpectedly';
+  }
+  return `Speech helper exited unexpectedly (code ${code})`;
+}
+
+function notifySpeechErrorToSender(sender: Electron.WebContents | null, message: string): void {
+  if (!sender || sender.isDestroyed()) return;
+  sender.send('speech-error', { type: 'error', message });
+}
+
+function resetSpeechHelperState(): void {
+  speechProcess = null;
+  speechSender = null;
+  speechHelperReady = false;
+  speechSessionActive = false;
+  speechStartPending = false;
+  speechHelperStartup = null;
+  speechProcessExitExpected = false;
+}
+
+function handleSpeechHelperMessage(msg: any): void {
+  const sender = getSpeechEventSender();
+
+  console.log('speech-helper:', JSON.stringify(msg));
+
+  if (msg.type === 'status') {
+    console.log('speech-helper status:', msg.state);
+    if (msg.state === 'ready') {
+      speechHelperReady = true;
+    } else if (msg.state === 'recording') {
+      speechStartPending = false;
+      speechSessionActive = true;
+    } else if (msg.state === 'stopped') {
+      speechStartPending = false;
+      speechSessionActive = false;
+    }
+    return;
+  }
+
+  if (msg.type === 'partial' || msg.type === 'final') {
+    if (msg.type === 'final') {
+      speechStartPending = false;
+      speechSessionActive = false;
+      if (sender) {
+        sender.send('speech-result', msg);
+      }
+      speechSender = null;
+      return;
+    }
+
+    if (sender) {
+      sender.send('speech-result', msg);
+    }
+    return;
+  }
+
+  if (msg.type === 'error') {
+    speechStartPending = false;
+    speechSessionActive = false;
+
+    if (msg.message && (msg.message.includes('Dictation') || msg.message.includes('Siri'))) {
+      msg.message = 'Speech recognition requires Dictation to be enabled. Go to System Settings → Keyboard → Dictation and turn it on.';
+      msg.openSettings = true;
+    }
+
+    if (sender) {
+      sender.send('speech-error', msg);
+    }
+    speechSender = null;
+  }
+}
+
+function ensureSpeechHelper(): Promise<ChildProcess> {
+  if (speechProcess && speechHelperReady) {
+    return Promise.resolve(speechProcess);
+  }
+
+  if (speechHelperStartup) {
+    return speechHelperStartup;
+  }
+
+  const helperPath = getSpeechHelperPath();
+  speechHelperStartup = new Promise((resolve, reject) => {
+    const child = spawn(helperPath);
+    let startupSettled = false;
+    let buffer = '';
+
+    speechProcess = child;
+    speechHelperReady = false;
+    speechProcessExitExpected = false;
+
+    const resolveStartup = () => {
+      if (startupSettled) return;
+      startupSettled = true;
+      speechHelperStartup = null;
+      resolve(child);
+    };
+
+    const rejectStartup = (error: Error) => {
+      if (startupSettled) return;
+      startupSettled = true;
+      speechHelperStartup = null;
+      reject(error);
+    };
+
+    child.stdout?.on('data', (data: Buffer) => {
+      buffer += data.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'status' && msg.state === 'ready') {
+            speechHelperReady = true;
+            resolveStartup();
+          }
+          handleSpeechHelperMessage(msg);
+        } catch {
+          // ignore malformed JSON
+        }
+      }
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      console.error('speech-helper stderr:', data.toString());
+    });
+
+    child.on('error', (err) => {
+      console.error('speech-helper spawn error:', err);
+      const sender = getSpeechEventSender();
+      const shouldNotify = speechSessionActive && !speechProcessExitExpected && startupSettled;
+      resetSpeechHelperState();
+      rejectStartup(err);
+      if (shouldNotify) {
+        notifySpeechErrorToSender(sender, err.message);
+      }
+    });
+
+    child.on('exit', (code, signal) => {
+      const exitMessage = formatSpeechHelperExit(code, signal);
+      const sender = getSpeechEventSender();
+      const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
+
+      console.log('speech-helper exited:', { code, signal, expected: speechProcessExitExpected });
+
+      resetSpeechHelperState();
+      rejectStartup(new Error(exitMessage));
+
+      if (shouldNotify) {
+        notifySpeechErrorToSender(sender, exitMessage);
+      }
+    });
+  });
+
+  return speechHelperStartup;
 }
 
 // Services
@@ -1333,8 +1510,11 @@ function hidePetChat() {
     clearTimeout(petChatAutoHideTimeout);
     petChatAutoHideTimeout = null;
   }
-  petChatWindow?.setOpacity(1);
-  petChatWindow?.hide();
+  if (petChatWindow && !petChatWindow.isDestroyed()) {
+    petChatWindow.webContents.send('pet-chat-hidden');
+    petChatWindow.setOpacity(1);
+    petChatWindow.hide();
+  }
 }
 
 function resizePetChatToContent(width: number, height: number) {
@@ -2408,7 +2588,7 @@ function setupIPC() {
       return { success: false, error: 'Speech recognition is only available on macOS' };
     }
 
-    if (speechProcess) {
+    if (speechSessionActive || speechStartPending) {
       return { success: false, error: 'Already recording' };
     }
 
@@ -2424,95 +2604,49 @@ function setupIPC() {
     }
 
     const sender = event.sender;
+    const startSequence = ++speechStartSequence;
     speechSender = sender;
+    speechSessionActive = true;
+    speechStartPending = true;
 
     try {
-      const helperPath = getSpeechHelperPath();
-      speechProcess = spawn(helperPath);
-
-      let buffer = '';
-
-      speechProcess.stdout?.on('data', (data: Buffer) => {
-        buffer += data.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const msg = JSON.parse(line);
-            if (sender.isDestroyed()) return;
-
-            console.log('speech-helper:', JSON.stringify(msg));
-            if (msg.type === 'status' && msg.state === 'ready') {
-              // Binary is ready, send start command
-              speechProcess?.stdin?.write('start\n');
-            } else if (msg.type === 'partial' || msg.type === 'final') {
-              sender.send('speech-result', msg);
-            } else if (msg.type === 'error') {
-              // Detect Dictation/Siri disabled and provide actionable guidance
-              if (msg.message && (msg.message.includes('Dictation') || msg.message.includes('Siri'))) {
-                msg.message = 'Speech recognition requires Dictation to be enabled. Go to System Settings → Keyboard → Dictation and turn it on.';
-                msg.openSettings = true;
-              }
-              sender.send('speech-error', msg);
-            } else if (msg.type === 'status') {
-              console.log('speech-helper status:', msg.state);
-            }
-          } catch {
-            // ignore malformed JSON
-          }
+      const helper = await ensureSpeechHelper();
+      const startCancelled = !speechSessionActive || !speechStartPending || speechStartSequence !== startSequence;
+      if (startCancelled) {
+        if (speechStartSequence === startSequence && !speechSessionActive) {
+          speechSender = null;
         }
-      });
-
-      speechProcess.stderr?.on('data', (data: Buffer) => {
-        console.error('speech-helper stderr:', data.toString());
-      });
-
-      speechProcess.on('error', (err) => {
-        console.error('speech-helper spawn error:', err);
-        if (!sender.isDestroyed()) {
-          sender.send('speech-error', { type: 'error', message: err.message });
-        }
-        speechProcess = null;
-        speechSender = null;
-      });
-
-      speechProcess.on('exit', (code) => {
-        console.log('speech-helper exited with code:', code);
-        // Notify renderer that recording has stopped
-        if (!sender.isDestroyed()) {
-          sender.send('speech-error', { type: 'error', message: `Speech helper exited (code ${code})` });
-        }
-        speechProcess = null;
-        speechSender = null;
-      });
-
+        return { success: false, error: 'Speech recognition start cancelled' };
+      }
+      if (!helper.stdin || helper.stdin.destroyed) {
+        throw new Error('Speech helper is not available');
+      }
+      speechStartPending = false;
+      helper.stdin.write('start\n');
       return { success: true };
     } catch (error) {
-      speechProcess = null;
-      speechSender = null;
-      return { success: false, error: 'Failed to start speech recognition' };
+      if (speechStartSequence === startSequence) {
+        speechStartPending = false;
+        speechSessionActive = false;
+        speechSender = null;
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to start speech recognition',
+      };
     }
   });
 
   // Speech recognition - stop recording
   ipcMain.handle('speech-stop', async () => {
-    if (speechProcess) {
-      speechProcess.stdin?.write('stop\n');
-
-      // Force-kill after 3 seconds if it doesn't exit gracefully
-      const killTimeout = setTimeout(() => {
-        if (speechProcess) {
-          speechProcess.kill();
-          speechProcess = null;
-          speechSender = null;
-        }
-      }, 3000);
-
-      speechProcess.on('exit', () => {
-        clearTimeout(killTimeout);
-      });
+    const activeSpeechProcess = speechProcess;
+    const shouldStop = Boolean(speechSessionActive || speechStartPending);
+    if (speechStartPending) {
+      speechStartPending = false;
+      speechSessionActive = false;
+    }
+    if (activeSpeechProcess && shouldStop) {
+      activeSpeechProcess.stdin?.write('stop\n');
     }
   });
 
@@ -3200,9 +3334,8 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   if (speechProcess) {
-    speechProcess.kill();
-    speechProcess = null;
-    speechSender = null;
+    speechProcessExitExpected = true;
+    speechProcess.stdin?.end('quit\n');
   }
   watchers?.stop();
   stopIdleBehaviors();

@@ -28,45 +28,62 @@ export const ChatBar: React.FC = () => {
   const pendingUserMessageRef = useRef<string | null>(null);
   const activePetPopupIdRef = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const speechAutoSubmitTimeoutRef = useRef<number | null>(null);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
-    window.clawster.getClawbotStatus().then((status) => setIsConnected(status.connected));
-    window.clawster.onConnectionStatusChange((status) => setIsConnected(status.connected));
+    let disposed = false;
+    const clearSpeechAutoSubmitTimeout = () => {
+      if (speechAutoSubmitTimeoutRef.current === null) return;
+      window.clearTimeout(speechAutoSubmitTimeoutRef.current);
+      speechAutoSubmitTimeoutRef.current = null;
+    };
+
+    window.clawster.getClawbotStatus().then((status) => {
+      if (!disposed) {
+        setIsConnected(status.connected);
+      }
+    });
+    const unsubscribeConnectionStatus = window.clawster.onConnectionStatusChange((status) => {
+      setIsConnected(status.connected);
+    });
 
     // Listen for cron results
-    window.clawster.onCronResult((data) => {
+    const unsubscribeCronResult = window.clawster.onCronResult((data) => {
       setResponse(data.summary);
     });
 
     // Speech recognition events
-    window.clawster.onSpeechResult((data) => {
+    const unsubscribeSpeechResult = window.clawster.onSpeechResult((data) => {
       if (data.type === 'partial') {
         setInput(data.text);
       } else if (data.type === 'final') {
         setInput(data.text);
         setIsRecording(false);
         // Auto-submit after a short delay to let state update
+        clearSpeechAutoSubmitTimeout();
         if (data.text.trim()) {
-          setTimeout(() => {
+          speechAutoSubmitTimeoutRef.current = window.setTimeout(() => {
+            speechAutoSubmitTimeoutRef.current = null;
             formRef.current?.requestSubmit();
           }, 100);
         }
       }
     });
-    window.clawster.onSpeechError((data) => {
+    const unsubscribeSpeechError = window.clawster.onSpeechError((data) => {
+      clearSpeechAutoSubmitTimeout();
       setIsRecording(false);
       if (data.message) {
         setResponse(data.message);
       }
     });
 
-    window.clawster.onClawbotStreamChunk((data) => {
+    const unsubscribeStreamChunk = window.clawster.onClawbotStreamChunk((data) => {
       if (data.requestId !== activeStreamRequestIdRef.current) return;
       setResponse(data.text);
     });
 
-    window.clawster.onClawbotStreamEnd(async (data) => {
+    const unsubscribeStreamEnd = window.clawster.onClawbotStreamEnd(async (data) => {
       if (data.requestId !== activeStreamRequestIdRef.current) return;
       const streamResponse = data.response as { text?: string };
       const finalText = streamResponse.text || 'No response';
@@ -91,7 +108,7 @@ export const ChatBar: React.FC = () => {
       inputRef.current?.focus();
     });
 
-    window.clawster.onClawbotStreamError(async (data) => {
+    const unsubscribeStreamError = window.clawster.onClawbotStreamError(async (data) => {
       if (data.requestId !== activeStreamRequestIdRef.current) return;
       const errorMsg = `Error: ${data.error}`;
       setResponse(errorMsg);
@@ -114,6 +131,18 @@ export const ChatBar: React.FC = () => {
       setIsLoading(false);
       inputRef.current?.focus();
     });
+
+    return () => {
+      disposed = true;
+      clearSpeechAutoSubmitTimeout();
+      unsubscribeConnectionStatus();
+      unsubscribeCronResult();
+      unsubscribeSpeechResult();
+      unsubscribeSpeechError();
+      unsubscribeStreamChunk();
+      unsubscribeStreamEnd();
+      unsubscribeStreamError();
+    };
   }, []);
 
   // Helper to save messages to shared history
@@ -143,9 +172,25 @@ export const ChatBar: React.FC = () => {
     inputRef.current?.focus();
   }, []);
 
+  const handleSpeechStartFailure = (error?: string) => {
+    if (!error || error === 'Speech recognition start cancelled') {
+      return;
+    }
+    setResponse(error);
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     let spaceHeld = false;
+    let recognitionAttemptId = 0;
+
+    const releaseHoldToTalk = () => {
+      if (!spaceHeld) return;
+      spaceHeld = false;
+      recognitionAttemptId += 1;
+      window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -155,28 +200,39 @@ export const ChatBar: React.FC = () => {
       if (e.key === ' ' && !spaceHeld && document.activeElement !== inputRef.current) {
         e.preventDefault();
         spaceHeld = true;
+        const attemptId = ++recognitionAttemptId;
         window.clawster.startSpeechRecognition().then((result) => {
+          if (attemptId !== recognitionAttemptId || !spaceHeld) {
+            return;
+          }
           if (result.success) {
             setIsRecording(true);
             setInput('');
+            return;
           }
+          spaceHeld = false;
+          handleSpeechStartFailure(result.error);
         });
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === ' ' && spaceHeld) {
-        spaceHeld = false;
-        window.clawster.stopSpeechRecognition();
-        setIsRecording(false);
+        releaseHoldToTalk();
       }
+    };
+
+    const handleWindowBlur = () => {
+      releaseHoldToTalk();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
     };
   }, []);
 
@@ -222,8 +278,8 @@ export const ChatBar: React.FC = () => {
       if (result.success) {
         setIsRecording(true);
         setInput('');
-      } else if (result.error) {
-        setResponse(result.error);
+      } else {
+        handleSpeechStartFailure(result.error);
       }
     }
   };
