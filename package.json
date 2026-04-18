@@ -1,6 +1,6 @@
 {
   "name": "clawster",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "author": "Yuwen Wu",
   "description": "Desktop pet companion powered by OpenClaw",
   "main": "dist/main/main.js",
@@ -13,7 +13,7 @@
     "build:renderer": "vite build",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landign-electronbuilder/public/downloads/Clawster-*mac* ../clawster-landign-electronbuilder/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/Clawster-*-x64.dmg release/Clawster-*-x64-mac.zip release/Clawster-*-x64-mac.zip.blockmap release/latest-mac.yml ../clawster-landign-electronbuilder/public/downloads/",
+    "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landing/public/downloads/Clawster-*mac* ../clawster-landing/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/Clawster-*-x64.dmg release/Clawster-*-x64-mac.zip release/Clawster-*-x64-mac.zip.blockmap release/latest-mac.yml ../clawster-landing/public/downloads/",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
@@ -138,8 +138,9 @@
       "output": "release"
     },
     "publish": {
-      "provider": "generic",
-      "url": "https://clawster.pet/downloads"
+      "provider": "github",
+      "owner": "wuyuwenj",
+      "repo": "clawster"
     }
   }
 }
