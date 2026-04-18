@@ -55,8 +55,9 @@ When creating Linear issues for Clawster:
    git tag v0.1.x
    git push origin v0.1.x
    ```
-4. CI automatically builds (arm64 + x64), notarizes, and publishes to GitHub Releases
-5. Users with the app installed receive an auto-update prompt on next launch
+4. CI automatically builds (arm64 + x64), notarizes, and creates a **draft** GitHub Release
+5. Go to [GitHub Releases](https://github.com/wuyuwenj/clawster/releases), review the draft, then click **Publish**
+6. Users with the app installed receive an auto-update prompt on next launch
 
 ### Local Build (optional)
 To build locally instead of using CI:
