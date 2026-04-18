@@ -1,0 +1,26 @@
+name: Update Landing Page Version
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-landing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: wuyuwenj/clawster-landing
+          token: ${{ secrets.LANDING_PAT }}
+
+      - name: Update version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/softwareVersion: \".*\"/softwareVersion: \"$VERSION\"/" app/layout.tsx
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add app/layout.tsx
+          git commit -m "Update version to ${GITHUB_REF_NAME#v}"
+          git push
