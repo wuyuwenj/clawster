@@ -46,9 +46,10 @@ const moodToState = (mood: Mood): string => {
 
 interface LobsterSvgProps {
   pupilOffset: { x: number; y: number } | null;
+  talkingMouth: string | null;
 }
 
-const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
+const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset, talkingMouth }) => (
   <svg viewBox="0 0 128 128">
     {/* Tail */}
     <path
@@ -145,6 +146,7 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
           stroke="var(--ink)"
           strokeWidth="2"
           strokeLinecap="round"
+          style={talkingMouth ? { opacity: talkingMouth === 'neutral' ? 1 : 0 } : undefined}
         />
         <path
           className="mouth-mad"
@@ -153,6 +155,7 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
           stroke="var(--ink)"
           strokeWidth="2.2"
           strokeLinecap="round"
+          style={talkingMouth ? { opacity: talkingMouth === 'mad' || talkingMouth === 'closed' ? 1 : 0 } : undefined}
         />
         <path
           className="mouth-happy"
@@ -161,9 +164,14 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset }) => (
           stroke="var(--ink)"
           strokeWidth="2.5"
           strokeLinecap="round"
+          style={talkingMouth ? { opacity: talkingMouth === 'happy' ? 1 : 0 } : undefined}
         />
-        <circle className="mouth-worried" cx="64" cy="70" r="2.5" fill="var(--ink)" />
-        <circle className="mouth-o" cx="64" cy="70" r="3.4" fill="var(--ink)" />
+        <circle className="mouth-worried" cx="64" cy="70" r="2.5" fill="var(--ink)"
+          style={talkingMouth ? { opacity: talkingMouth === 'worried' ? 1 : 0 } : undefined}
+        />
+        <circle className="mouth-o" cx="64" cy="70" r="3.4" fill="var(--ink)"
+          style={talkingMouth ? { opacity: talkingMouth === 'o' ? 1 : 0 } : undefined}
+        />
       </g>
     </g>
     {/* Effects */}
@@ -191,6 +199,7 @@ export const Pet: React.FC = () => {
   const [showModeOverlay, setShowModeOverlay] = useState(false);
   const [cameraSnapActive, setCameraSnapActive] = useState(false);
   const [cameraFlashActive, setCameraFlashActive] = useState(false);
+  const [talkingMouth, setTalkingMouth] = useState<string | null>(null);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
@@ -282,6 +291,11 @@ export const Pet: React.FC = () => {
       const moodData = data as { state: Mood; reason?: string };
       if (!canApplyMoodUpdate(moodData.state)) return;
       setPetMood(moodData.state);
+    });
+
+    // Mouth animation from Animalese voice
+    window.clawster.onMouthShape((shape: string | null) => {
+      setTalkingMouth(shape);
     });
 
     window.clawster.onPetTransparentSleepChanged((enabled: boolean) => {
@@ -577,7 +591,7 @@ export const Pet: React.FC = () => {
       <div
         className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''} ${isSleepTransparent ? 'sleep-transparent' : ''} ${cameraSnapActive ? 'action-camera-snap' : ''}`}
       >
-        <LobsterSvg pupilOffset={pupilOffset} />
+        <LobsterSvg pupilOffset={pupilOffset} talkingMouth={talkingMouth} />
         <div className="camera-prop" aria-hidden="true">
           <span className="camera-shutter" />
           <span className="camera-lens" />

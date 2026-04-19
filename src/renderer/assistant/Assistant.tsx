@@ -38,6 +38,7 @@ export const Assistant: React.FC = () => {
     error: null,
     gatewayUrl: '',
   });
+  const [isRecording, setIsRecording] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
@@ -48,6 +49,7 @@ export const Assistant: React.FC = () => {
   const chatScrollTopRef = useRef(0);
   const chatShouldAutoScrollRef = useRef(true);
   const hasInitializedChatScrollRef = useRef(false);
+  const pendingAutoSendRef = useRef(false);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -151,6 +153,31 @@ export const Assistant: React.FC = () => {
         timestamp: data.timestamp,
       };
       setMessages((prev) => [...prev, errorMsg]);
+    });
+
+    // Speech recognition events
+    window.clawster.onSpeechResult((data) => {
+      if (data.type === 'partial') {
+        setInput(data.text);
+      } else if (data.type === 'final') {
+        setInput(data.text);
+        setIsRecording(false);
+        if (data.text.trim()) {
+          pendingAutoSendRef.current = true;
+        }
+      }
+    });
+    window.clawster.onSpeechError((data) => {
+      setIsRecording(false);
+      if (data.message) {
+        const errorMsg: Message = {
+          id: crypto.randomUUID(),
+          role: 'system',
+          content: data.message,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     });
 
     window.clawster.onClawbotStreamChunk((data) => {
@@ -291,6 +318,20 @@ export const Assistant: React.FC = () => {
     }
   }, [messages]);
 
+  const handleSpeechStartFailure = useCallback((error?: string) => {
+    if (!error || error === 'Speech recognition start cancelled') {
+      return;
+    }
+
+    const errorMsg: Message = {
+      id: crypto.randomUUID(),
+      role: 'system',
+      content: error,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, errorMsg]);
+  }, []);
+
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
     const prompt = input.trim();
@@ -368,6 +409,83 @@ export const Assistant: React.FC = () => {
     },
     [sendMessage]
   );
+
+  // Hold space to talk (only when not typing in a text field)
+  useEffect(() => {
+    let spaceHeld = false;
+    let recognitionAttemptId = 0;
+
+    const releaseHoldToTalk = () => {
+      if (!spaceHeld) return;
+      spaceHeld = false;
+      recognitionAttemptId += 1;
+      window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if (e.key === ' ' && !spaceHeld && tag !== 'textarea' && tag !== 'input') {
+        e.preventDefault();
+        spaceHeld = true;
+        const attemptId = ++recognitionAttemptId;
+        window.clawster.startSpeechRecognition().then((result) => {
+          if (attemptId !== recognitionAttemptId || !spaceHeld) {
+            return;
+          }
+          if (result.success) {
+            setIsRecording(true);
+            setInput('');
+            return;
+          }
+          spaceHeld = false;
+          handleSpeechStartFailure(result.error);
+        });
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' && spaceHeld) {
+        releaseHoldToTalk();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      releaseHoldToTalk();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
+  // Auto-send after voice input finalizes
+  useEffect(() => {
+    if (pendingAutoSendRef.current && input.trim() && !isLoading) {
+      pendingAutoSendRef.current = false;
+      sendMessage();
+    }
+  }, [input, isLoading, sendMessage]);
+
+  const handleMicToggle = useCallback(async () => {
+    if (isRecording) {
+      await window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    } else {
+      const result = await window.clawster.startSpeechRecognition();
+      if (result.success) {
+        setIsRecording(true);
+        setInput('');
+      } else {
+        handleSpeechStartFailure(result.error);
+      }
+    }
+  }, [handleSpeechStartFailure, isRecording]);
 
   const captureScreen = useCallback(async () => {
     // Check permission first - if denied, show message
@@ -610,6 +728,18 @@ export const Assistant: React.FC = () => {
               disabled={isLoading}
               className="flex-1 bg-neutral-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all resize-none min-h-[44px] max-h-[120px] scrollbar-hide disabled:opacity-50 cursor-text"
             />
+            <button
+              onClick={handleMicToggle}
+              disabled={isLoading}
+              className={`w-[44px] h-[44px] rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                isRecording
+                  ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse'
+                  : 'bg-white/10 text-neutral-400 border-white/5 hover:bg-[#FF8C69] hover:text-black hover:border-[#FF8C69]'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              title={isRecording ? 'Stop recording' : 'Voice input'}
+            >
+              <Icon icon={isRecording ? 'solar:stop-bold' : 'solar:microphone-linear'} className="text-lg" />
+            </button>
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
