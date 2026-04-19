@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { MarkdownMessage } from '../components/MarkdownMessage';
+import { animalese } from '../utils/animalese';
 
 interface ChatMessage {
   id: string;
@@ -15,17 +16,51 @@ export const PetChat: React.FC = () => {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
   const lastInteractionSentAtRef = useRef(0);
+  const lastSpokenMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Listen for chat messages from main process
-    window.clawster.onPetChatMessage((msg) => {
+    const unsubscribeMessage = window.clawster.onPetChatMessage((msg) => {
       setMessage({
         ...msg,
         quickReplies: msg.quickReplies || DEFAULT_QUICK_REPLIES,
       });
       setIsLoading(false);
     });
+    const unsubscribeHidden = window.clawster.onPetChatHidden(() => {
+      animalese.stop();
+      lastSpokenMessageIdRef.current = null;
+      lastSizeRef.current = null;
+      setIsLoading(false);
+      setMessage(null);
+    });
+
+    return () => {
+      unsubscribeMessage();
+      unsubscribeHidden();
+      animalese.stop();
+    };
   }, []);
+
+  // Play Animalese voice and drive mouth animation when a new message arrives
+  useEffect(() => {
+    // Set up viseme callback to forward mouth shapes to Pet window
+    animalese.onViseme((shape) => {
+      window.clawster.sendMouthShape(shape);
+    });
+    return () => {
+      animalese.stop();
+      animalese.onViseme(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!message || isLoading || !message.text || message.text === '...') return;
+    if (message.id === lastSpokenMessageIdRef.current) return;
+
+    lastSpokenMessageIdRef.current = message.id;
+    animalese.speak(message.text);
+  }, [message?.id, message?.text, isLoading]);
 
   const reportContentSize = useCallback(() => {
     const element = contentRef.current;
@@ -81,12 +116,14 @@ export const PetChat: React.FC = () => {
     if (!message) return;
 
     if (reply === 'Not now') {
+      animalese.stop();
       window.clawster.petChatReply('dismiss');
       window.clawster.hidePetChat();
       return;
     }
 
     if (reply === 'Tell me more') {
+      animalese.stop();
       // Check connection first
       const status = await window.clawster.getClawbotStatus();
       if (!status.connected) {
@@ -127,12 +164,14 @@ export const PetChat: React.FC = () => {
 
     // "Got it" - just close
     if (reply === 'Got it') {
+      animalese.stop();
       window.clawster.petChatReply('dismiss');
       window.clawster.hidePetChat();
       return;
     }
 
     // "Thanks!" - close with happy reaction
+    animalese.stop();
     window.clawster.petChatReply('thanks');
     window.clawster.hidePetChat();
   }, [message]);

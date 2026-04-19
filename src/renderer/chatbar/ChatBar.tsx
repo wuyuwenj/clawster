@@ -21,28 +21,69 @@ export const ChatBar: React.FC = () => {
   const [response, setResponse] = useState<string | null>(null);
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
   const activePetPopupIdRef = useRef<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const speechAutoSubmitTimeoutRef = useRef<number | null>(null);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
-    window.clawster.getClawbotStatus().then((status) => setIsConnected(status.connected));
-    window.clawster.onConnectionStatusChange((status) => setIsConnected(status.connected));
+    let disposed = false;
+    const clearSpeechAutoSubmitTimeout = () => {
+      if (speechAutoSubmitTimeoutRef.current === null) return;
+      window.clearTimeout(speechAutoSubmitTimeoutRef.current);
+      speechAutoSubmitTimeoutRef.current = null;
+    };
+
+    window.clawster.getClawbotStatus().then((status) => {
+      if (!disposed) {
+        setIsConnected(status.connected);
+      }
+    });
+    const unsubscribeConnectionStatus = window.clawster.onConnectionStatusChange((status) => {
+      setIsConnected(status.connected);
+    });
 
     // Listen for cron results
-    window.clawster.onCronResult((data) => {
+    const unsubscribeCronResult = window.clawster.onCronResult((data) => {
       setResponse(data.summary);
     });
 
-    window.clawster.onClawbotStreamChunk((data) => {
+    // Speech recognition events
+    const unsubscribeSpeechResult = window.clawster.onSpeechResult((data) => {
+      if (data.type === 'partial') {
+        setInput(data.text);
+      } else if (data.type === 'final') {
+        setInput(data.text);
+        setIsRecording(false);
+        // Auto-submit after a short delay to let state update
+        clearSpeechAutoSubmitTimeout();
+        if (data.text.trim()) {
+          speechAutoSubmitTimeoutRef.current = window.setTimeout(() => {
+            speechAutoSubmitTimeoutRef.current = null;
+            formRef.current?.requestSubmit();
+          }, 100);
+        }
+      }
+    });
+    const unsubscribeSpeechError = window.clawster.onSpeechError((data) => {
+      clearSpeechAutoSubmitTimeout();
+      setIsRecording(false);
+      if (data.message) {
+        setResponse(data.message);
+      }
+    });
+
+    const unsubscribeStreamChunk = window.clawster.onClawbotStreamChunk((data) => {
       if (data.requestId !== activeStreamRequestIdRef.current) return;
       setResponse(data.text);
     });
 
-    window.clawster.onClawbotStreamEnd(async (data) => {
+    const unsubscribeStreamEnd = window.clawster.onClawbotStreamEnd(async (data) => {
       if (data.requestId !== activeStreamRequestIdRef.current) return;
       const streamResponse = data.response as { text?: string };
       const finalText = streamResponse.text || 'No response';
@@ -67,7 +108,7 @@ export const ChatBar: React.FC = () => {
       inputRef.current?.focus();
     });
 
-    window.clawster.onClawbotStreamError(async (data) => {
+    const unsubscribeStreamError = window.clawster.onClawbotStreamError(async (data) => {
       if (data.requestId !== activeStreamRequestIdRef.current) return;
       const errorMsg = `Error: ${data.error}`;
       setResponse(errorMsg);
@@ -90,6 +131,18 @@ export const ChatBar: React.FC = () => {
       setIsLoading(false);
       inputRef.current?.focus();
     });
+
+    return () => {
+      disposed = true;
+      clearSpeechAutoSubmitTimeout();
+      unsubscribeConnectionStatus();
+      unsubscribeCronResult();
+      unsubscribeSpeechResult();
+      unsubscribeSpeechError();
+      unsubscribeStreamChunk();
+      unsubscribeStreamEnd();
+      unsubscribeStreamError();
+    };
   }, []);
 
   // Helper to save messages to shared history
@@ -119,16 +172,68 @@ export const ChatBar: React.FC = () => {
     inputRef.current?.focus();
   }, []);
 
+  const handleSpeechStartFailure = (error?: string) => {
+    if (!error || error === 'Speech recognition start cancelled') {
+      return;
+    }
+    setResponse(error);
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
+    let spaceHeld = false;
+    let recognitionAttemptId = 0;
+
+    const releaseHoldToTalk = () => {
+      if (!spaceHeld) return;
+      spaceHeld = false;
+      recognitionAttemptId += 1;
+      window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         window.clawster.closeChatbar();
       }
+      // Hold space to talk (only when input is not focused)
+      if (e.key === ' ' && !spaceHeld && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        spaceHeld = true;
+        const attemptId = ++recognitionAttemptId;
+        window.clawster.startSpeechRecognition().then((result) => {
+          if (attemptId !== recognitionAttemptId || !spaceHeld) {
+            return;
+          }
+          if (result.success) {
+            setIsRecording(true);
+            setInput('');
+            return;
+          }
+          spaceHeld = false;
+          handleSpeechStartFailure(result.error);
+        });
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' && spaceHeld) {
+        releaseHoldToTalk();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      releaseHoldToTalk();
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
   }, []);
 
   // Capture screenshot
@@ -159,6 +264,24 @@ export const ChatBar: React.FC = () => {
   const handleClearScreenshot = () => {
     setScreenshot(null);
     inputRef.current?.focus();
+  };
+
+  // Toggle speech recognition
+  const handleMicToggle = async () => {
+    if (isRecording) {
+      await window.clawster.stopSpeechRecognition();
+      setIsRecording(false);
+    } else {
+      console.log('Starting speech recognition...');
+      const result = await window.clawster.startSpeechRecognition();
+      console.log('Speech start result:', result);
+      if (result.success) {
+        setIsRecording(true);
+        setInput('');
+      } else {
+        handleSpeechStartFailure(result.error);
+      }
+    }
   };
 
   const handleCopyCommand = async () => {
@@ -211,7 +334,6 @@ export const ChatBar: React.FC = () => {
           text: '...',
           quickReplies: [],
         });
-        window.clawster.closeChatbar();
 
         pendingUserMessageRef.current = message;
         const started = await window.clawster.startClawbotStream(message);
@@ -278,15 +400,6 @@ export const ChatBar: React.FC = () => {
     }
   };
 
-  // Handle mouse enter/leave to toggle click-through behavior
-  const handleMouseEnter = () => {
-    window.clawster.setChatbarIgnoreMouse(false);
-  };
-
-  const handleMouseLeave = () => {
-    window.clawster.setChatbarIgnoreMouse(true);
-  };
-
   // Clawster Icon (body, tail, eyes - no claws)
   const ClawsterIcon = ({ size = 24 }: { size?: number }) => (
     <svg viewBox="0 0 128 128" width={size} height={size}>
@@ -301,16 +414,20 @@ export const ChatBar: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-start pt-4 px-4">
-      <div
-        className="w-full max-w-2xl animate-slide-in"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.05)] flex flex-col overflow-hidden backdrop-blur-xl">
+    <div className="w-full h-full flex flex-col">
+      <div className="w-full h-full">
+        <div className="bg-[#0f0f0f] h-full flex flex-col overflow-hidden">
+
+          {/* Drag handle */}
+          <div
+            className="h-5 flex items-center justify-center cursor-grab active:cursor-grabbing shrink-0"
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          >
+            <div className="w-8 h-1 rounded-full bg-white/10" />
+          </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSubmit} className="flex items-center gap-3 p-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-3 p-3">
             {/* Abstract Clawster Icon */}
             <div className="w-10 h-10 rounded-xl bg-[#FF8C69]/10 flex items-center justify-center border border-[#FF8C69]/20 shrink-0">
               <ClawsterIcon size={24} />
@@ -350,6 +467,21 @@ export const ChatBar: React.FC = () => {
               ) : (
                 <Icon icon="solar:camera-linear" className="text-lg" />
               )}
+            </button>
+
+            {/* Mic button */}
+            <button
+              type="button"
+              onClick={handleMicToggle}
+              disabled={isLoading}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isRecording
+                  ? 'text-red-400 bg-red-500/10 animate-pulse'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+              title={isRecording ? 'Stop recording' : 'Voice input'}
+            >
+              <Icon icon={isRecording ? 'solar:stop-bold' : 'solar:microphone-linear'} className="text-lg" />
             </button>
 
             {/* Input */}

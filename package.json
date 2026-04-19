@@ -6,9 +6,10 @@
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
-    "dev:main": "tsc -p tsconfig.main.json && electron .",
+    "dev:main": "npm run build:speech && tsc -p tsconfig.main.json && electron .",
     "dev:renderer": "vite",
-    "build": "npm run build:renderer && npm run build:main",
+    "build": "npm run build:speech && npm run build:renderer && npm run build:main",
+    "build:speech": "bash scripts/build-speech-helper.sh",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "dist": "npm run build && electron-builder",
@@ -67,13 +68,23 @@
       "icon": "assets/icons/mac/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
       "notarize": {
         "teamId": "39428U49B4"
       },
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "Clawster needs screen capture permission to help you with what's on your screen.",
-        "NSAppleEventsUsageDescription": "Clawster needs this to detect which app you're using."
-      }
+        "NSAppleEventsUsageDescription": "Clawster needs this to detect which app you're using.",
+        "NSMicrophoneUsageDescription": "Clawster needs microphone access for voice input.",
+        "NSSpeechRecognitionUsageDescription": "Clawster uses speech recognition to convert your voice to text."
+      },
+      "extraResources": [
+        {
+          "from": "native/speech-helper/speech-helper",
+          "to": "speech-helper"
+        }
+      ]
     },
     "win": {
       "target": [

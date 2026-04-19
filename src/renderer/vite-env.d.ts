@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+type ListenerCleanup = () => void;
+
 // Iconify icon web component
 declare namespace JSX {
   interface IntrinsicElements {
@@ -100,9 +102,10 @@ interface ClawsterAPI {
   hidePetChat: () => void;
   resizePetChat: (width: number, height: number) => void;
   petChatInteracted: () => void;
-  onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => void;
+  onPetChatMessage: (callback: (message: { id: string; text: string; quickReplies?: string[] }) => void) => ListenerCleanup;
+  onPetChatHidden: (callback: () => void) => ListenerCleanup;
   petChatReply: (reply: string) => void;
-  onPetChatReply: (callback: (reply: string) => void) => void;
+  onPetChatReply: (callback: (reply: string) => void) => ListenerCleanup;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
   getCurrentWorkspaceInfo: () => Promise<CurrentWorkspaceInfo>;
@@ -125,10 +128,12 @@ interface ClawsterAPI {
   startClawbotStream: (message: string, includeScreen?: boolean) => Promise<{ requestId?: string; error?: string }>;
   askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
   getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
-  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => void;
-  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => void;
-  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => void;
-  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => void;
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => ListenerCleanup;
+  onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => ListenerCleanup;
+  onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => ListenerCleanup;
+  onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => ListenerCleanup;
+  sendMouthShape: (shape: string | null) => void;
+  onMouthShape: (callback: (shape: string | null) => void) => ListenerCleanup;
   copyToClipboard: (text: string) => Promise<boolean>;
   executePetAction: (action: unknown) => Promise<void>;
   movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
@@ -138,22 +143,27 @@ interface ClawsterAPI {
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;
-  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => void;
-  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => void;
+  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => ListenerCleanup;
+  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => ListenerCleanup;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
-  onChatSync: (callback: () => void) => void;
-  onSwitchToChat: (callback: () => void) => void;
-  onSwitchToSettings: (callback: () => void) => void;
+  onChatSync: (callback: () => void) => ListenerCleanup;
+  onSwitchToChat: (callback: () => void) => ListenerCleanup;
+  onSwitchToSettings: (callback: () => void) => ListenerCleanup;
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;
-  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace') => void;
+  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace' | 'quit') => void;
   removeAllListeners: () => void;
+  startSpeechRecognition: () => Promise<{ success: boolean; error?: string }>;
+  stopSpeechRecognition: () => Promise<void>;
+  checkSpeechPermission: () => Promise<{ mic: string; speech: string }>;
+  onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => ListenerCleanup;
+  onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => ListenerCleanup;
   // Tutorial
   tutorialPetClicked: () => void;
   tutorialNext: () => void;
