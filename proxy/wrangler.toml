@@ -1,0 +1,12 @@
+name = "clawster-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+OPENAI_MODEL = "gpt-4o-mini"
+DAILY_MESSAGE_LIMIT = "50"
+MONTHLY_BUDGET_LIMIT = "10000"
+
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "placeholder-rate-limits-id"
