@@ -23,6 +23,7 @@ import { CloudChatProvider } from './chat';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
+import { logEvent } from './event-logger';
 
 // Extracted modules
 import {
@@ -243,6 +244,8 @@ function resetIdleTimer() {
 }
 
 function startMainApp() {
+  logEvent('app_launched', { version: app.getVersion() });
+
   // Register global hotkeys
   registerHotkeys();
 
@@ -597,6 +600,7 @@ function setupIPC() {
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
     if (!chatProvider) return { error: 'ChatProvider not initialized' };
 
+    logEvent('chat_sent', { includeScreen: !!includeScreen });
     resetInteractionTimer();
 
     const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
@@ -800,6 +804,7 @@ function setupIPC() {
   });
 
   ipcMain.on('pet-drag', (_event, deltaX: number, deltaY: number) => {
+    logEvent('pet_dragged');
     const petWindow = getPetWindow();
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
@@ -857,6 +862,7 @@ function setupIPC() {
 
   // Pet was clicked
   ipcMain.on('pet-clicked', () => {
+    logEvent('pet_clicked');
     resetInteractionTimer();
   });
 
@@ -901,6 +907,7 @@ function setupIPC() {
     hotkeyCaptureScreen: string;
     hotkeyOpenAssistant: string;
   }) => {
+    logEvent('onboarding_completed');
     store.set('onboarding.completed', true);
     store.set('tutorial.completedAt', null);
     store.set('tutorial.lastStep', 0);
