@@ -10,9 +10,6 @@ interface ChatMessage {
 interface OnboardingState {
   completed: boolean;
   skipped: boolean;
-  workspaceType: 'openclaw' | 'clawster' | null;
-  clawsterWorkspacePath: string | null;
-  memoryMigrated: boolean;
 }
 
 interface TutorialState {
@@ -25,7 +22,6 @@ interface TutorialState {
 interface StoreSchema {
   clawbot: {
     url: string;
-    token: string;
   };
   watch: {
     activeApp: boolean;
@@ -58,8 +54,7 @@ interface StoreSchema {
 
 const defaults: StoreSchema = {
   clawbot: {
-    url: 'http://127.0.0.1:18789',
-    token: '',
+    url: 'https://clawster-proxy.workers.dev',
   },
   watch: {
     activeApp: true,
@@ -85,9 +80,6 @@ const defaults: StoreSchema = {
   onboarding: {
     completed: false,
     skipped: false,
-    workspaceType: null,
-    clawsterWorkspacePath: null,
-    memoryMigrated: false,
   },
   tutorial: {
     version: 1,

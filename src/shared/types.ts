@@ -18,24 +18,4 @@ export interface ClawBotResponse {
   };
 }
 
-export interface StoreSchema {
-  clawbot: {
-    url: string;
-  };
-  watch: {
-    activeApp: boolean;
-    sendWindowTitles: boolean;
-    folders: string[];
-  };
-  pet: {
-    position: { x: number; y: number } | null;
-    mood: string;
-    attentionSeeker: boolean;
-  };
-  screenCapture: {
-    enabled: boolean;
-    autoAnalyze: boolean;
-  };
-}
-
 export type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited';

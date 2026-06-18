@@ -94,12 +94,6 @@ const HappyLobsterSvg = () => (
 );
 
 export const CompleteStep: React.FC<Props> = ({ data, updateData }) => {
-  const getWorkspacePath = () => {
-    return data.workspaceType === 'openclaw'
-      ? '~/.openclaw/workspace/'
-      : '~/.openclaw/workspace-clawster/';
-  };
-
   return (
     <div className="h-full px-10 flex flex-col items-center justify-center text-center">
       <div className="mb-8 animate-happy-bounce relative">
@@ -115,11 +109,7 @@ export const CompleteStep: React.FC<Props> = ({ data, updateData }) => {
         <ul className="space-y-2 text-xs text-neutral-300">
           <li className="flex items-center gap-2">
             <iconify-icon icon="solar:check-circle-linear" className="text-[#008080]"></iconify-icon>
-            Workspace: <span className="font-mono text-neutral-500">{getWorkspacePath()}</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <iconify-icon icon="solar:check-circle-linear" className="text-[#008080]"></iconify-icon>
-            Connected to {data.gatewayUrl.replace('http://', '').replace('https://', '')}
+            Personality configured
           </li>
           {data.watchActiveApp && (
             <li className="flex items-center gap-2">

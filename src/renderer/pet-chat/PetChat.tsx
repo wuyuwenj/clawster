@@ -129,7 +129,7 @@ export const PetChat: React.FC = () => {
       if (!status.connected) {
         setMessage({
           id: crypto.randomUUID(),
-          text: 'Gateway not connected. Run `openclaw gateway install` in your terminal to start it.',
+          text: 'I can\'t reach my brain right now. Check your internet connection!',
           quickReplies: ['Got it', 'Not now'],
         });
         return;

@@ -24,8 +24,6 @@ contextBridge.exposeInMainWorld('clawster', {
   toggleAssistant: () => ipcRenderer.send('toggle-assistant'),
   openAssistant: () => ipcRenderer.send('open-assistant'),
   closeAssistant: () => ipcRenderer.send('close-assistant'),
-  openWorkspaceBrowser: () => ipcRenderer.send('open-workspace-browser'),
-  closeWorkspaceBrowser: () => ipcRenderer.send('close-workspace-browser'),
   forcePetSleep: () => ipcRenderer.send('force-pet-sleep'),
   forceActiveAppComment: () => ipcRenderer.invoke('dev-force-active-app-comment'),
   toggleChatbar: () => ipcRenderer.send('toggle-chatbar'),
@@ -56,11 +54,6 @@ contextBridge.exposeInMainWorld('clawster', {
   // External actions
   openExternal: (url: string) => ipcRenderer.send('open-external', url),
   openPath: (path: string) => ipcRenderer.send('open-path', path),
-  getCurrentWorkspaceInfo: () => ipcRenderer.invoke('get-current-workspace-info'),
-  listWorkspaceDirectory: (relativePath: string = '') => ipcRenderer.invoke('list-workspace-directory', relativePath),
-  openWorkspacePath: (relativePath: string = '') => ipcRenderer.invoke('open-workspace-path', relativePath),
-  revealWorkspacePath: (relativePath: string = '') => ipcRenderer.invoke('reveal-workspace-path', relativePath),
-  previewWorkspaceFile: (relativePath: string = '') => ipcRenderer.invoke('preview-workspace-file', relativePath),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
@@ -137,12 +130,6 @@ contextBridge.exposeInMainWorld('clawster', {
   onClawbotMood: (callback: (data: unknown) => void) => {
     ipcRenderer.on('clawbot-mood', (_event, data) => callback(data));
   },
-  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => {
-    return onIpc('cron-result', callback);
-  },
-  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => {
-    return onIpc('cron-error', callback);
-  },
   onChatPopup: (callback: (data: unknown) => void) => {
     ipcRenderer.on('chat-popup', (_event, data) => callback(data));
   },
@@ -202,11 +189,7 @@ contextBridge.exposeInMainWorld('clawster', {
   // Onboarding
   onboardingSkip: () => ipcRenderer.invoke('onboarding-skip'),
   onboardingComplete: (data: {
-    workspaceType: 'openclaw' | 'clawster';
-    migrateMemory: boolean;
     launchOnStartup: boolean;
-    gatewayUrl: string;
-    gatewayToken: string;
     identity: string;
     soul: string;
     watchFolders: string[];
@@ -216,18 +199,7 @@ contextBridge.exposeInMainWorld('clawster', {
     hotkeyCaptureScreen: string;
     hotkeyOpenAssistant: string;
   }) => ipcRenderer.invoke('onboarding-complete', data),
-  readOpenClawConfig: () => ipcRenderer.invoke('read-openclaw-config'),
-  readOpenClawWorkspace: () => ipcRenderer.invoke('read-openclaw-workspace'),
-  createClawsterWorkspace: (options: {
-    identity: string;
-    soul: string;
-    migrateMemory: boolean;
-  }) => ipcRenderer.invoke('create-clawster-workspace', options),
-  validateGateway: (url: string, token: string) =>
-    ipcRenderer.invoke('validate-gateway', url, token),
   getDefaultPersonality: () => ipcRenderer.invoke('get-default-personality'),
-  savePersonality: (workspacePath: string, identity: string, soul: string) =>
-    ipcRenderer.invoke('save-personality', workspacePath, identity, soul),
   getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
   resetOnboarding: () => ipcRenderer.invoke('reset-onboarding'),
 
@@ -240,8 +212,6 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('clawbot-stream-chunk');
     ipcRenderer.removeAllListeners('clawbot-stream-end');
     ipcRenderer.removeAllListeners('clawbot-stream-error');
-    ipcRenderer.removeAllListeners('cron-result');
-    ipcRenderer.removeAllListeners('cron-error');
     ipcRenderer.removeAllListeners('chat-popup');
     ipcRenderer.removeAllListeners('pet-moving');
     ipcRenderer.removeAllListeners('pet-camera-snap');
@@ -281,11 +251,7 @@ export interface ScreenContext {
 }
 
 export interface OnboardingData {
-  workspaceType: 'openclaw' | 'clawster';
-  migrateMemory: boolean;
   launchOnStartup: boolean;
-  gatewayUrl: string;
-  gatewayToken: string;
   identity: string;
   soul: string;
   watchFolders: string[];
@@ -296,56 +262,10 @@ export interface OnboardingData {
   hotkeyOpenAssistant: string;
 }
 
-export interface OpenClawWorkspace {
-  exists: boolean;
-  identity: string | null;
-  soul: string | null;
-  hasMemory: boolean;
-}
-
-export interface CurrentWorkspaceInfo {
-  workspaceType: 'openclaw' | 'clawster' | null;
-  workspacePath: string | null;
-  exists: boolean;
-}
-
-export interface WorkspaceEntry {
-  name: string;
-  path: string;
-  kind: 'file' | 'directory';
-  createdAt: number;
-  modifiedAt: number;
-  accessedAt: number;
-}
-
-export interface WorkspaceDirectoryResult {
-  success: boolean;
-  currentPath: string;
-  entries: WorkspaceEntry[];
-  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
-}
-
-export interface WorkspaceOpenResult {
-  success: boolean;
-  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
-  message?: string;
-}
-
-export interface WorkspacePreviewResult {
-  success: boolean;
-  path: string;
-  previewKind?: 'markdown' | 'image' | 'json';
-  content?: string;
-  error?: 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed' | 'not_file' | 'unsupported_preview' | 'file_too_large' | 'read_failed';
-  message?: string;
-}
-
 export interface ClawsterAPI {
   toggleAssistant: () => void;
   openAssistant: () => void;
   closeAssistant: () => void;
-  openWorkspaceBrowser: () => void;
-  closeWorkspaceBrowser: () => void;
   forcePetSleep: () => void;
   forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
@@ -365,11 +285,6 @@ export interface ClawsterAPI {
   onPetChatReply: (callback: (reply: string) => void) => ListenerCleanup;
   openExternal: (url: string) => void;
   openPath: (path: string) => void;
-  getCurrentWorkspaceInfo: () => Promise<CurrentWorkspaceInfo>;
-  listWorkspaceDirectory: (relativePath?: string) => Promise<WorkspaceDirectoryResult>;
-  openWorkspacePath: (relativePath?: string) => Promise<WorkspaceOpenResult>;
-  revealWorkspacePath: (relativePath?: string) => Promise<WorkspaceOpenResult>;
-  previewWorkspaceFile: (relativePath?: string) => Promise<WorkspacePreviewResult>;
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   getChatHistory: () => Promise<unknown[]>;
@@ -383,8 +298,8 @@ export interface ClawsterAPI {
   checkAccessibilityPermission: (prompt?: boolean) => Promise<boolean>;
   sendToClawbot: (message: string, includeScreen?: boolean) => Promise<unknown>;
   startClawbotStream: (message: string, includeScreen?: boolean) => Promise<{ requestId?: string; error?: string }>;
-  getClawbotStatus: () => Promise<{ connected: boolean; error: string | null; gatewayUrl: string }>;
-  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => ListenerCleanup;
+  getClawbotStatus: () => Promise<{ connected: boolean; error: string | null }>;
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null }) => void) => ListenerCleanup;
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => ListenerCleanup;
   onClawbotStreamEnd: (callback: (data: { requestId: string; response: unknown }) => void) => ListenerCleanup;
   onClawbotStreamError: (callback: (data: { requestId: string; error: string }) => void) => ListenerCleanup;
@@ -404,8 +319,6 @@ export interface ClawsterAPI {
   onActivityEvent: (callback: (event: unknown) => void) => void;
   onClawbotSuggestion: (callback: (data: unknown) => void) => void;
   onClawbotMood: (callback: (data: unknown) => void) => void;
-  onCronResult: (callback: (data: { jobId: string; jobName: string; status: string; summary: string; timestamp: number }) => void) => ListenerCleanup;
-  onCronError: (callback: (data: { jobId: string; jobName: string; error: string; timestamp: number }) => void) => ListenerCleanup;
   onChatPopup: (callback: (data: unknown) => void) => void;
   onPetMoving: (callback: (data: { moving: boolean }) => void) => void;
   onPetCameraSnap: (callback: (data: { captureAtMs: number; durationMs: number; flashDurationMs: number }) => void) => void;
@@ -418,7 +331,7 @@ export interface ClawsterAPI {
   petClicked: () => void;
   showPetContextMenu: (x: number, y: number) => void;
   hidePetContextMenu: () => void;
-  petContextMenuAction: (action: 'chat' | 'settings' | 'workspace' | 'quit') => void;
+  petContextMenuAction: (action: 'chat' | 'settings' | 'quit') => void;
   // Tutorial
   tutorialPetClicked: () => void;
   tutorialNext: () => void;
@@ -435,16 +348,7 @@ export interface ClawsterAPI {
   // Onboarding
   onboardingSkip: () => Promise<boolean>;
   onboardingComplete: (data: OnboardingData) => Promise<boolean>;
-  readOpenClawConfig: () => Promise<{ gateway?: { port?: number; auth?: { token?: string } } } | null>;
-  readOpenClawWorkspace: () => Promise<OpenClawWorkspace>;
-  createClawsterWorkspace: (options: {
-    identity: string;
-    soul: string;
-    migrateMemory: boolean;
-  }) => Promise<{ success: boolean; path?: string; error?: string }>;
-  validateGateway: (url: string, token: string) => Promise<{ success: boolean; error?: string }>;
   getDefaultPersonality: () => Promise<{ identity: string; soul: string }>;
-  savePersonality: (workspacePath: string, identity: string, soul: string) => Promise<{ success: boolean; error?: string }>;
   getOnboardingStatus: () => Promise<{ completed: boolean; skipped: boolean }>;
   resetOnboarding: () => Promise<boolean>;
   removeAllListeners: () => void;
