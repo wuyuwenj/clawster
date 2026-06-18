@@ -3,7 +3,6 @@ import {
   BrowserWindow,
   globalShortcut,
   ipcMain,
-  desktopCapturer,
   shell,
   screen,
   nativeImage,
@@ -14,8 +13,7 @@ import {
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import os from 'os';
-import { exec, execFile, execSync, spawn, ChildProcess } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
@@ -26,217 +24,83 @@ import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
 
-const execAsync = promisify(exec);
+// Extracted modules
+import {
+  ensureSpeechHelper,
+  resetSpeechHelperState,
+  getSpeechHelperPath,
+  getSpeechProcess,
+  isSpeechSessionActive,
+  isSpeechStartPending,
+  setSpeechSender,
+  setSpeechSessionActive,
+  setSpeechStartPending,
+  nextSpeechStartSequence,
+  getSpeechStartSequence,
+  setSpeechProcessExitExpected,
+} from './speech';
+import {
+  initPetBehaviors,
+  animateMoveTo,
+  startAttentionSeeker,
+  stopAttentionSeeker,
+  startIdleBehaviors,
+  stopIdleBehaviors,
+  startSleepCheck,
+  stopSleepCheck,
+  resetInteractionTimer,
+  executePetAction,
+  getIsSleeping,
+  forceSleep,
+  clearMoveAnimation,
+  PetAction,
+} from './pet-behaviors';
+import {
+  initScreenCapture,
+  getScreenCapturePermissionStatus,
+  getScreenContext,
+  playPetCameraSnapAnimationBeforeCapture,
+  captureScreen,
+  captureScreenWithContext,
+} from './screen-capture';
+import {
+  initWindows,
+  getPetWindow,
+  getPetChatWindow,
+  getAssistantWindow,
+  getChatbarWindow,
+  getScreenshotQuestionWindow,
+  getPetContextMenuWindow,
+  createPetWindow,
+  createAssistantWindow,
+  revealAssistantWindow,
+  toggleAssistantWindow,
+  openAssistantOnTab,
+  updateAssistantPosition,
+  createChatbarWindow,
+  toggleChatbarWindow,
+  createScreenshotQuestionWindow,
+  toggleScreenshotQuestionWindow,
+  createOnboardingWindow,
+  closeOnboardingAndStartApp,
+  showPetChat,
+  hidePetChat,
+  resizePetChatToContent,
+  updatePetChatPosition,
+  schedulePetChatAutoHide,
+  expandPetWindowForTutorial,
+  contractPetWindow,
+  showPetContextMenuAtCursor,
+  applyDebugWindowBordersToAllWindows,
+} from './windows';
+
 const execFileAsync = promisify(execFile);
 
 // Load environment variables
 config();
 
 // Fix transparent window rendering on some Mac hardware (e.g. Mac Mini)
-// Electron has a bug where transparent windows < 162px become opaque on external/4K displays
-// See: https://github.com/electron/electron/issues/44884
 app.disableHardwareAcceleration();
-
-// Windows
-let petWindow: BrowserWindow | null = null;
-let petChatWindow: BrowserWindow | null = null;
-let assistantWindow: BrowserWindow | null = null;
-let chatbarWindow: BrowserWindow | null = null;
-let screenshotQuestionWindow: BrowserWindow | null = null;
-let onboardingWindow: BrowserWindow | null = null;
-let petContextMenuWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
-let pendingPetChatReveal = false;
-let petChatRevealTimeout: NodeJS.Timeout | null = null;
-let petChatAutoHideTimeout: NodeJS.Timeout | null = null;
-
-// Speech recognition
-let speechProcess: ChildProcess | null = null;
-let speechSender: Electron.WebContents | null = null;
-let speechHelperReady = false;
-let speechSessionActive = false;
-let speechStartPending = false;
-let speechHelperStartup: Promise<ChildProcess> | null = null;
-let speechProcessExitExpected = false;
-let speechStartSequence = 0;
-
-function getSpeechHelperPath(): string {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'speech-helper');
-  }
-  return path.join(__dirname, '../../native/speech-helper/speech-helper');
-}
-
-function getSpeechEventSender(): Electron.WebContents | null {
-  if (speechSender?.isDestroyed()) {
-    speechSender = null;
-  }
-  return speechSender;
-}
-
-function formatSpeechHelperExit(code: number | null, signal: NodeJS.Signals | null): string {
-  if (signal) {
-    return `Speech helper exited unexpectedly (signal ${signal})`;
-  }
-  if (code === null) {
-    return 'Speech helper exited unexpectedly';
-  }
-  return `Speech helper exited unexpectedly (code ${code})`;
-}
-
-function notifySpeechErrorToSender(sender: Electron.WebContents | null, message: string): void {
-  if (!sender || sender.isDestroyed()) return;
-  sender.send('speech-error', { type: 'error', message });
-}
-
-function resetSpeechHelperState(): void {
-  speechProcess = null;
-  speechSender = null;
-  speechHelperReady = false;
-  speechSessionActive = false;
-  speechStartPending = false;
-  speechHelperStartup = null;
-  speechProcessExitExpected = false;
-}
-
-function handleSpeechHelperMessage(msg: any): void {
-  const sender = getSpeechEventSender();
-
-  console.log('speech-helper:', JSON.stringify(msg));
-
-  if (msg.type === 'status') {
-    console.log('speech-helper status:', msg.state);
-    if (msg.state === 'ready') {
-      speechHelperReady = true;
-    } else if (msg.state === 'recording') {
-      speechStartPending = false;
-      speechSessionActive = true;
-    } else if (msg.state === 'stopped') {
-      speechStartPending = false;
-      speechSessionActive = false;
-    }
-    return;
-  }
-
-  if (msg.type === 'partial' || msg.type === 'final') {
-    if (msg.type === 'final') {
-      speechStartPending = false;
-      speechSessionActive = false;
-      if (sender) {
-        sender.send('speech-result', msg);
-      }
-      speechSender = null;
-      return;
-    }
-
-    if (sender) {
-      sender.send('speech-result', msg);
-    }
-    return;
-  }
-
-  if (msg.type === 'error') {
-    speechStartPending = false;
-    speechSessionActive = false;
-
-    if (msg.message && (msg.message.includes('Dictation') || msg.message.includes('Siri'))) {
-      msg.message = 'Speech recognition requires Dictation to be enabled. Go to System Settings → Keyboard → Dictation and turn it on.';
-      msg.openSettings = true;
-    }
-
-    if (sender) {
-      sender.send('speech-error', msg);
-    }
-    speechSender = null;
-  }
-}
-
-function ensureSpeechHelper(): Promise<ChildProcess> {
-  if (speechProcess && speechHelperReady) {
-    return Promise.resolve(speechProcess);
-  }
-
-  if (speechHelperStartup) {
-    return speechHelperStartup;
-  }
-
-  const helperPath = getSpeechHelperPath();
-  speechHelperStartup = new Promise((resolve, reject) => {
-    const child = spawn(helperPath);
-    let startupSettled = false;
-    let buffer = '';
-
-    speechProcess = child;
-    speechHelperReady = false;
-    speechProcessExitExpected = false;
-
-    const resolveStartup = () => {
-      if (startupSettled) return;
-      startupSettled = true;
-      speechHelperStartup = null;
-      resolve(child);
-    };
-
-    const rejectStartup = (error: Error) => {
-      if (startupSettled) return;
-      startupSettled = true;
-      speechHelperStartup = null;
-      reject(error);
-    };
-
-    child.stdout?.on('data', (data: Buffer) => {
-      buffer += data.toString();
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const msg = JSON.parse(line);
-          if (msg.type === 'status' && msg.state === 'ready') {
-            speechHelperReady = true;
-            resolveStartup();
-          }
-          handleSpeechHelperMessage(msg);
-        } catch {
-          // ignore malformed JSON
-        }
-      }
-    });
-
-    child.stderr?.on('data', (data: Buffer) => {
-      console.error('speech-helper stderr:', data.toString());
-    });
-
-    child.on('error', (err) => {
-      console.error('speech-helper spawn error:', err);
-      const sender = getSpeechEventSender();
-      const shouldNotify = speechSessionActive && !speechProcessExitExpected && startupSettled;
-      resetSpeechHelperState();
-      rejectStartup(err);
-      if (shouldNotify) {
-        notifySpeechErrorToSender(sender, err.message);
-      }
-    });
-
-    child.on('exit', (code, signal) => {
-      const exitMessage = formatSpeechHelperExit(code, signal);
-      const sender = getSpeechEventSender();
-      const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
-
-      console.log('speech-helper exited:', { code, signal, expected: speechProcessExitExpected });
-
-      resetSpeechHelperState();
-      rejectStartup(new Error(exitMessage));
-
-      if (shouldNotify) {
-        notifySpeechErrorToSender(sender, exitMessage);
-      }
-    });
-  });
-
-  return speechHelperStartup;
-}
 
 // Services
 let watchers: Watchers | null = null;
@@ -246,107 +110,49 @@ const tutorialManager = new TutorialManager(store);
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
-const DEV_WINDOW_BORDER_CSS = `
-  html, body {
-    box-sizing: border-box !important;
-    border: 1px dashed rgba(255, 120, 120, 0.95) !important;
-  }
-`;
-const debugBorderStyleKeys = new WeakMap<BrowserWindow, string>();
 
-function shouldShowDebugWindowBorders(): boolean {
-  return isDev && Boolean(store.get('dev.windowBorders'));
-}
-
-async function applyDebugWindowBorder(window: BrowserWindow): Promise<void> {
-  if (window.isDestroyed() || window.webContents.isDestroyed()) return;
-
-  const previousKey = debugBorderStyleKeys.get(window);
-  if (previousKey) {
-    try {
-      await window.webContents.removeInsertedCSS(previousKey);
-    } catch (error) {
-      console.warn('[Dev] Failed to remove debug window border CSS:', error);
-    }
-    debugBorderStyleKeys.delete(window);
-  }
-
-  if (!shouldShowDebugWindowBorders()) return;
-
-  try {
-    const key = await window.webContents.insertCSS(DEV_WINDOW_BORDER_CSS);
-    debugBorderStyleKeys.set(window, key);
-  } catch (error) {
-    console.warn('[Dev] Failed to apply debug window border CSS:', error);
-  }
-}
-
-function wireDebugWindowBorder(window: BrowserWindow): void {
-  window.webContents.on('did-finish-load', () => {
-    void applyDebugWindowBorder(window);
-  });
-}
-
-function applyDebugWindowBordersToAllWindows(): void {
-  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow];
-  for (const window of windows) {
-    if (!window || window.isDestroyed()) continue;
-    void applyDebugWindowBorder(window);
-  }
-}
+// Constants used only in main.ts
+const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
+const PET_CAMERA_SNAP_DURATION_MS = 920;
+const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
+const DEV_FORCE_ACTIVE_APP_COMMENT_DELAY_MS = 5000;
+const APP_SWITCH_CHAT_COOLDOWN = 60 * 1000;
 
 // Idle detection state
 let lastActivityTime = Date.now();
 let idleCheckInterval: NodeJS.Timeout | null = null;
 let lastAppSwitchChat = 0;
-const IDLE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
-const APP_SWITCH_CHAT_COOLDOWN = 60 * 1000; // 1 minute between app switch chats
+const IDLE_THRESHOLD = 5 * 60 * 1000;
 
-// Pet movement animation state
-let moveAnimation: NodeJS.Timeout | null = null;
+// Tray
+let tray: Tray | null = null;
 
-// Pet window size constants
-// Minimum 162px to avoid Electron transparency bug on external/4K displays
-const PET_WINDOW_WIDTH = 164;
-const PET_WINDOW_HEIGHT = 164;
-const PET_WINDOW_TUTORIAL_WIDTH = 320;
-const PET_WINDOW_TUTORIAL_HEIGHT = 350;
-const PET_CHAT_MIN_WIDTH = 220;
-const PET_CHAT_MAX_WIDTH = 360;
-const PET_CHAT_MIN_HEIGHT = 90;
-const PET_CHAT_MAX_HEIGHT = 420;
-const PET_CHAT_AUTO_HIDE_MS = 10000;
-const PET_CHAT_VERTICAL_GAP = -2;
-const ASSISTANT_VERTICAL_GAP = -3;
-const PET_CONTEXT_MENU_WIDTH = 220;
-const PET_CONTEXT_MENU_HEIGHT = 342;
-const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
-const PET_CAMERA_SNAP_DURATION_MS = 920;
-const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
-const DEV_FORCE_ACTIVE_APP_COMMENT_DELAY_MS = 5000;
+// Initialize extracted modules with their dependencies
+function initModules() {
+  initWindows({
+    store,
+    isDev,
+    devPort: DEV_PORT,
+    tutorialManager,
+    startMainApp,
+  });
 
-// Attention seeker state
-let attentionInterval: NodeJS.Timeout | null = null;
+  initPetBehaviors({
+    getPetWindow,
+    store,
+    isDev,
+    updatePetChatPosition,
+    updateAssistantPosition,
+  });
 
-// Idle behavior system
-let idleBehaviorInterval: NodeJS.Timeout | null = null;
-let lastInteractionTime = Date.now();
-let isPerformingIdleBehavior = false;
-const IDLE_BEHAVIOR_MIN_INTERVAL = 3000; // Minimum 3 seconds between behaviors (demo mode)
-const IDLE_BEHAVIOR_MAX_INTERVAL = 8000; // Maximum 8 seconds between behaviors (demo mode)
-const INTERACTION_COOLDOWN = 5000; // Wait 5 seconds after interaction before idle behaviors
-
-type IdleBehavior = 'look_around' | 'snip_claws' | 'yawn' | 'wander' | 'stretch' | 'blink' | 'wiggle';
-
-const IDLE_BEHAVIORS: { type: IdleBehavior; weight: number }[] = [
-  { type: 'blink', weight: 25 },        // Most common
-  { type: 'look_around', weight: 20 },
-  { type: 'snip_claws', weight: 15 },
-  { type: 'wiggle', weight: 15 },
-  { type: 'stretch', weight: 10 },
-  { type: 'yawn', weight: 10 },
-  { type: 'wander', weight: 5 },        // Least common
-];
+  initScreenCapture({
+    getPetWindow,
+    getIsSleeping,
+    cameraSnapCaptureDelayMs: PET_CAMERA_SNAP_CAPTURE_DELAY_MS,
+    cameraSnapDurationMs: PET_CAMERA_SNAP_DURATION_MS,
+    cameraSnapFlashDurationMs: PET_CAMERA_SNAP_FLASH_DURATION_MS,
+  });
+}
 
 function setLaunchOnStartup(enabled: boolean) {
   try {
@@ -366,492 +172,9 @@ function setLaunchOnStartup(enabled: boolean) {
   }
 }
 
-// Pet action types that ClawBot can trigger
-interface PetAction {
-  type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave' | 'look_at';
-  value?: string;
-  x?: number;
-  y?: number;
-  duration?: number;
-}
-
 function resetOnboardingState(): void {
   store.set('onboarding.completed', false);
   store.set('onboarding.skipped', false);
-}
-
-// Smooth animation to move pet to target position
-function animateMoveTo(targetX: number, targetY: number, duration: number = 1000): Promise<void> {
-  return new Promise((resolve) => {
-    if (!petWindow) {
-      resolve();
-      return;
-    }
-    if (moveAnimation) clearInterval(moveAnimation);
-
-    const [startX, startY] = petWindow.getPosition();
-    const startTime = Date.now();
-
-    // Notify renderer that movement started
-    petWindow.webContents.send('pet-moving', { moving: true });
-
-    moveAnimation = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      // Ease-out curve for natural movement
-      const eased = 1 - Math.pow(1 - progress, 3);
-
-      const currentX = Math.round(startX + (targetX - startX) * eased);
-      const currentY = Math.round(startY + (targetY - startY) * eased);
-
-      petWindow?.setPosition(currentX, currentY);
-      updatePetChatPosition();
-      updateAssistantPosition();
-
-      if (progress >= 1) {
-        clearInterval(moveAnimation!);
-        moveAnimation = null;
-      store.set('pet.position', { x: targetX, y: targetY });
-      petWindow?.webContents.send('pet-moving', { moving: false });
-      resolve();
-      }
-    }, 16); // ~60fps
-  });
-}
-
-// Attention seeker behavior - periodically moves pet toward cursor
-function seekAttention() {
-  const enabled = store.get('pet.attentionSeeker') ?? true; // Default to true
-  if (!enabled || !petWindow || isSleeping) {
-    console.log(`[AttentionSeeker] Skipped: enabled=${enabled}, petWindow=${!!petWindow}, isSleeping=${isSleeping}`);
-    return;
-  }
-
-  const cursor = screen.getCursorScreenPoint();
-  const [petX, petY] = petWindow.getPosition();
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-  // Calculate position near cursor (offset so pet doesn't cover cursor)
-  const offset = 80;
-  let targetX = cursor.x + offset;
-  let targetY = cursor.y + offset;
-
-  // Keep within screen bounds
-  targetX = Math.max(0, Math.min(targetX, width - 300));
-  targetY = Math.max(0, Math.min(targetY, height - 300));
-
-  // Only move if far enough away (> 200px)
-  const distance = Math.sqrt(Math.pow(cursor.x - petX, 2) + Math.pow(cursor.y - petY, 2));
-  console.log(`[AttentionSeeker] Distance: ${Math.round(distance)}px, cursor: (${cursor.x}, ${cursor.y}), pet: (${petX}, ${petY})`);
-
-  if (distance > 600) {
-    console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
-    // Set excited mood before moving
-    petWindow.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
-    animateMoveTo(targetX, targetY, 1500);
-  } else {
-    console.log('[AttentionSeeker] Too close, not moving');
-  }
-}
-
-function startAttentionSeeker() {
-  const minDelay = isDev ? 5000 : 30000;   // 5s in dev, 30s in prod
-  const maxDelay = isDev ? 15000 : 120000; // 15s in dev, 2min in prod
-
-  function scheduleNext() {
-    const delay = minDelay + Math.random() * (maxDelay - minDelay);
-    console.log(`[AttentionSeeker] Next seek in ${Math.round(delay / 1000)}s`);
-
-    attentionInterval = setTimeout(() => {
-      console.log('[AttentionSeeker] Seeking attention...');
-      seekAttention();
-      scheduleNext();
-    }, delay);
-  }
-
-  console.log('[AttentionSeeker] Started');
-  scheduleNext();
-}
-
-function stopAttentionSeeker() {
-  if (attentionInterval) {
-    clearTimeout(attentionInterval);
-    attentionInterval = null;
-  }
-}
-
-// Pick a random idle behavior based on weights
-function pickRandomIdleBehavior(): IdleBehavior {
-  const totalWeight = IDLE_BEHAVIORS.reduce((sum, b) => sum + b.weight, 0);
-  let random = Math.random() * totalWeight;
-
-  for (const behavior of IDLE_BEHAVIORS) {
-    random -= behavior.weight;
-    if (random <= 0) return behavior.type;
-  }
-  return 'blink';
-}
-
-// Execute an idle behavior
-async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
-  if (!petWindow || isPerformingIdleBehavior || isSleeping) return;
-
-  isPerformingIdleBehavior = true;
-
-  try {
-    switch (behavior) {
-      case 'blink':
-        // Quick blink animation
-        petWindow.webContents.send('idle-behavior', { type: 'blink' });
-        break;
-
-      case 'look_around':
-        // Look left, then right
-        petWindow.webContents.send('idle-behavior', { type: 'look_around' });
-        break;
-
-      case 'snip_claws':
-        // Snip claws a couple times
-        petWindow.webContents.send('idle-behavior', { type: 'snip_claws' });
-        break;
-
-      case 'yawn':
-        // Yawn and look sleepy
-        petWindow.webContents.send('idle-behavior', { type: 'yawn' });
-        break;
-
-      case 'stretch':
-        // Stretch animation
-        petWindow.webContents.send('idle-behavior', { type: 'stretch' });
-        break;
-
-      case 'wiggle':
-        // Happy little wiggle
-        petWindow.webContents.send('idle-behavior', { type: 'wiggle' });
-        break;
-
-      case 'wander':
-        // Move to a random nearby position
-        const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-        const [currentX, currentY] = petWindow.getPosition();
-
-        // Wander within 200px of current position
-        const wanderX = Math.max(0, Math.min(
-          currentX + (Math.random() - 0.5) * 400,
-          screenWidth - 300
-        ));
-        const wanderY = Math.max(0, Math.min(
-          currentY + (Math.random() - 0.5) * 200,
-          screenHeight - 300
-        ));
-
-        petWindow.webContents.send('idle-behavior', { type: 'wander', direction: wanderX > currentX ? 'right' : 'left' });
-        await animateMoveTo(wanderX, wanderY, 2000);
-        break;
-    }
-  } finally {
-    // Reset after behavior completes
-    setTimeout(() => {
-      isPerformingIdleBehavior = false;
-    }, 2000);
-  }
-}
-
-// Schedule next idle behavior
-function scheduleNextIdleBehavior(): void {
-  const delay = IDLE_BEHAVIOR_MIN_INTERVAL + Math.random() * (IDLE_BEHAVIOR_MAX_INTERVAL - IDLE_BEHAVIOR_MIN_INTERVAL);
-
-  idleBehaviorInterval = setTimeout(async () => {
-    // Only perform if not recently interacted
-    const timeSinceInteraction = Date.now() - lastInteractionTime;
-    if (timeSinceInteraction > INTERACTION_COOLDOWN && !isPerformingIdleBehavior && !isSleeping) {
-      const behavior = pickRandomIdleBehavior();
-      await performIdleBehavior(behavior);
-    }
-
-    // Schedule next one
-    scheduleNextIdleBehavior();
-  }, delay);
-}
-
-// Start idle behavior system
-function startIdleBehaviors(): void {
-  scheduleNextIdleBehavior();
-}
-
-// Stop idle behavior system
-function stopIdleBehaviors(): void {
-  if (idleBehaviorInterval) {
-    clearTimeout(idleBehaviorInterval);
-    idleBehaviorInterval = null;
-  }
-}
-
-// Sleep system
-let isSleeping = false;
-let sleepCheckInterval: NodeJS.Timeout | null = null;
-const SLEEP_AFTER_IDLE = 60000; // Fall asleep after 1 minute of no interaction
-const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
-
-function fallAsleep(): void {
-  if (isSleeping || !petWindow) return;
-  isSleeping = true;
-  console.log('[Sleep] Falling asleep - showing doze state');
-  petWindow.webContents.send('clawbot-mood', { state: 'doze' });
-
-  // After 5 seconds of dozing, go to full sleep
-  setTimeout(() => {
-    if (isSleeping && petWindow) {
-      console.log('[Sleep] Now fully asleep');
-      petWindow.webContents.send('clawbot-mood', { state: 'sleeping' });
-    }
-  }, 5000);
-}
-
-function wakeUp(): void {
-  if (!isSleeping || !petWindow) return;
-  isSleeping = false;
-  console.log('[Sleep] Waking up - showing startle state');
-  petWindow.webContents.send('clawbot-mood', { state: 'startle' });
-
-  // After startle animation, return to idle
-  setTimeout(() => {
-    if (!isSleeping && petWindow) {
-      console.log('[Sleep] Now idle');
-      petWindow.webContents.send('clawbot-mood', { state: 'idle' });
-    }
-  }, 1000);
-}
-
-function startSleepCheck(): void {
-  if (sleepCheckInterval) return;
-  sleepCheckInterval = setInterval(() => {
-    const timeSinceInteraction = Date.now() - lastInteractionTime;
-    if (!isSleeping && timeSinceInteraction >= SLEEP_AFTER_IDLE) {
-      fallAsleep();
-    }
-  }, 10000); // Check every 10 seconds
-}
-
-function stopSleepCheck(): void {
-  if (sleepCheckInterval) {
-    clearInterval(sleepCheckInterval);
-    sleepCheckInterval = null;
-  }
-}
-
-// Reset interaction timer (call this when user interacts)
-function resetInteractionTimer(): void {
-  lastInteractionTime = Date.now();
-  if (isSleeping) {
-    wakeUp();
-  }
-}
-
-
-// Get current screen context for ClawBot
-async function getScreenContext(): Promise<{
-  cursor: { x: number; y: number };
-  petPosition: { x: number; y: number };
-  screenSize: { width: number; height: number };
-  screenshot?: string;
-}> {
-  const cursor = screen.getCursorScreenPoint();
-  const [petX, petY] = petWindow?.getPosition() ?? [0, 0];
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-  return {
-    cursor,
-    petPosition: { x: petX, y: petY },
-    screenSize: { width, height },
-  };
-}
-
-// Get screen recording permission status on macOS
-// Returns: 'granted', 'denied', 'not-determined', 'restricted', or 'granted' for non-macOS
-function getScreenCapturePermissionStatus(): string {
-  if (process.platform !== 'darwin') {
-    return 'granted'; // Non-macOS platforms don't need this check
-  }
-  return systemPreferences.getMediaAccessStatus('screen');
-}
-
-async function playPetCameraSnapAnimationBeforeCapture(): Promise<void> {
-  if (!petWindow || petWindow.isDestroyed() || isSleeping) return;
-
-  petWindow.webContents.send('pet-camera-snap', {
-    captureAtMs: PET_CAMERA_SNAP_CAPTURE_DELAY_MS,
-    durationMs: PET_CAMERA_SNAP_DURATION_MS,
-    flashDurationMs: PET_CAMERA_SNAP_FLASH_DURATION_MS,
-  });
-
-  await new Promise((resolve) => setTimeout(resolve, PET_CAMERA_SNAP_CAPTURE_DELAY_MS));
-}
-
-// Native macOS screen capture using screencapture command (much faster than desktopCapturer)
-async function captureScreenNative(): Promise<string | null> {
-  if (process.platform !== 'darwin') {
-    // Fall back to desktopCapturer on non-macOS platforms
-    return captureScreenFallback();
-  }
-
-  // Check permission first
-  const permissionStatus = getScreenCapturePermissionStatus();
-  if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
-    console.log('Screen capture permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording');
-    return null;
-  }
-
-  const tempPath = path.join(os.tmpdir(), `clawster-screenshot-${Date.now()}.png`);
-
-  try {
-    // Use macOS screencapture command - much faster than desktopCapturer
-    // -x: no sound, -C: capture cursor, -t png: format
-    execSync(`screencapture -x -C -t png "${tempPath}"`, {
-      timeout: 5000,
-      windowsHide: true,
-    });
-
-    // Read the captured image
-    const imageBuffer = fs.readFileSync(tempPath);
-    const base64 = imageBuffer.toString('base64');
-
-    // Clean up temp file
-    fs.unlinkSync(tempPath);
-
-    return `data:image/png;base64,${base64}`;
-  } catch (error) {
-    console.error('Native screen capture failed:', error);
-    // Clean up temp file if it exists
-    try {
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-    } catch {}
-    // Fall back to desktopCapturer
-    return captureScreenFallback();
-  }
-}
-
-// Fallback capture using desktopCapturer (slower, used on non-macOS)
-async function captureScreenFallback(): Promise<string | null> {
-  try {
-    const permissionStatus = getScreenCapturePermissionStatus();
-
-    // If explicitly denied or restricted, don't prompt again
-    if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
-      console.log('Screen capture permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording');
-      return null;
-    }
-
-    // If 'not-determined' or 'granted', proceed (this will trigger prompt if not-determined)
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 },
-    });
-
-    if (sources.length > 0) {
-      const screenshot = sources[0].thumbnail;
-      return screenshot.toDataURL();
-    }
-    return null;
-  } catch (error) {
-    console.error('Fallback screen capture failed:', error);
-    return null;
-  }
-}
-
-// Capture screen with cursor position overlay info
-async function captureScreenWithContext(): Promise<{
-  image: string;
-  cursor: { x: number; y: number };
-  screenSize: { width: number; height: number };
-  } | null> {
-  try {
-    // Use native capture for speed
-    const image = await captureScreenNative();
-
-    if (image) {
-      const cursor = screen.getCursorScreenPoint();
-      const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-      return {
-        image,
-        cursor,
-        screenSize: { width, height },
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error('Screen capture failed:', error);
-    return null;
-  }
-}
-
-// Execute a pet action from ClawBot
-async function executePetAction(action: PetAction): Promise<void> {
-  if (!petWindow) return;
-  if (isSleeping) {
-    console.log(`[Sleep] Ignoring pet action while sleeping: ${action.type}`);
-    return;
-  }
-
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  switch (action.type) {
-    case 'set_mood':
-      if (action.value) {
-        if (isSleepMoodState(action.value)) {
-          isSleeping = true;
-          console.log(`[Sleep] Entered sleep state via set_mood: ${action.value}`);
-        }
-        petWindow.webContents.send('clawbot-mood', { state: action.value });
-      }
-      break;
-
-    case 'move_to':
-      if (typeof action.x === 'number' && typeof action.y === 'number') {
-        // Clamp to screen bounds
-        const targetX = Math.max(0, Math.min(action.x, screenWidth - 300));
-        const targetY = Math.max(0, Math.min(action.y, screenHeight - 300));
-        await animateMoveTo(targetX, targetY, action.duration || 1000);
-      }
-      break;
-
-    case 'move_to_cursor':
-      const cursor = screen.getCursorScreenPoint();
-      const offset = 100; // Don't cover the cursor
-      let targetX = cursor.x + offset;
-      let targetY = cursor.y - 150; // Above cursor
-      // Clamp to screen bounds
-      targetX = Math.max(0, Math.min(targetX, screenWidth - 300));
-      targetY = Math.max(0, Math.min(targetY, screenHeight - 300));
-      await animateMoveTo(targetX, targetY, action.duration || 1500);
-      break;
-
-    case 'snip':
-      petWindow.webContents.send('clawbot-mood', { state: 'curious' });
-      setTimeout(() => {
-        petWindow?.webContents.send('clawbot-mood', { state: 'idle' });
-      }, 2000);
-      break;
-
-    case 'wave':
-      petWindow.webContents.send('clawbot-mood', { state: 'happy' });
-      setTimeout(() => {
-        petWindow?.webContents.send('clawbot-mood', { state: 'idle' });
-      }, 3000);
-      break;
-
-    case 'look_at':
-      // Move pet to look at a screen position
-      if (typeof action.x === 'number' && typeof action.y === 'number') {
-        const lookX = Math.max(0, Math.min(action.x - 150, screenWidth - 300));
-        const lookY = Math.max(0, Math.min(action.y - 150, screenHeight - 300));
-        petWindow.webContents.send('clawbot-mood', { state: 'curious' });
-        await animateMoveTo(lookX, lookY, action.duration || 1200);
-      }
-      break;
-  }
 }
 
 // Send chat popup to pet window
@@ -860,6 +183,7 @@ async function sendChatPopup(
   context?: string,
   windowTitle?: string
 ) {
+  const petWindow = getPetWindow();
   if (!petWindow || !chatProvider?.isAvailable()) return;
 
   // Don't show chat popups during tutorial
@@ -910,7 +234,7 @@ function startIdleDetection() {
         sendChatPopup('idle');
       }
     }
-  }, 30000); // Check every 30 seconds
+  }, 30000);
 }
 
 // Reset idle timer on activity
@@ -918,660 +242,13 @@ function resetIdleTimer() {
   lastActivityTime = Date.now();
 }
 
-// Expand pet window for tutorial (to show speech bubble)
-function expandPetWindowForTutorial(): void {
-  if (!petWindow) return;
-
-  const [currentX, currentY] = petWindow.getPosition();
-  const { height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  // Calculate new position to keep pet at same visual location
-  // The pet will be at the bottom of the expanded window
-  const newY = currentY - (PET_WINDOW_TUTORIAL_HEIGHT - PET_WINDOW_HEIGHT);
-  const newX = currentX - (PET_WINDOW_TUTORIAL_WIDTH - PET_WINDOW_WIDTH) / 2;
-
-  // Ensure window stays on screen
-  const safeY = Math.max(0, newY);
-  const safeX = Math.max(0, newX);
-
-  petWindow.setSize(PET_WINDOW_TUTORIAL_WIDTH, PET_WINDOW_TUTORIAL_HEIGHT);
-  petWindow.setPosition(Math.round(safeX), Math.round(safeY));
-  petWindow.webContents.send('tutorial-window-expanded', true);
-  console.log('[Tutorial] Pet window expanded for tutorial');
-}
-
-// Contract pet window back to normal size
-function contractPetWindow(): void {
-  if (!petWindow) return;
-
-  const [currentX, currentY] = petWindow.getPosition();
-
-  // Calculate new position to keep pet at same visual location
-  const newY = currentY + (PET_WINDOW_TUTORIAL_HEIGHT - PET_WINDOW_HEIGHT);
-  const newX = currentX + (PET_WINDOW_TUTORIAL_WIDTH - PET_WINDOW_WIDTH) / 2;
-
-  petWindow.setSize(PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT);
-  petWindow.setPosition(Math.round(newX), Math.round(newY));
-  petWindow.webContents.send('tutorial-window-expanded', false);
-  console.log('[Tutorial] Pet window contracted to normal');
-}
-
-function createPetWindow() {
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  // Small window just for the lobster
-  const petWindowWidth = PET_WINDOW_WIDTH;
-  const petWindowHeight = PET_WINDOW_HEIGHT;
-
-  // Use saved position or default to bottom-right
-  const savedPosition = store.get('pet.position') as { x: number; y: number } | null;
-  const startX = savedPosition ? savedPosition.x : screenWidth - petWindowWidth - 20;
-  const startY = savedPosition ? savedPosition.y : screenHeight - petWindowHeight - 20;
-
-  petWindow = new BrowserWindow({
-    width: petWindowWidth,
-    height: petWindowHeight,
-    x: startX,
-    y: startY,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    alwaysOnTop: true,
-    resizable: false,
-    skipTaskbar: true,
-    hasShadow: false,
-    roundedCorners: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  wireDebugWindowBorder(petWindow);
-
-  // Allow dragging and going above menu bar
-  petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  petWindow.setAlwaysOnTop(true, 'screen-saver');
-
-  if (isDev) {
-    petWindow.loadURL(`http://localhost:${DEV_PORT}/pet.html`);
-  } else {
-    petWindow.loadFile(path.join(__dirname, '../renderer/pet.html'));
-  }
-
-  petWindow.on('closed', () => {
-    petWindow = null;
-    petChatWindow?.close();
-    petContextMenuWindow?.close();
-  });
-}
-
-// Show chat popup above the pet
-function schedulePetChatAutoHide() {
-  if (petChatAutoHideTimeout) {
-    clearTimeout(petChatAutoHideTimeout);
-  }
-
-  petChatAutoHideTimeout = setTimeout(() => {
-    petChatAutoHideTimeout = null;
-    if (!petChatWindow || petChatWindow.isDestroyed() || !petChatWindow.isVisible()) return;
-    hidePetChat();
-  }, PET_CHAT_AUTO_HIDE_MS);
-}
-
-function showPetChat(message: { id: string; text: string; quickReplies?: string[] }) {
-  if (!petWindow) return;
-
-  // Don't show chat popups during tutorial
-  if (tutorialManager?.getStatus().isActive) return;
-  pendingPetChatReveal = true;
-
-  const [petX, petY] = petWindow.getPosition();
-  const [petWidth] = petWindow.getSize();
-
-  const chatWidth = PET_CHAT_MIN_WIDTH;
-  const chatHeight = PET_CHAT_MIN_HEIGHT;
-  const chatX = petX + (petWidth - chatWidth) / 2;
-  const chatY = petY - chatHeight + PET_CHAT_VERTICAL_GAP;
-
-  const scheduleFallbackReveal = () => {
-    if (petChatRevealTimeout) clearTimeout(petChatRevealTimeout);
-    petChatRevealTimeout = setTimeout(() => {
-      if (!pendingPetChatReveal || !petChatWindow || petChatWindow.isDestroyed()) return;
-      petChatWindow.setOpacity(1);
-      petChatWindow.showInactive();
-      pendingPetChatReveal = false;
-      petChatRevealTimeout = null;
-    }, 250);
-  };
-
-  if (!petChatWindow) {
-    petChatWindow = new BrowserWindow({
-      width: chatWidth,
-      height: chatHeight,
-      x: Math.max(0, chatX),
-      y: Math.max(0, chatY),
-      show: false,
-      frame: false,
-      transparent: true,
-      backgroundColor: '#00000000',
-      alwaysOnTop: true,
-      resizable: false,
-      skipTaskbar: true,
-      hasShadow: false,
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-        autoplayPolicy: 'no-user-gesture-required',
-      },
-    });
-    wireDebugWindowBorder(petChatWindow);
-
-    petChatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-
-    if (isDev) {
-      petChatWindow.loadURL(`http://localhost:${DEV_PORT}/pet-chat.html`);
-    } else {
-      petChatWindow.loadFile(path.join(__dirname, '../renderer/pet-chat.html'));
-    }
-
-    petChatWindow.on('closed', () => {
-      petChatWindow = null;
-      pendingPetChatReveal = false;
-      if (petChatRevealTimeout) {
-        clearTimeout(petChatRevealTimeout);
-        petChatRevealTimeout = null;
-      }
-      if (petChatAutoHideTimeout) {
-        clearTimeout(petChatAutoHideTimeout);
-        petChatAutoHideTimeout = null;
-      }
-    });
-
-    petChatWindow.once('ready-to-show', () => {
-      petChatWindow?.setOpacity(0);
-      petChatWindow?.showInactive();
-      petChatWindow?.webContents.send('chat-message', message);
-      scheduleFallbackReveal();
-      schedulePetChatAutoHide();
-    });
-  } else {
-    // Update position and message
-    petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
-    petChatWindow.setOpacity(0);
-    if (!petChatWindow.isVisible()) {
-      petChatWindow.showInactive();
-    }
-    petChatWindow.webContents.send('chat-message', message);
-    scheduleFallbackReveal();
-    schedulePetChatAutoHide();
-  }
-}
-
-function hidePetChat() {
-  pendingPetChatReveal = false;
-  if (petChatRevealTimeout) {
-    clearTimeout(petChatRevealTimeout);
-    petChatRevealTimeout = null;
-  }
-  if (petChatAutoHideTimeout) {
-    clearTimeout(petChatAutoHideTimeout);
-    petChatAutoHideTimeout = null;
-  }
-  if (petChatWindow && !petChatWindow.isDestroyed()) {
-    petChatWindow.webContents.send('pet-chat-hidden');
-    petChatWindow.setOpacity(1);
-    petChatWindow.hide();
-  }
-}
-
-function resizePetChatToContent(width: number, height: number) {
-  if (!petChatWindow || petChatWindow.isDestroyed()) return;
-
-  const nextWidth = Math.max(PET_CHAT_MIN_WIDTH, Math.min(Math.round(width), PET_CHAT_MAX_WIDTH));
-  const nextHeight = Math.max(PET_CHAT_MIN_HEIGHT, Math.min(Math.round(height), PET_CHAT_MAX_HEIGHT));
-  const [currentWidth, currentHeight] = petChatWindow.getSize();
-
-  if (nextWidth !== currentWidth || nextHeight !== currentHeight) {
-    petChatWindow.setSize(nextWidth, nextHeight, false);
-  }
-
-  updatePetChatPosition();
-
-  if (pendingPetChatReveal) {
-    if (petChatRevealTimeout) {
-      clearTimeout(petChatRevealTimeout);
-      petChatRevealTimeout = null;
-    }
-    petChatWindow.setOpacity(1);
-    petChatWindow.showInactive();
-    pendingPetChatReveal = false;
-  }
-}
-
-function updatePetChatPosition() {
-  if (!petWindow || !petChatWindow) return;
-
-  const [petX, petY] = petWindow.getPosition();
-  const [petWidth] = petWindow.getSize();
-  const [chatWidth] = petChatWindow.getSize();
-
-  const [cw, ch] = petChatWindow.getSize();
-  const chatX = petX + (petWidth - cw) / 2;
-  const chatY = petY - ch + PET_CHAT_VERTICAL_GAP;
-
-  petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
-}
-
-function updateAssistantPosition() {
-  if (!petWindow || !assistantWindow || !assistantWindow.isVisible()) return;
-
-  const [petX, petY] = petWindow.getPosition();
-  const [petWidth] = petWindow.getSize();
-  const [assistantWidth, assistantHeight] = assistantWindow.getSize();
-  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
-
-  // Center assistant above pet with configurable vertical gap
-  let assistantX = petX + (petWidth - assistantWidth) / 2;
-  const assistantY = petY - assistantHeight + ASSISTANT_VERTICAL_GAP;
-
-  // Keep within screen bounds
-  assistantX = Math.max(0, Math.min(assistantX, screenWidth - assistantWidth));
-
-  assistantWindow.setPosition(Math.round(assistantX), Math.max(0, Math.round(assistantY)));
-}
-
-function revealAssistantWindow() {
-  if (!assistantWindow || assistantWindow.isDestroyed()) return;
-
-  if (process.platform === 'darwin' || process.platform === 'linux') {
-    assistantWindow.setVisibleOnAllWorkspaces(true, {
-      visibleOnFullScreen: true,
-    });
-  }
-
-  assistantWindow.show();
-  assistantWindow.focus();
-}
-
-function openAssistantOnTab(tab: 'chat' | 'settings') {
-  createAssistantWindow();
-  if (!assistantWindow || assistantWindow.isDestroyed()) return;
-
-  const channel = tab === 'settings' ? 'switch-to-settings' : 'switch-to-chat';
-  const sendTabSwitch = () => {
-    if (!assistantWindow || assistantWindow.isDestroyed()) return;
-    assistantWindow.webContents.send(channel);
-  };
-
-  if (assistantWindow.webContents.isLoading()) {
-    assistantWindow.webContents.once('did-finish-load', () => {
-      setTimeout(sendTabSwitch, 0);
-    });
-  } else {
-    sendTabSwitch();
-  }
-}
-
-function createAssistantWindow() {
-  if (assistantWindow) {
-    revealAssistantWindow();
-    updateAssistantPosition();
-    return;
-  }
-
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  // Position above pet if pet window exists, otherwise bottom-right
-  let initialX = screenWidth - 420;
-  let initialY = screenHeight - 520;
-
-  if (petWindow) {
-    const [petX, petY] = petWindow.getPosition();
-    const [petWidth] = petWindow.getSize();
-    const assistantWidth = 400;
-    const assistantHeight = 500;
-
-    initialX = petX + (petWidth - assistantWidth) / 2;
-    initialY = petY - assistantHeight + ASSISTANT_VERTICAL_GAP;
-
-    // Keep within screen bounds
-    initialX = Math.max(0, Math.min(initialX, screenWidth - assistantWidth));
-    initialY = Math.max(0, initialY);
-  }
-
-  assistantWindow = new BrowserWindow({
-    width: 400,
-    height: 500,
-    x: Math.round(initialX),
-    y: Math.round(initialY),
-    frame: false,
-    transparent: false,
-    alwaysOnTop: true,
-    resizable: true,
-    show: false,
-    backgroundColor: '#1a1a2e',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  wireDebugWindowBorder(assistantWindow);
-  if (process.platform === 'darwin' || process.platform === 'linux') {
-    assistantWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  }
-
-  if (isDev) {
-    assistantWindow.loadURL(`http://localhost:${DEV_PORT}/assistant.html`);
-  } else {
-    assistantWindow.loadFile(path.join(__dirname, '../renderer/assistant.html'));
-  }
-
-  assistantWindow.once('ready-to-show', () => {
-    revealAssistantWindow();
-    // Open DevTools in dev mode
-    if (isDev) {
-      assistantWindow?.webContents.openDevTools({ mode: 'detach' });
-    }
-  });
-
-  assistantWindow.on('closed', () => {
-    assistantWindow = null;
-  });
-}
-
-function createPetContextMenuWindow() {
-  if (petContextMenuWindow) return;
-
-  petContextMenuWindow = new BrowserWindow({
-    width: PET_CONTEXT_MENU_WIDTH,
-    height: PET_CONTEXT_MENU_HEIGHT,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    alwaysOnTop: true,
-    resizable: false,
-    show: false,
-    skipTaskbar: true,
-    hasShadow: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  wireDebugWindowBorder(petContextMenuWindow);
-  petContextMenuWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  // Keep the context menu above the pet window, which also uses screen-saver level.
-  petContextMenuWindow.setAlwaysOnTop(true, 'screen-saver', 1);
-
-  if (isDev) {
-    petContextMenuWindow.loadURL(`http://localhost:${DEV_PORT}/pet-context-menu.html`);
-  } else {
-    petContextMenuWindow.loadFile(path.join(__dirname, '../renderer/pet-context-menu.html'));
-  }
-
-  petContextMenuWindow.on('blur', () => {
-    petContextMenuWindow?.hide();
-  });
-
-  petContextMenuWindow.on('closed', () => {
-    petContextMenuWindow = null;
-  });
-}
-
-function showPetContextMenuAtCursor(cursorX: number, cursorY: number) {
-  createPetContextMenuWindow();
-  if (!petContextMenuWindow || petContextMenuWindow.isDestroyed()) return;
-
-  const display = screen.getDisplayNearestPoint({ x: cursorX, y: cursorY });
-  const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = display.workArea;
-
-  const x = Math.max(areaX, Math.min(Math.round(cursorX), areaX + areaWidth - PET_CONTEXT_MENU_WIDTH));
-  const y = Math.max(areaY, Math.min(Math.round(cursorY), areaY + areaHeight - PET_CONTEXT_MENU_HEIGHT));
-
-  const showWindow = () => {
-    if (!petContextMenuWindow || petContextMenuWindow.isDestroyed()) return;
-    petContextMenuWindow.setPosition(x, y);
-    petContextMenuWindow.show();
-    petContextMenuWindow.focus();
-  };
-
-  if (petContextMenuWindow.webContents.isLoading()) {
-    petContextMenuWindow.webContents.once('did-finish-load', showWindow);
-  } else {
-    showWindow();
-  }
-}
-
-function toggleAssistantWindow() {
-  if (assistantWindow && assistantWindow.isVisible()) {
-    assistantWindow.hide();
-  } else {
-    createAssistantWindow();
-  }
-}
-
-function createChatbarWindow() {
-  if (chatbarWindow) {
-    chatbarWindow.show();
-    chatbarWindow.focus();
-    return;
-  }
-
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-  const chatbarWidth = 650;
-  const chatbarHeight = 300;
-
-  chatbarWindow = new BrowserWindow({
-    width: chatbarWidth,
-    height: chatbarHeight,
-    x: Math.round((screenWidth - chatbarWidth) / 2),
-    y: Math.round(screenHeight / 3),
-    frame: false,
-    transparent: false,
-    backgroundColor: '#0f0f0f',
-    alwaysOnTop: true,
-    resizable: true,
-    movable: true,
-    show: false,
-    skipTaskbar: true,
-    hasShadow: true,
-    minWidth: 300,
-    minHeight: 80,
-    roundedCorners: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  wireDebugWindowBorder(chatbarWindow);
-
-  chatbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-
-  if (isDev) {
-    chatbarWindow.loadURL(`http://localhost:${DEV_PORT}/chatbar.html`);
-  } else {
-    chatbarWindow.loadFile(path.join(__dirname, '../renderer/chatbar.html'));
-  }
-
-  chatbarWindow.once('ready-to-show', () => {
-    chatbarWindow?.show();
-  });
-
-  chatbarWindow.on('closed', () => {
-    chatbarWindow = null;
-  });
-}
-
-function toggleChatbarWindow() {
-  if (chatbarWindow && chatbarWindow.isVisible()) {
-    chatbarWindow.hide();
-  } else {
-    createChatbarWindow();
-  }
-}
-
-function createScreenshotQuestionWindow() {
-  console.log('[ScreenshotQuestion] Creating window...');
-  if (screenshotQuestionWindow) {
-    console.log('[ScreenshotQuestion] Window exists, showing and refocusing');
-    screenshotQuestionWindow.show();
-    screenshotQuestionWindow.focus();
-    // Trigger a fresh screenshot capture
-    screenshotQuestionWindow.webContents.send('retake-screenshot');
-    return;
-  }
-
-  const cursor = screen.getCursorScreenPoint();
-  const display = screen.getDisplayNearestPoint(cursor);
-  const { width: screenWidth, height: screenHeight } = display.workAreaSize;
-
-  const windowWidth = 520;
-  const windowHeight = 280;
-
-  // Position near cursor, but keep within screen bounds
-  let x = Math.round(cursor.x - windowWidth / 2);
-  let y = Math.round(cursor.y - windowHeight - 20);
-
-  // Clamp to screen bounds
-  x = Math.max(display.workArea.x, Math.min(x, display.workArea.x + screenWidth - windowWidth));
-  y = Math.max(display.workArea.y, Math.min(y, display.workArea.y + screenHeight - windowHeight));
-
-  screenshotQuestionWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    x,
-    y,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    alwaysOnTop: true,
-    resizable: false,
-    show: false,
-    skipTaskbar: true,
-    hasShadow: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  wireDebugWindowBorder(screenshotQuestionWindow);
-
-  screenshotQuestionWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-
-  if (isDev) {
-    screenshotQuestionWindow.loadURL(`http://localhost:${DEV_PORT}/screenshot-question.html`);
-  } else {
-    screenshotQuestionWindow.loadFile(path.join(__dirname, '../renderer/screenshot-question.html'));
-  }
-
-  screenshotQuestionWindow.once('ready-to-show', () => {
-    console.log('[ScreenshotQuestion] Window ready, showing...');
-    screenshotQuestionWindow?.show();
-  });
-
-  // Hide on blur (click outside)
-  screenshotQuestionWindow.on('blur', () => {
-    screenshotQuestionWindow?.hide();
-  });
-
-  screenshotQuestionWindow.on('closed', () => {
-    screenshotQuestionWindow = null;
-  });
-}
-
-function toggleScreenshotQuestionWindow() {
-  if (screenshotQuestionWindow && screenshotQuestionWindow.isVisible()) {
-    screenshotQuestionWindow.hide();
-  } else {
-    createScreenshotQuestionWindow();
-  }
-}
-
-function createOnboardingWindow(): Promise<void> {
-  return new Promise((resolve) => {
-    console.log('[Onboarding] createOnboardingWindow called');
-    if (onboardingWindow) {
-      console.log('[Onboarding] Window already exists, showing');
-      onboardingWindow.show();
-      onboardingWindow.focus();
-      resolve();
-      return;
-    }
-
-    const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-    const windowWidth = 600;
-    const windowHeight = 700;
-
-    console.log('[Onboarding] Creating new BrowserWindow');
-    onboardingWindow = new BrowserWindow({
-      width: windowWidth,
-      height: windowHeight,
-      x: Math.round((screenWidth - windowWidth) / 2),
-      y: Math.round((screenHeight - windowHeight) / 2),
-      frame: false,
-      transparent: false,
-      resizable: true,
-      minWidth: 500,
-      minHeight: 550,
-      show: false,
-      backgroundColor: '#1a1a2e',
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
-    });
-    wireDebugWindowBorder(onboardingWindow);
-
-    const loadUrl = isDev
-      ? `http://localhost:${DEV_PORT}/onboarding.html`
-      : path.join(__dirname, '../renderer/onboarding.html');
-    console.log('[Onboarding] Loading URL:', loadUrl);
-
-    if (isDev) {
-      onboardingWindow.loadURL(`http://localhost:${DEV_PORT}/onboarding.html`);
-      // Open DevTools in dev mode for debugging
-      onboardingWindow.webContents.openDevTools({ mode: 'detach' });
-    } else {
-      onboardingWindow.loadFile(path.join(__dirname, '../renderer/onboarding.html'));
-    }
-
-    onboardingWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-      console.error('[Onboarding] Failed to load:', errorCode, errorDescription);
-    });
-
-    onboardingWindow.once('ready-to-show', () => {
-      console.log('[Onboarding] Window ready to show');
-      onboardingWindow?.show();
-      resolve();
-    });
-
-    onboardingWindow.on('closed', () => {
-      console.log('[Onboarding] Window closed');
-      onboardingWindow = null;
-    });
-  });
-}
-
-function closeOnboardingAndStartApp() {
-  if (onboardingWindow) {
-    onboardingWindow.close();
-    onboardingWindow = null;
-  }
-  startMainApp();
-}
-
 function startMainApp() {
   // Register global hotkeys
   registerHotkeys();
 
   createPetWindow();
+
+  const petWindow = getPetWindow();
 
   // Set up tutorial manager with pet window
   if (petWindow) {
@@ -1583,14 +260,14 @@ function startMainApp() {
     petWindow.webContents.once('did-finish-load', () => {
       setTimeout(() => {
         if (tutorialManager.shouldShowResumePrompt()) {
-          hidePetChat(); // Hide any existing chat popup during tutorial
+          hidePetChat();
           expandPetWindowForTutorial();
-          petWindow?.webContents.send('tutorial-resume-prompt');
+          getPetWindow()?.webContents.send('tutorial-resume-prompt');
         } else if (tutorialManager.shouldStartTutorial()) {
-          hidePetChat(); // Hide any existing chat popup during tutorial
+          hidePetChat();
           tutorialManager.start();
         }
-      }, 500); // Small delay to let pet window settle
+      }, 500);
     });
   }
 
@@ -1603,10 +280,10 @@ function startMainApp() {
   chatProvider = new CloudChatProvider(proxyUrl, deviceId);
 
   chatProvider.on('connection-changed', (status: { connected: boolean; error: string | null }) => {
-    petWindow?.webContents.send('clawbot-connection-changed', status);
-    assistantWindow?.webContents.send('clawbot-connection-changed', status);
-    petChatWindow?.webContents.send('clawbot-connection-changed', status);
-    chatbarWindow?.webContents.send('clawbot-connection-changed', status);
+    getPetWindow()?.webContents.send('clawbot-connection-changed', status);
+    getAssistantWindow()?.webContents.send('clawbot-connection-changed', status);
+    getPetChatWindow()?.webContents.send('clawbot-connection-changed', status);
+    getChatbarWindow()?.webContents.send('clawbot-connection-changed', status);
   });
 
   // Initialize watchers
@@ -1618,17 +295,16 @@ function startMainApp() {
     chatProvider?.sendEvent(event);
 
     // Forward to pet window for reactions
-    petWindow?.webContents.send('activity-event', event);
+    getPetWindow()?.webContents.send('activity-event', event);
 
     // Forward to assistant window
-    assistantWindow?.webContents.send('activity-event', event);
+    getAssistantWindow()?.webContents.send('activity-event', event);
 
     // Trigger chat popup on app switch (with cooldown)
     if (event.type === 'app_focus_changed' && event.app) {
       const now = Date.now();
       if (now - lastAppSwitchChat > APP_SWITCH_CHAT_COOLDOWN) {
         lastAppSwitchChat = now;
-        // Random chance to show chat (30% of the time to not be annoying)
         if (Math.random() < 0.3) {
           sendChatPopup('app_switch', event.app, event.title);
         }
@@ -1649,12 +325,6 @@ function startMainApp() {
 
   // Start sleep check (pet falls asleep after 1 minute of no interaction)
   startSleepCheck();
-
-}
-
-// Screen capture - uses native capture for speed
-async function captureScreen(): Promise<string | null> {
-  return captureScreenNative();
 }
 
 // IPC Handlers
@@ -1671,7 +341,7 @@ function setupIPC() {
 
   // Close assistant window
   ipcMain.on('close-assistant', () => {
-    assistantWindow?.hide();
+    getAssistantWindow()?.hide();
   });
 
   ipcMain.on('show-pet-context-menu', (_event, position: { x: number; y: number }) => {
@@ -1687,16 +357,16 @@ function setupIPC() {
     } else {
       openAssistantOnTab('chat');
     }
-    petContextMenuWindow?.hide();
+    getPetContextMenuWindow()?.hide();
   });
 
   ipcMain.on('hide-pet-context-menu', () => {
-    petContextMenuWindow?.hide();
+    getPetContextMenuWindow()?.hide();
   });
 
   // Force pet into sleep mode (dev utility)
   ipcMain.on('force-pet-sleep', () => {
-    fallAsleep();
+    forceSleep();
   });
 
   // Force a test app-switch chat popup (dev utility)
@@ -1750,11 +420,12 @@ function setupIPC() {
 
   // Close chatbar window
   ipcMain.on('close-chatbar', () => {
-    chatbarWindow?.hide();
+    getChatbarWindow()?.hide();
   });
 
   // Control mouse events for chatbar (for click-through on transparent areas)
   ipcMain.on('chatbar-set-ignore-mouse', (_event, ignore: boolean) => {
+    const chatbarWindow = getChatbarWindow();
     if (chatbarWindow) {
       chatbarWindow.setIgnoreMouseEvents(ignore, { forward: true });
     }
@@ -1767,7 +438,7 @@ function setupIPC() {
 
   // Close screenshot question window
   ipcMain.on('close-screenshot-question', () => {
-    screenshotQuestionWindow?.hide();
+    getScreenshotQuestionWindow()?.hide();
   });
 
   // Ask about screen (screenshot + question)
@@ -1828,7 +499,7 @@ function setupIPC() {
     }
 
     if (key === 'pet.transparentWhenSleeping') {
-      petWindow?.webContents.send('pet-transparent-sleep-changed', Boolean(value));
+      getPetWindow()?.webContents.send('pet-transparent-sleep-changed', Boolean(value));
     }
 
     if (key === 'dev.windowBorders') {
@@ -1836,7 +507,7 @@ function setupIPC() {
     }
 
     if (key === 'dev.showPetModeOverlay') {
-      petWindow?.webContents.send('dev-show-pet-mode-overlay-changed', Boolean(value));
+      getPetWindow()?.webContents.send('dev-show-pet-mode-overlay-changed', Boolean(value));
     }
 
     return store.store;
@@ -1849,7 +520,6 @@ function setupIPC() {
 
   // Save chat history
   ipcMain.handle('save-chat-history', (_event, messages: unknown[]) => {
-    // Keep only last 100 messages to prevent storage bloat
     const trimmed = messages.slice(-100);
     store.set('chatHistory', trimmed);
     return true;
@@ -1862,17 +532,14 @@ function setupIPC() {
   });
 
   // Check screen capture permission status
-  // Returns: 'granted', 'denied', 'not-determined', or 'restricted'
   ipcMain.handle('get-screen-capture-permission', () => {
     return getScreenCapturePermissionStatus();
   });
 
-  // Check accessibility permission (for active-win app watching)
-  // Returns true if granted, false otherwise
-  // If prompt is true, will show macOS permission dialog
+  // Check accessibility permission
   ipcMain.handle('check-accessibility-permission', (_event, prompt: boolean = false) => {
     if (process.platform !== 'darwin') {
-      return true; // Non-macOS platforms don't need this
+      return true;
     }
     const result = systemPreferences.isTrustedAccessibilityClient(prompt);
     console.log(`[Accessibility] isTrustedAccessibilityClient(${prompt}) = ${result}`);
@@ -1911,6 +578,9 @@ function setupIPC() {
 
   // Show final response as a speech bubble on the pet when appropriate
   const maybeShowPetResponse = (responseText?: string) => {
+    const assistantWindow = getAssistantWindow();
+    const chatbarWindow = getChatbarWindow();
+    const petWindow = getPetWindow();
     const assistantActive = assistantWindow && assistantWindow.isVisible();
     const chatbarActive = chatbarWindow && chatbarWindow.isVisible();
     if (responseText && !responseText.includes('error') && petWindow && !assistantActive && !chatbarActive && !tutorialManager?.getStatus().isActive) {
@@ -1952,6 +622,7 @@ function setupIPC() {
 
     const requestId = randomUUID();
     const sender = event.sender;
+    const chatbarWindow = getChatbarWindow();
     const isChatbarRequest = Boolean(
       chatbarWindow &&
       !chatbarWindow.isDestroyed() &&
@@ -2017,7 +688,7 @@ function setupIPC() {
       return { success: false, error: 'Speech recognition is only available on macOS' };
     }
 
-    if (speechSessionActive || speechStartPending) {
+    if (isSpeechSessionActive() || isSpeechStartPending()) {
       return { success: false, error: 'Already recording' };
     }
 
@@ -2033,31 +704,31 @@ function setupIPC() {
     }
 
     const sender = event.sender;
-    const startSequence = ++speechStartSequence;
-    speechSender = sender;
-    speechSessionActive = true;
-    speechStartPending = true;
+    const startSequence = nextSpeechStartSequence();
+    setSpeechSender(sender);
+    setSpeechSessionActive(true);
+    setSpeechStartPending(true);
 
     try {
       const helper = await ensureSpeechHelper();
-      const startCancelled = !speechSessionActive || !speechStartPending || speechStartSequence !== startSequence;
+      const startCancelled = !isSpeechSessionActive() || !isSpeechStartPending() || getSpeechStartSequence() !== startSequence;
       if (startCancelled) {
-        if (speechStartSequence === startSequence && !speechSessionActive) {
-          speechSender = null;
+        if (getSpeechStartSequence() === startSequence && !isSpeechSessionActive()) {
+          setSpeechSender(null);
         }
         return { success: false, error: 'Speech recognition start cancelled' };
       }
       if (!helper.stdin || helper.stdin.destroyed) {
         throw new Error('Speech helper is not available');
       }
-      speechStartPending = false;
+      setSpeechStartPending(false);
       helper.stdin.write('start\n');
       return { success: true };
     } catch (error) {
-      if (speechStartSequence === startSequence) {
-        speechStartPending = false;
-        speechSessionActive = false;
-        speechSender = null;
+      if (getSpeechStartSequence() === startSequence) {
+        setSpeechStartPending(false);
+        setSpeechSessionActive(false);
+        setSpeechSender(null);
       }
       return {
         success: false,
@@ -2068,11 +739,11 @@ function setupIPC() {
 
   // Speech recognition - stop recording
   ipcMain.handle('speech-stop', async () => {
-    const activeSpeechProcess = speechProcess;
-    const shouldStop = Boolean(speechSessionActive || speechStartPending);
-    if (speechStartPending) {
-      speechStartPending = false;
-      speechSessionActive = false;
+    const activeSpeechProcess = getSpeechProcess();
+    const shouldStop = Boolean(isSpeechSessionActive() || isSpeechStartPending());
+    if (isSpeechStartPending()) {
+      setSpeechStartPending(false);
+      setSpeechSessionActive(false);
     }
     if (activeSpeechProcess && shouldStop) {
       activeSpeechProcess.stdin?.write('stop\n');
@@ -2120,15 +791,16 @@ function setupIPC() {
     return true;
   });
 
-  // Drag pet window
   // Forward mouth shape from PetChat to Pet window
   ipcMain.on('pet-mouth-shape', (_event, shape: string | null) => {
+    const petWindow = getPetWindow();
     if (petWindow && !petWindow.isDestroyed()) {
       petWindow.webContents.send('pet-mouth-shape', shape);
     }
   });
 
   ipcMain.on('pet-drag', (_event, deltaX: number, deltaY: number) => {
+    const petWindow = getPetWindow();
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
       const newX = x + deltaX;
@@ -2137,8 +809,8 @@ function setupIPC() {
       store.set('pet.position', { x: newX, y: newY });
       updatePetChatPosition();
       updateAssistantPosition();
-      petContextMenuWindow?.hide();
-      resetInteractionTimer(); // User is interacting
+      getPetContextMenuWindow()?.hide();
+      resetInteractionTimer();
     }
   });
 
@@ -2159,6 +831,7 @@ function setupIPC() {
 
   // Reset pet chat inactivity timer when user interacts with the popup
   ipcMain.on('pet-chat-interacted', () => {
+    const petChatWindow = getPetChatWindow();
     if (petChatWindow && !petChatWindow.isDestroyed() && petChatWindow.isVisible()) {
       schedulePetChatAutoHide();
     }
@@ -2166,10 +839,10 @@ function setupIPC() {
 
   // Forward pet chat reply to pet window
   ipcMain.on('pet-chat-reply', (_event, reply: string) => {
-    petWindow?.webContents.send('pet-chat-reply', reply);
+    getPetWindow()?.webContents.send('pet-chat-reply', reply);
   });
 
-// Pet movement (legacy API)
+  // Pet movement (legacy API)
   ipcMain.handle('pet-move-to', (_event, x: number, y: number, duration?: number) => {
     animateMoveTo(x, y, duration ?? 1000);
   });
@@ -2179,7 +852,7 @@ function setupIPC() {
   });
 
   ipcMain.handle('get-pet-position', () => {
-    return petWindow?.getPosition() ?? [0, 0];
+    return getPetWindow()?.getPosition() ?? [0, 0];
   });
 
   // Pet was clicked
@@ -2189,11 +862,11 @@ function setupIPC() {
 
   // Chat sync - broadcast to all windows when chat history changes
   ipcMain.on('chat-sync', () => {
-    // Notify assistant window to refresh its chat history
+    const assistantWindow = getAssistantWindow();
     if (assistantWindow && !assistantWindow.isDestroyed()) {
       assistantWindow.webContents.send('chat-sync');
     }
-    // Notify chatbar window as well (in case it's open)
+    const chatbarWindow = getChatbarWindow();
     if (chatbarWindow && !chatbarWindow.isDestroyed()) {
       chatbarWindow.webContents.send('chat-sync');
     }
@@ -2209,7 +882,6 @@ function setupIPC() {
   // Reset onboarding (for testing)
   ipcMain.handle('reset-onboarding', () => {
     resetOnboardingState();
-    // Also reset tutorial so it starts fresh after onboarding
     store.set('tutorial.completedAt', null);
     store.set('tutorial.lastStep', 0);
     store.set('tutorial.wasInterrupted', false);
@@ -2247,8 +919,6 @@ function setupIPC() {
   // Get default identity and soul from app resources
   ipcMain.handle('get-default-personality', () => {
     try {
-      // In development, read from openclaw folder relative to project
-      // In production, read from resources
       const basePath = isDev
         ? path.join(__dirname, '../../openclaw')
         : path.join(process.resourcesPath, 'openclaw');
@@ -2285,12 +955,12 @@ function setupIPC() {
   });
 
   ipcMain.on('tutorial-resume', () => {
-    hidePetChat(); // Hide any existing chat popup during tutorial
+    hidePetChat();
     tutorialManager.resume();
   });
 
   ipcMain.on('tutorial-start-over', () => {
-    hidePetChat(); // Hide any existing chat popup during tutorial
+    hidePetChat();
     tutorialManager.startOver();
   });
 
@@ -2299,7 +969,7 @@ function setupIPC() {
   });
 
   ipcMain.handle('replay-tutorial', () => {
-    hidePetChat(); // Hide any existing chat popup during tutorial
+    hidePetChat();
     tutorialManager.replay();
     return true;
   });
@@ -2311,7 +981,6 @@ function setupIPC() {
 
 // Register global hotkeys from store
 function registerHotkeys() {
-  // Unregister all first (in case we're re-registering)
   globalShortcut.unregisterAll();
 
   const hotkeyOpenAssistant = store.get('hotkeys.openAssistant') as string || 'CommandOrControl+Shift+A';
@@ -2319,14 +988,12 @@ function registerHotkeys() {
   const hotkeyCaptureScreen = store.get('hotkeys.captureScreen') as string || 'CommandOrControl+Shift+/';
 
   globalShortcut.register(hotkeyOpenAssistant, () => {
-    // Notify tutorial if active
     tutorialManager.handleHotkeyPressed('openAssistant');
     toggleAssistantWindow();
   });
   console.log(`[Hotkeys] Registered open assistant: ${hotkeyOpenAssistant}`);
 
   globalShortcut.register(hotkeyOpenChat, () => {
-    // Notify tutorial if active
     tutorialManager.handleHotkeyPressed('openChat');
     resetInteractionTimer();
     toggleChatbarWindow();
@@ -2385,13 +1052,11 @@ function setupAutoUpdater() {
     console.error('[AutoUpdater] Error:', error);
   });
 
-  // Check for updates
   autoUpdater.checkForUpdatesAndNotify();
 }
 
 // Setup system tray
 function setupTray() {
-  // Create tray icon - use dedicated tray icon (black silhouette for template)
   const iconPath = isDev
     ? path.join(__dirname, '../../assets/tray-icon.png')
     : path.join(process.resourcesPath, 'assets/tray-icon.png');
@@ -2401,11 +1066,9 @@ function setupTray() {
   try {
     trayIcon = nativeImage.createFromPath(iconPath);
     if (process.platform === 'darwin') {
-      // Template images adapt to light/dark menu bar automatically
       trayIcon.setTemplateImage(true);
     }
   } catch {
-    // Fallback: create a simple colored icon
     trayIcon = nativeImage.createEmpty();
   }
 
@@ -2416,8 +1079,8 @@ function setupTray() {
     {
       label: 'Show Clawster',
       click: () => {
-        petWindow?.show();
-        petWindow?.focus();
+        getPetWindow()?.show();
+        getPetWindow()?.focus();
       },
     },
     {
@@ -2430,11 +1093,12 @@ function setupTray() {
       label: 'Settings',
       click: () => {
         createAssistantWindow();
+        const assistantWindow = getAssistantWindow();
         if (!assistantWindow) return;
 
         if (assistantWindow.webContents.isLoading()) {
           assistantWindow.webContents.once('did-finish-load', () => {
-            assistantWindow?.webContents.send('switch-to-settings');
+            getAssistantWindow()?.webContents.send('switch-to-settings');
           });
         } else {
           assistantWindow.webContents.send('switch-to-settings');
@@ -2471,18 +1135,17 @@ function setupTray() {
 
   tray.setContextMenu(contextMenu);
 
-  // On macOS, clicking the tray icon shows the menu
-  // On Windows/Linux, left-click can show the pet
   if (process.platform !== 'darwin') {
     tray.on('click', () => {
-      petWindow?.show();
-      petWindow?.focus();
+      getPetWindow()?.show();
+      getPetWindow()?.focus();
     });
   }
 }
 
 // App lifecycle
 app.whenReady().then(async () => {
+  initModules();
   setupIPC();
   setupAutoUpdater();
   setupTray();
@@ -2494,12 +1157,10 @@ app.whenReady().then(async () => {
   console.log('[Onboarding] Status check:', { onboardingCompleted, onboardingSkipped });
 
   if (!onboardingCompleted && !onboardingSkipped) {
-    // Show onboarding wizard
     console.log('[Onboarding] Showing onboarding window...');
     await createOnboardingWindow();
     console.log('[Onboarding] Window created');
   } else {
-    // Start main app directly
     console.log('[Onboarding] Skipping onboarding, starting main app');
     startMainApp();
   }
@@ -2519,8 +1180,9 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  const speechProcess = getSpeechProcess();
   if (speechProcess) {
-    speechProcessExitExpected = true;
+    setSpeechProcessExitExpected(true);
     speechProcess.stdin?.end('quit\n');
   }
   watchers?.stop();
@@ -2529,8 +1191,6 @@ app.on('will-quit', () => {
     clearInterval(idleCheckInterval);
   }
   stopAttentionSeeker();
-  if (moveAnimation) {
-    clearInterval(moveAnimation);
-  }
+  clearMoveAnimation();
   tutorialManager.destroy();
 });
