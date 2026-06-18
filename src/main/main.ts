@@ -927,8 +927,8 @@ function setupIPC() {
   ipcMain.handle('get-default-personality', () => {
     try {
       const basePath = isDev
-        ? path.join(__dirname, '../../openclaw')
-        : path.join(process.resourcesPath, 'openclaw');
+        ? path.join(__dirname, '../../personality')
+        : path.join(process.resourcesPath, 'personality');
 
       const identity = fs.readFileSync(path.join(basePath, 'IDENTITY.md'), 'utf-8');
       const soul = fs.readFileSync(path.join(basePath, 'SOUL.md'), 'utf-8');

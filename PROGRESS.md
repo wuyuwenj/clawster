@@ -23,14 +23,14 @@ Plan source: /plan-eng-review decisions D2-D19
 - [x] D17-D19: TODOs captured
 
 ## Implementation Tasks
-- [ ] T5: Delete OpenClaw references (workspace browser, cron, gateway UI)
-- [ ] T6: Consolidate StoreSchema types
-- [ ] T2: ChatProvider interface + CloudChatProvider
-- [ ] T3: Decompose main.ts
-- [ ] T4: Rewrite onboarding flow
-- [ ] T1: Build Cloudflare Worker proxy
-- [ ] T8: Local event logging
-- [ ] T7: Set up vitest + Playwright tests
-- [ ] T9: Worker budget caps + kill switch
+- [x] T5: Delete OpenClaw references (workspace browser, cron, gateway UI) — renderer done, -2530 lines
+- [x] T6: Consolidate StoreSchema types — done in T5 commit
+- [x] T2: ChatProvider interface + CloudChatProvider — done, +490/-843 lines, build passes, app launches
+- [x] T3: Decompose main.ts — 1196 lines (was 3351), extracted speech/pet-behaviors/screen-capture/windows
+- [x] T4: Onboarding flow rewritten in T5 commit (removed Connection/Workspace/Memory steps)
+- [x] T1: Cloudflare Worker proxy — HMAC auth, KV rate limiting, OpenAI Moderation API
+- [x] T8: Local event logging — app_launched, chat_sent, pet_clicked, pet_dragged, onboarding_completed
+- [x] T7: vitest test suite — 27 tests, 4 files (HMAC auth, action parser, event logger, proxy compat)
+- [x] T9: Worker budget caps — monthly cap + global:disabled kill switch built into T1
 
 ## Progress Log

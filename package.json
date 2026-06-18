@@ -150,8 +150,8 @@
         "to": "assets/tray-icon@2x.png"
       },
       {
-        "from": "openclaw",
-        "to": "openclaw"
+        "from": "personality",
+        "to": "personality"
       }
     ],
     "directories": {
