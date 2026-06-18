@@ -5,3 +5,4 @@ release/
 *.log
 .env
 electron-builder.env
+*.omc
