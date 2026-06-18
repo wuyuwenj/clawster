@@ -3,8 +3,6 @@ import { Icon } from '@iconify/react';
 import { LinkifyText } from '../components/LinkifyText';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { HotkeyInput } from '../components/HotkeyInput';
-import { GatewayConnectionBanner } from '../components/GatewayConnectionBanner';
-import { GatewaySetupModal } from '../components/GatewaySetupModal';
 
 interface Message {
   id: string;
@@ -33,13 +31,11 @@ export const Assistant: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeStreamMessageId, setActiveStreamMessageId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; error: string | null; gatewayUrl: string }>({
+  const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; error: string | null }>({
     connected: false,
     error: null,
-    gatewayUrl: '',
   });
   const [isRecording, setIsRecording] = useState(false);
-  const [showSetupModal, setShowSetupModal] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -133,26 +129,6 @@ export const Assistant: React.FC = () => {
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    });
-
-    window.clawster.onCronResult((data) => {
-      const cronMsg: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `[${data.jobName}] ${data.summary}`,
-        timestamp: data.timestamp,
-      };
-      setMessages((prev) => [...prev, cronMsg]);
-    });
-
-    window.clawster.onCronError((data) => {
-      const errorMsg: Message = {
-        id: crypto.randomUUID(),
-        role: 'system',
-        content: `[Cron Error: ${data.jobName}] ${data.error}`,
-        timestamp: data.timestamp,
-      };
-      setMessages((prev) => [...prev, errorMsg]);
     });
 
     // Speech recognition events
@@ -569,8 +545,7 @@ export const Assistant: React.FC = () => {
           <span className="text-sm font-medium tracking-tight text-white">Clawster</span>
           <button
             className="no-drag relative flex items-center justify-center ml-1 cursor-pointer"
-            onClick={() => !connectionStatus.connected && setShowSetupModal(true)}
-            title={connectionStatus.connected ? 'Connected to gateway' : 'Gateway disconnected - Click for setup'}
+            title={connectionStatus.connected ? 'Connected' : 'Disconnected'}
           >
             <div className={`w-2 h-2 rounded-full ${connectionStatus.connected ? 'bg-[#008080] status-pulse' : 'bg-red-400'}`}></div>
           </button>
@@ -616,15 +591,6 @@ export const Assistant: React.FC = () => {
           Settings
         </button>
       </div>
-
-      {/* Connection Banner */}
-      {activeTab === 'chat' && (
-        <GatewayConnectionBanner
-          connected={connectionStatus.connected}
-          error={connectionStatus.error}
-          onShowSetupGuide={() => setShowSetupModal(true)}
-        />
-      )}
 
       {/* CONTENT: Chat */}
       {activeTab === 'chat' && (
@@ -790,7 +756,7 @@ export const Assistant: React.FC = () => {
           {/* Group 1: ClawBot Server */}
           <div>
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
-              ClawBot Server
+              AI Server
             </h3>
             <div className="space-y-3">
               <div>
@@ -799,20 +765,8 @@ export const Assistant: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={(settings.clawbot as { url: string; token: string })?.url || ''}
+                  value={(settings.clawbot as { url: string })?.url || ''}
                   onChange={(e) => updateSetting('clawbot.url', e.target.value)}
-                  className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                  Gateway Token
-                </label>
-                <input
-                  type="password"
-                  value={(settings.clawbot as { url: string; token: string })?.token || ''}
-                  onChange={(e) => updateSetting('clawbot.token', e.target.value)}
-                  placeholder="Enter your API token"
                   className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all font-mono"
                 />
               </div>
@@ -1082,18 +1036,6 @@ export const Assistant: React.FC = () => {
         </div>
       )}
 
-      {/* Gateway Setup Modal */}
-      <GatewaySetupModal
-        isOpen={showSetupModal}
-        onClose={() => setShowSetupModal(false)}
-        onCheckConnection={async () => {
-          const status = await window.clawster.getClawbotStatus();
-          setConnectionStatus(status);
-          if (status.connected) {
-            setShowSetupModal(false);
-          }
-        }}
-      />
     </div>
   );
 };

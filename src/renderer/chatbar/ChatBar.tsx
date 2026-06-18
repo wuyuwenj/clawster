@@ -48,11 +48,6 @@ export const ChatBar: React.FC = () => {
       setIsConnected(status.connected);
     });
 
-    // Listen for cron results
-    const unsubscribeCronResult = window.clawster.onCronResult((data) => {
-      setResponse(data.summary);
-    });
-
     // Speech recognition events
     const unsubscribeSpeechResult = window.clawster.onSpeechResult((data) => {
       if (data.type === 'partial') {
@@ -136,7 +131,6 @@ export const ChatBar: React.FC = () => {
       disposed = true;
       clearSpeechAutoSubmitTimeout();
       unsubscribeConnectionStatus();
-      unsubscribeCronResult();
       unsubscribeSpeechResult();
       unsubscribeSpeechError();
       unsubscribeStreamChunk();
@@ -284,17 +278,12 @@ export const ChatBar: React.FC = () => {
     }
   };
 
-  const handleCopyCommand = async () => {
-    await window.clawster.copyToClipboard('openclaw gateway install');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // Check connection status before submitting
     if (!isConnected) {
-      setResponse('Gateway not connected. Run `openclaw gateway install` in your terminal to start the gateway.');
+      setResponse('Not connected. Check your internet connection and try again.');
       return;
     }
 
@@ -516,15 +505,6 @@ export const ChatBar: React.FC = () => {
                 <div className="text-sm text-neutral-300 leading-relaxed select-text cursor-text">
                   <MarkdownMessage content={response} />
                 </div>
-                {!isConnected && (
-                  <button
-                    onClick={handleCopyCommand}
-                    className="mt-2 px-2.5 py-1 text-xs bg-[#FF8C69]/20 hover:bg-[#FF8C69]/30 text-[#FF8C69] rounded-lg transition-colors flex items-center gap-1"
-                  >
-                    <Icon icon="solar:copy-linear" className="text-xs" />
-                    Copy Command
-                  </button>
-                )}
               </div>
             </div>
           )}
