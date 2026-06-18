@@ -30,12 +30,12 @@ async function verifyHmac(request: Request, body: string, env: Env): Promise<{ v
     new TextEncoder().encode(env.APP_SECRET),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['verify']
   );
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
-  const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const sigBytes = new Uint8Array(signature.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+  const valid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(payload));
 
-  if (expected !== signature) {
+  if (!valid) {
     return { valid: false, deviceId, error: 'Invalid signature' };
   }
 
@@ -217,6 +217,12 @@ export default {
       }
     }
 
+    // Increment counters BEFORE the OpenAI call so failed/retried requests
+    // still consume quota. KV read-modify-write is non-atomic — concurrent
+    // requests may undercount. Acceptable for Phase 0 (5 testers); upgrade
+    // to Durable Objects for atomic counters if abuse becomes real.
+    await incrementCounters(auth.deviceId, env);
+
     const requestBody = parsed as { model?: string; stream?: boolean };
     const openaiBody = { ...requestBody, model: env.OPENAI_MODEL || 'gpt-4o-mini' };
 
@@ -238,8 +244,6 @@ export default {
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       });
     }
-
-    await incrementCounters(auth.deviceId, env);
 
     if (requestBody.stream) {
       return new Response(openaiResponse.body, {
