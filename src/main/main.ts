@@ -20,9 +20,8 @@ import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
-import sharp from 'sharp';
 import { Watchers } from './watchers';
-import { ClawBotClient } from './clawbot-client';
+import { CloudChatProvider } from './chat';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
@@ -46,7 +45,6 @@ let chatbarWindow: BrowserWindow | null = null;
 let screenshotQuestionWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
 let petContextMenuWindow: BrowserWindow | null = null;
-let workspaceBrowserWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let pendingPetChatReveal = false;
 let petChatRevealTimeout: NodeJS.Timeout | null = null;
@@ -242,7 +240,7 @@ function ensureSpeechHelper(): Promise<ChildProcess> {
 
 // Services
 let watchers: Watchers | null = null;
-let clawbot: ClawBotClient | null = null;
+let chatProvider: CloudChatProvider | null = null;
 const store = createStore();
 const tutorialManager = new TutorialManager(store);
 
@@ -290,7 +288,7 @@ function wireDebugWindowBorder(window: BrowserWindow): void {
 }
 
 function applyDebugWindowBordersToAllWindows(): void {
-  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow, workspaceBrowserWindow];
+  const windows = [petWindow, petChatWindow, assistantWindow, chatbarWindow, screenshotQuestionWindow, onboardingWindow, petContextMenuWindow];
   for (const window of windows) {
     if (!window || window.isDestroyed()) continue;
     void applyDebugWindowBorder(window);
@@ -320,11 +318,8 @@ const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
 const PET_CHAT_VERTICAL_GAP = -2;
 const ASSISTANT_VERTICAL_GAP = -3;
-const WORKSPACE_BROWSER_VERTICAL_GAP = -6;
 const PET_CONTEXT_MENU_WIDTH = 220;
 const PET_CONTEXT_MENU_HEIGHT = 342;
-const WORKSPACE_BROWSER_WIDTH = 420;
-const WORKSPACE_BROWSER_HEIGHT = 520;
 const PET_CAMERA_SNAP_CAPTURE_DELAY_MS = 560;
 const PET_CAMERA_SNAP_DURATION_MS = 920;
 const PET_CAMERA_SNAP_FLASH_DURATION_MS = 120;
@@ -380,373 +375,9 @@ interface PetAction {
   duration?: number;
 }
 
-type WorkspaceType = 'openclaw' | 'clawster';
-type WorkspaceErrorCode = 'missing_workspace' | 'path_not_found' | 'outside_workspace' | 'not_directory' | 'open_failed';
-type WorkspacePreviewKind = 'markdown' | 'image' | 'json';
-type WorkspacePreviewErrorCode =
-  | WorkspaceErrorCode
-  | 'not_file'
-  | 'unsupported_preview'
-  | 'file_too_large'
-  | 'read_failed';
-
-interface CurrentWorkspaceInfo {
-  workspaceType: WorkspaceType | null;
-  workspacePath: string | null;
-  exists: boolean;
-}
-
-interface WorkspaceEntry {
-  name: string;
-  path: string;
-  kind: 'file' | 'directory';
-  createdAt: number;
-  modifiedAt: number;
-  accessedAt: number;
-}
-
-interface WorkspaceDirectoryResult {
-  success: boolean;
-  currentPath: string;
-  entries: WorkspaceEntry[];
-  error?: WorkspaceErrorCode;
-}
-
-interface WorkspaceOpenResult {
-  success: boolean;
-  error?: WorkspaceErrorCode;
-  message?: string;
-}
-
-interface WorkspacePreviewResult {
-  success: boolean;
-  path: string;
-  previewKind?: WorkspacePreviewKind;
-  content?: string;
-  error?: WorkspacePreviewErrorCode;
-  message?: string;
-}
-
-const MAX_MARKDOWN_PREVIEW_BYTES = 1024 * 1024 * 2;
-const MAX_IMAGE_PREVIEW_BYTES = 1024 * 1024 * 12;
-const MAX_JSON_PREVIEW_BYTES = 1024 * 1024 * 2;
-
-function getCurrentWorkspaceType(): WorkspaceType | null {
-  const workspaceType = store.get('onboarding.workspaceType');
-  return workspaceType === 'openclaw' || workspaceType === 'clawster' ? workspaceType : null;
-}
-
-function getDefaultOpenClawWorkspacePath(): string {
-  return path.join(os.homedir(), '.openclaw', 'workspace');
-}
-
-function resolveWorkspaceRootPath(workspaceType: WorkspaceType | null): { workspaceType: WorkspaceType; workspacePath: string } {
-  const openClawWorkspace = getDefaultOpenClawWorkspacePath();
-
-  if (workspaceType === 'clawster') {
-    const clawsterWorkspace = (store.get('onboarding.clawsterWorkspacePath') as string | null)
-      ?? path.join(os.homedir(), '.openclaw', 'workspace-clawster');
-
-    if (fs.existsSync(clawsterWorkspace) || !fs.existsSync(openClawWorkspace)) {
-      return { workspaceType: 'clawster', workspacePath: clawsterWorkspace };
-    }
-  }
-
-  return {
-    workspaceType: 'openclaw',
-    workspacePath: openClawWorkspace,
-  };
-}
-
-function getCurrentWorkspaceInfo(): CurrentWorkspaceInfo {
-  const resolvedWorkspace = resolveWorkspaceRootPath(getCurrentWorkspaceType());
-
-  return {
-    workspaceType: resolvedWorkspace.workspaceType,
-    workspacePath: resolvedWorkspace.workspacePath,
-    exists: fs.existsSync(resolvedWorkspace.workspacePath),
-  };
-}
-
-function normalizeWorkspaceRelativePath(relativePath: string = ''): string {
-  if (!relativePath || relativePath === '.') return '';
-  return path.normalize(relativePath);
-}
-
-function resolveWorkspaceTarget(relativePath: string = ''):
-  | { info: CurrentWorkspaceInfo; workspacePath: string; absolutePath: string; relativePath: string }
-  | { info: CurrentWorkspaceInfo; error: WorkspaceErrorCode } {
-  const info = getCurrentWorkspaceInfo();
-  if (!info.workspacePath || !info.exists) {
-    return { info, error: 'missing_workspace' };
-  }
-
-  const normalizedPath = normalizeWorkspaceRelativePath(relativePath);
-  if (path.isAbsolute(normalizedPath)) {
-    return { info, error: 'outside_workspace' };
-  }
-
-  const absolutePath = path.resolve(info.workspacePath, normalizedPath || '.');
-  const relativeFromRoot = path.relative(info.workspacePath, absolutePath);
-
-  if (relativeFromRoot === '..' || relativeFromRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeFromRoot)) {
-    return { info, error: 'outside_workspace' };
-  }
-
-  const safeRelativePath = relativeFromRoot ? relativeFromRoot.split(path.sep).join('/') : '';
-
-  return {
-    info,
-    workspacePath: info.workspacePath,
-    absolutePath,
-    relativePath: safeRelativePath,
-  };
-}
-
-function listWorkspaceDirectory(relativePath: string = ''): WorkspaceDirectoryResult {
-  const resolved = resolveWorkspaceTarget(relativePath);
-  if ('error' in resolved) {
-    return {
-      success: false,
-      currentPath: '',
-      entries: [],
-      error: resolved.error,
-    };
-  }
-
-  try {
-    if (!fs.existsSync(resolved.absolutePath)) {
-      return { success: false, currentPath: resolved.relativePath, entries: [], error: 'path_not_found' };
-    }
-
-    const stats = fs.statSync(resolved.absolutePath);
-    if (!stats.isDirectory()) {
-      return { success: false, currentPath: resolved.relativePath, entries: [], error: 'not_directory' };
-    }
-
-    const entries = fs.readdirSync(resolved.absolutePath, { withFileTypes: true })
-      .map((entry) => {
-        const entryAbsolutePath = path.join(resolved.absolutePath, entry.name);
-        const entryStats = fs.statSync(entryAbsolutePath);
-
-        return {
-          name: entry.name,
-          path: [resolved.relativePath, entry.name].filter(Boolean).join('/'),
-          kind: entryStats.isDirectory() ? 'directory' as const : 'file' as const,
-          createdAt: entryStats.birthtimeMs,
-          modifiedAt: entryStats.mtimeMs,
-          accessedAt: entryStats.atimeMs,
-        };
-      });
-
-    return {
-      success: true,
-      currentPath: resolved.relativePath,
-      entries,
-    };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { success: false, currentPath: resolved.relativePath, entries: [], error: 'path_not_found' };
-    }
-
-    throw error;
-  }
-}
-
-async function openWorkspacePath(relativePath: string = ''): Promise<WorkspaceOpenResult> {
-  const resolved = resolveWorkspaceTarget(relativePath);
-  if ('error' in resolved) {
-    return { success: false, error: resolved.error };
-  }
-
-  if (!fs.existsSync(resolved.absolutePath)) {
-    return { success: false, error: 'path_not_found' };
-  }
-
-  const openError = await shell.openPath(resolved.absolutePath);
-  if (openError) {
-    return { success: false, error: 'open_failed', message: openError };
-  }
-
-  return { success: true };
-}
-
-function getWorkspacePreviewKind(fileName: string): WorkspacePreviewKind | null {
-  const extension = path.extname(fileName).toLowerCase();
-
-  if (extension === '.md' || extension === '.mdx') {
-    return 'markdown';
-  }
-
-  if (['.json', '.jsonc', '.geojson'].includes(extension)) {
-    return 'json';
-  }
-
-  if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.heic', '.bmp', '.tiff'].includes(extension)) {
-    return 'image';
-  }
-
-  return null;
-}
-
-function getImageMimeType(fileName: string): string {
-  switch (path.extname(fileName).toLowerCase()) {
-    case '.png':
-      return 'image/png';
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.gif':
-      return 'image/gif';
-    case '.webp':
-      return 'image/webp';
-    case '.svg':
-      return 'image/svg+xml';
-    case '.heic':
-      return 'image/heic';
-    case '.bmp':
-      return 'image/bmp';
-    case '.tiff':
-      return 'image/tiff';
-    default:
-      return 'application/octet-stream';
-  }
-}
-
-function shouldTranscodeImagePreview(fileName: string): boolean {
-  return ['.heic', '.heif'].includes(path.extname(fileName).toLowerCase());
-}
-
-async function transcodeImagePreviewToPngBuffer(filePath: string, sourceBuffer: Buffer): Promise<Buffer> {
-  try {
-    return await sharp(sourceBuffer).png().toBuffer();
-  } catch (error) {
-    if (process.platform !== 'darwin') {
-      throw error;
-    }
-
-    const outputPath = path.join(os.tmpdir(), `clawster-workspace-preview-${randomUUID()}.png`);
-
-    try {
-      await execFileAsync('/usr/bin/sips', ['-s', 'format', 'png', filePath, '--out', outputPath]);
-      return fs.readFileSync(outputPath);
-    } finally {
-      if (fs.existsSync(outputPath)) {
-        fs.unlinkSync(outputPath);
-      }
-    }
-  }
-}
-
-async function revealWorkspacePath(relativePath: string = ''): Promise<WorkspaceOpenResult> {
-  const resolved = resolveWorkspaceTarget(relativePath);
-  if ('error' in resolved) {
-    return { success: false, error: resolved.error };
-  }
-
-  if (!fs.existsSync(resolved.absolutePath)) {
-    return { success: false, error: 'path_not_found' };
-  }
-
-  shell.showItemInFolder(resolved.absolutePath);
-  return { success: true };
-}
-
-async function previewWorkspaceFile(relativePath: string = ''): Promise<WorkspacePreviewResult> {
-  const resolved = resolveWorkspaceTarget(relativePath);
-  if ('error' in resolved) {
-    return { success: false, path: relativePath, error: resolved.error };
-  }
-
-  try {
-    if (!fs.existsSync(resolved.absolutePath)) {
-      return { success: false, path: resolved.relativePath, error: 'path_not_found' };
-    }
-
-    const stats = fs.statSync(resolved.absolutePath);
-    if (!stats.isFile()) {
-      return { success: false, path: resolved.relativePath, error: 'not_file' };
-    }
-
-    const previewKind = getWorkspacePreviewKind(resolved.absolutePath);
-    if (!previewKind) {
-      return { success: false, path: resolved.relativePath, error: 'unsupported_preview' };
-    }
-
-    const maxBytes = previewKind === 'markdown'
-      ? MAX_MARKDOWN_PREVIEW_BYTES
-      : previewKind === 'json'
-        ? MAX_JSON_PREVIEW_BYTES
-        : MAX_IMAGE_PREVIEW_BYTES;
-    if (stats.size > maxBytes) {
-      return {
-        success: false,
-        path: resolved.relativePath,
-        error: 'file_too_large',
-        message: previewKind === 'markdown'
-          ? 'This markdown file is too large to preview in the workspace window.'
-          : previewKind === 'json'
-            ? 'This JSON file is too large to preview in the workspace window.'
-            : 'This image is too large to preview in the workspace window.',
-      };
-    }
-
-    if (previewKind === 'markdown' || previewKind === 'json') {
-      const content = fs.readFileSync(resolved.absolutePath, 'utf8');
-      let previewContent = content;
-
-      if (previewKind === 'json') {
-        try {
-          previewContent = `${JSON.stringify(JSON.parse(content), null, 2)}\n`;
-        } catch {
-          previewContent = content;
-        }
-      }
-
-      return {
-        success: true,
-        path: resolved.relativePath,
-        previewKind,
-        content: previewContent,
-      };
-    }
-
-    const buffer = fs.readFileSync(resolved.absolutePath);
-    if (shouldTranscodeImagePreview(resolved.absolutePath)) {
-      return {
-        success: true,
-        path: resolved.relativePath,
-        previewKind,
-        content: `data:image/png;base64,${(await transcodeImagePreviewToPngBuffer(resolved.absolutePath, buffer)).toString('base64')}`,
-      };
-    }
-
-    return {
-      success: true,
-      path: resolved.relativePath,
-      previewKind,
-      content: `data:${getImageMimeType(resolved.absolutePath)};base64,${buffer.toString('base64')}`,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      path: resolved.relativePath,
-      error: 'read_failed',
-      message: shouldTranscodeImagePreview(resolved.absolutePath)
-        ? 'Failed to generate a preview for this HEIC image.'
-        : error instanceof Error
-          ? error.message
-          : 'Failed to read file preview.',
-    };
-  }
-}
-
 function resetOnboardingState(): void {
   store.set('onboarding.completed', false);
   store.set('onboarding.skipped', false);
-  store.set('onboarding.workspaceType', null);
-  store.set('onboarding.clawsterWorkspacePath', null);
-  store.set('onboarding.memoryMigrated', false);
 }
 
 // Smooth animation to move pet to target position
@@ -777,14 +408,12 @@ function animateMoveTo(targetX: number, targetY: number, duration: number = 1000
       petWindow?.setPosition(currentX, currentY);
       updatePetChatPosition();
       updateAssistantPosition();
-      updateWorkspaceBrowserPosition();
 
       if (progress >= 1) {
         clearInterval(moveAnimation!);
         moveAnimation = null;
       store.set('pet.position', { x: targetX, y: targetY });
       petWindow?.webContents.send('pet-moving', { moving: false });
-      updateWorkspaceBrowserPosition();
       resolve();
       }
     }, 16); // ~60fps
@@ -965,15 +594,6 @@ let sleepCheckInterval: NodeJS.Timeout | null = null;
 const SLEEP_AFTER_IDLE = 60000; // Fall asleep after 1 minute of no interaction
 const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
 
-function isWorkspaceBrowserActive(): boolean {
-  return Boolean(
-    workspaceBrowserWindow
-    && !workspaceBrowserWindow.isDestroyed()
-    && workspaceBrowserWindow.isVisible()
-    && workspaceBrowserWindow.isFocused(),
-  );
-}
-
 function fallAsleep(): void {
   if (isSleeping || !petWindow) return;
   isSleeping = true;
@@ -1007,13 +627,6 @@ function wakeUp(): void {
 function startSleepCheck(): void {
   if (sleepCheckInterval) return;
   sleepCheckInterval = setInterval(() => {
-    if (isWorkspaceBrowserActive()) {
-      if (isSleeping) {
-        wakeUp();
-      }
-      return;
-    }
-
     const timeSinceInteraction = Date.now() - lastInteractionTime;
     if (!isSleeping && timeSinceInteraction >= SLEEP_AFTER_IDLE) {
       fallAsleep();
@@ -1247,7 +860,7 @@ async function sendChatPopup(
   context?: string,
   windowTitle?: string
 ) {
-  if (!petWindow || !clawbot?.isConnected()) return;
+  if (!petWindow || !chatProvider?.isAvailable()) return;
 
   // Don't show chat popups during tutorial
   if (tutorialManager?.getStatus().isActive) return;
@@ -1270,7 +883,7 @@ async function sendChatPopup(
     }
 
     console.log('[ChatPopup] sendChatPopup', { trigger, context, windowTitle, prompt });
-    const response = await clawbot.chat(prompt);
+    const response = await chatProvider.chat(prompt);
 
     if (response.text && !response.text.includes('error')) {
       resetInteractionTimer();
@@ -1323,7 +936,6 @@ function expandPetWindowForTutorial(): void {
 
   petWindow.setSize(PET_WINDOW_TUTORIAL_WIDTH, PET_WINDOW_TUTORIAL_HEIGHT);
   petWindow.setPosition(Math.round(safeX), Math.round(safeY));
-  updateWorkspaceBrowserPosition();
   petWindow.webContents.send('tutorial-window-expanded', true);
   console.log('[Tutorial] Pet window expanded for tutorial');
 }
@@ -1340,7 +952,6 @@ function contractPetWindow(): void {
 
   petWindow.setSize(PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT);
   petWindow.setPosition(Math.round(newX), Math.round(newY));
-  updateWorkspaceBrowserPosition();
   petWindow.webContents.send('tutorial-window-expanded', false);
   console.log('[Tutorial] Pet window contracted to normal');
 }
@@ -1390,10 +1001,8 @@ function createPetWindow() {
 
   petWindow.on('closed', () => {
     petWindow = null;
-    // Also close the chat window when pet is closed
     petChatWindow?.close();
     petContextMenuWindow?.close();
-    workspaceBrowserWindow?.close();
   });
 }
 
@@ -1573,22 +1182,6 @@ function updateAssistantPosition() {
   assistantWindow.setPosition(Math.round(assistantX), Math.max(0, Math.round(assistantY)));
 }
 
-function updateWorkspaceBrowserPosition() {
-  if (!petWindow || !workspaceBrowserWindow || !workspaceBrowserWindow.isVisible()) return;
-
-  const [petX, petY] = petWindow.getPosition();
-  const [petWidth] = petWindow.getSize();
-  const [browserWidth, browserHeight] = workspaceBrowserWindow.getSize();
-  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
-
-  let browserX = petX + (petWidth - browserWidth) / 2;
-  const browserY = petY - browserHeight + WORKSPACE_BROWSER_VERTICAL_GAP;
-
-  browserX = Math.max(0, Math.min(browserX, screenWidth - browserWidth));
-
-  workspaceBrowserWindow.setPosition(Math.round(browserX), Math.max(0, Math.round(browserY)));
-}
-
 function revealAssistantWindow() {
   if (!assistantWindow || assistantWindow.isDestroyed()) return;
 
@@ -1726,77 +1319,6 @@ function createPetContextMenuWindow() {
 
   petContextMenuWindow.on('closed', () => {
     petContextMenuWindow = null;
-  });
-}
-
-function createWorkspaceBrowserWindow() {
-  if (workspaceBrowserWindow) {
-    workspaceBrowserWindow.show();
-    workspaceBrowserWindow.focus();
-    updateWorkspaceBrowserPosition();
-    return;
-  }
-
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  let initialX = screenWidth - WORKSPACE_BROWSER_WIDTH - 24;
-  let initialY = screenHeight - WORKSPACE_BROWSER_HEIGHT - 24;
-
-  if (petWindow) {
-    const [petX, petY] = petWindow.getPosition();
-    const [petWidth] = petWindow.getSize();
-
-    initialX = petX + (petWidth - WORKSPACE_BROWSER_WIDTH) / 2;
-    initialY = petY - WORKSPACE_BROWSER_HEIGHT + ASSISTANT_VERTICAL_GAP;
-    initialX = Math.max(0, Math.min(initialX, screenWidth - WORKSPACE_BROWSER_WIDTH));
-    initialY = Math.max(0, initialY);
-  }
-
-  workspaceBrowserWindow = new BrowserWindow({
-    width: WORKSPACE_BROWSER_WIDTH,
-    height: WORKSPACE_BROWSER_HEIGHT,
-    x: Math.round(initialX),
-    y: Math.round(initialY),
-    frame: false,
-    transparent: false,
-    alwaysOnTop: true,
-    resizable: true,
-    show: false,
-    backgroundColor: '#0f1720',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  wireDebugWindowBorder(workspaceBrowserWindow);
-
-  if (process.platform === 'darwin' || process.platform === 'linux') {
-    workspaceBrowserWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  }
-
-  if (isDev) {
-    workspaceBrowserWindow.loadURL(`http://localhost:${DEV_PORT}/workspace-browser.html`);
-  } else {
-    workspaceBrowserWindow.loadFile(path.join(__dirname, '../renderer/workspace-browser.html'));
-  }
-
-  workspaceBrowserWindow.once('ready-to-show', () => {
-    workspaceBrowserWindow?.show();
-    workspaceBrowserWindow?.focus();
-    updateWorkspaceBrowserPosition();
-  });
-
-  workspaceBrowserWindow.on('focus', () => {
-    resetInteractionTimer();
-  });
-
-  workspaceBrowserWindow.on('resize', () => {
-    updateWorkspaceBrowserPosition();
-  });
-
-  workspaceBrowserWindow.on('closed', () => {
-    workspaceBrowserWindow = null;
   });
 }
 
@@ -2072,16 +1594,15 @@ function startMainApp() {
     });
   }
 
-  // Initialize ClawBot client
-  const clawbotUrl = store.get('clawbot.url') as string;
-  const clawbotToken = store.get('clawbot.token') as string;
-  const workspaceType = store.get('onboarding.workspaceType') as string | null;
-  // Only use 'clawster' agent-id if user chose to create a Clawster workspace
-  const agentId = workspaceType === 'clawster' ? 'clawster' : null;
-  clawbot = new ClawBotClient(clawbotUrl, clawbotToken, agentId);
+  const proxyUrl = store.get('clawbot.url') as string;
+  let deviceId = store.get('deviceId') as string | undefined;
+  if (!deviceId) {
+    deviceId = randomUUID();
+    store.set('deviceId', deviceId);
+  }
+  chatProvider = new CloudChatProvider(proxyUrl, deviceId);
 
-  // Forward connection status changes to all renderer windows
-  clawbot.on('connection-changed', (status: { connected: boolean; error: string | null; gatewayUrl: string }) => {
+  chatProvider.on('connection-changed', (status: { connected: boolean; error: string | null }) => {
     petWindow?.webContents.send('clawbot-connection-changed', status);
     assistantWindow?.webContents.send('clawbot-connection-changed', status);
     petChatWindow?.webContents.send('clawbot-connection-changed', status);
@@ -2094,7 +1615,7 @@ function startMainApp() {
     resetIdleTimer();
 
     // Send events to ClawBot
-    clawbot?.sendEvent(event);
+    chatProvider?.sendEvent(event);
 
     // Forward to pet window for reactions
     petWindow?.webContents.send('activity-event', event);
@@ -2129,67 +1650,6 @@ function startMainApp() {
   // Start sleep check (pet falls asleep after 1 minute of no interaction)
   startSleepCheck();
 
-  // Listen for ClawBot responses
-  clawbot.on('suggestion', (data) => {
-    petWindow?.webContents.send('clawbot-suggestion', data);
-    assistantWindow?.webContents.send('clawbot-suggestion', data);
-  });
-
-  clawbot.on('mood', (data) => {
-    const moodState = (data as { state?: string } | null)?.state;
-    if (isSleepMoodState(moodState)) {
-      isSleeping = true;
-    }
-    if (isSleeping && !isSleepMoodState(moodState)) {
-      console.log(`[Sleep] Ignoring mood update while sleeping: ${String(moodState ?? 'unknown')}`);
-      return;
-    }
-    petWindow?.webContents.send('clawbot-mood', data);
-  });
-
-  // Listen for cron job results - send to ClawBot for processing
-  clawbot.on('cronResult', async (data) => {
-    console.log('[Main] Cron result received:', data.jobName, '- sending to ClawBot for processing');
-
-    if (!clawbot) return;
-
-    // Send the cron instruction to ClawBot and get its response
-    const response = await clawbot.chat(`[Scheduled reminder: ${data.jobName}] ${data.summary}`);
-
-    if (response.text) {
-      const processedData = {
-        ...data,
-        summary: response.text, // Replace instruction with AI response
-      };
-
-      // Send to assistant window and chatbar for chat history
-      assistantWindow?.webContents.send('cron-result', processedData);
-      chatbarWindow?.webContents.send('cron-result', processedData);
-
-      // Show pet chat popup directly (don't rely on petWindow forwarding)
-      if (!tutorialManager?.getStatus().isActive) {
-        showPetChat({
-          id: randomUUID(),
-          text: response.text,
-          quickReplies: ['Thanks!', 'Snooze', 'Dismiss'],
-        });
-        if (!isSleeping) {
-          petWindow?.webContents.send('clawbot-mood', { state: 'excited', reason: 'cron reminder' });
-        }
-      }
-
-      // Handle any actions from the response
-      if (response.action) {
-        executePetAction(response.action.payload as PetAction);
-      }
-    }
-  });
-
-  clawbot.on('cronError', (data) => {
-    console.log('[Main] Cron error received:', data.jobName, data.error);
-    petWindow?.webContents.send('cron-error', data);
-    assistantWindow?.webContents.send('cron-error', data);
-  });
 }
 
 // Screen capture - uses native capture for speed
@@ -2209,14 +1669,6 @@ function setupIPC() {
     createAssistantWindow();
   });
 
-  ipcMain.on('open-workspace-browser', () => {
-    createWorkspaceBrowserWindow();
-  });
-
-  ipcMain.on('close-workspace-browser', () => {
-    workspaceBrowserWindow?.close();
-  });
-
   // Close assistant window
   ipcMain.on('close-assistant', () => {
     assistantWindow?.hide();
@@ -2227,13 +1679,11 @@ function setupIPC() {
     showPetContextMenuAtCursor(position.x, position.y);
   });
 
-  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'workspace' | 'quit') => {
+  ipcMain.on('pet-context-menu-action', (_event, action: 'chat' | 'settings' | 'quit') => {
     if (action === 'quit') {
       app.quit();
     } else if (action === 'settings') {
       openAssistantOnTab('settings');
-    } else if (action === 'workspace') {
-      createWorkspaceBrowserWindow();
     } else {
       openAssistantOnTab('chat');
     }
@@ -2326,14 +1776,14 @@ function setupIPC() {
     console.log('[ScreenshotQuestion] Question:', question);
     console.log('[ScreenshotQuestion] Image size:', imageDataUrl?.length || 0, 'chars');
 
-    if (!clawbot) {
-      console.log('[ScreenshotQuestion] ClawBot not connected!');
-      return { error: 'ClawBot not connected' };
+    if (!chatProvider) {
+      console.log('[ScreenshotQuestion] ChatProvider not initialized!');
+      return { error: 'ChatProvider not initialized' };
     }
 
     try {
       console.log('[ScreenshotQuestion] Calling analyzeScreen...');
-      const response = await clawbot.analyzeScreen(imageDataUrl, question);
+      const response = await chatProvider.analyzeScreen(imageDataUrl, question);
       console.log('[ScreenshotQuestion] Response:', response);
       return response;
     } catch (error) {
@@ -2350,26 +1800,6 @@ function setupIPC() {
   // Open file/folder
   ipcMain.on('open-path', (_event, filePath: string) => {
     shell.openPath(filePath);
-  });
-
-  ipcMain.handle('get-current-workspace-info', () => {
-    return getCurrentWorkspaceInfo();
-  });
-
-  ipcMain.handle('list-workspace-directory', (_event, relativePath: string = '') => {
-    return listWorkspaceDirectory(relativePath);
-  });
-
-  ipcMain.handle('open-workspace-path', async (_event, relativePath: string = '') => {
-    return openWorkspacePath(relativePath);
-  });
-
-  ipcMain.handle('reveal-workspace-path', async (_event, relativePath: string = '') => {
-    return revealWorkspacePath(relativePath);
-  });
-
-  ipcMain.handle('preview-workspace-file', (_event, relativePath: string = '') => {
-    return previewWorkspaceFile(relativePath);
   });
 
   // Get settings
@@ -2394,8 +1824,7 @@ function setupIPC() {
     // Update ClawBot client if clawbot settings changed
     if (key.startsWith('clawbot.')) {
       const url = store.get('clawbot.url') as string;
-      const token = store.get('clawbot.token') as string;
-      clawbot?.updateConfig(url, token);
+      chatProvider?.updateConfig(url);
     }
 
     if (key === 'pet.transparentWhenSleeping') {
@@ -2496,13 +1925,13 @@ function setupIPC() {
 
   // Send message to ClawBot (with optional screen context)
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
-    if (!clawbot) return { error: 'ClawBot not connected' };
+    if (!chatProvider) return { error: 'ChatProvider not initialized' };
 
-    resetInteractionTimer(); // User is chatting
+    resetInteractionTimer();
 
     const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
 
-    const response = await clawbot.chat(fullMessage, history);
+    const response = await chatProvider.chat(fullMessage, history);
 
     // Handle any actions in the response
     if (response.action?.payload) {
@@ -2516,8 +1945,8 @@ function setupIPC() {
 
   // Start streaming a message to ClawBot and emit chunk/end/error events
   ipcMain.handle('start-clawbot-stream', async (event, message: string, includeScreen?: boolean) => {
-    const clawbotClient = clawbot;
-    if (!clawbotClient) return { error: 'ClawBot not connected' };
+    const chatProviderClient = chatProvider;
+    if (!chatProviderClient) return { error: 'ChatProvider not initialized' };
 
     resetInteractionTimer();
 
@@ -2532,7 +1961,7 @@ function setupIPC() {
     const runStream = async () => {
       try {
         const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
-        const response = await clawbotClient.chatStream(fullMessage, history, {
+        const response = await chatProviderClient.chatStream(fullMessage, history, {
           onDelta: (delta, text) => {
             if (!sender.isDestroyed()) {
               sender.send('clawbot-stream-chunk', { requestId, delta, text });
@@ -2678,10 +2107,10 @@ function setupIPC() {
 
   // Get ClawBot status (returns detailed status)
   ipcMain.handle('clawbot-status', () => {
-    if (clawbot) {
-      return clawbot.getConnectionStatus();
+    if (chatProvider) {
+      return chatProvider.getConnectionStatus();
     }
-    return { connected: false, error: 'ClawBot not initialized', gatewayUrl: '' };
+    return { connected: false, error: 'Not initialized' };
   });
 
   // Copy text to clipboard
@@ -2706,10 +2135,8 @@ function setupIPC() {
       const newY = y + deltaY;
       petWindow.setPosition(newX, newY);
       store.set('pet.position', { x: newX, y: newY });
-      // Also move the chat windows if visible
       updatePetChatPosition();
       updateAssistantPosition();
-      updateWorkspaceBrowserPosition();
       petContextMenuWindow?.hide();
       resetInteractionTimer(); // User is interacting
     }
@@ -2792,11 +2219,7 @@ function setupIPC() {
   });
 
   ipcMain.handle('onboarding-complete', (_event, data: {
-    workspaceType: 'openclaw' | 'clawster';
-    migrateMemory: boolean;
     launchOnStartup: boolean;
-    gatewayUrl: string;
-    gatewayToken: string;
     identity: string;
     soul: string;
     watchFolders: string[];
@@ -2806,20 +2229,10 @@ function setupIPC() {
     hotkeyCaptureScreen: string;
     hotkeyOpenAssistant: string;
   }) => {
-    // Save onboarding data to store
     store.set('onboarding.completed', true);
-
-    // Reset tutorial state so it starts fresh after onboarding
     store.set('tutorial.completedAt', null);
     store.set('tutorial.lastStep', 0);
     store.set('tutorial.wasInterrupted', false);
-    store.set('onboarding.workspaceType', data.workspaceType);
-    if (data.workspaceType === 'openclaw') {
-      store.set('onboarding.clawsterWorkspacePath', null);
-      store.set('onboarding.memoryMigrated', false);
-    }
-    store.set('clawbot.url', data.gatewayUrl);
-    store.set('clawbot.token', data.gatewayToken);
     store.set('watch.folders', data.watchFolders);
     store.set('watch.activeApp', data.watchActiveApp);
     store.set('watch.sendWindowTitles', data.watchWindowTitles);
@@ -2827,190 +2240,8 @@ function setupIPC() {
     store.set('hotkeys.captureScreen', data.hotkeyCaptureScreen);
     store.set('hotkeys.openAssistant', data.hotkeyOpenAssistant);
     setLaunchOnStartup(data.launchOnStartup);
-
-    // Update ClawBotClient with new config and agentId
-    const newAgentId = data.workspaceType === 'clawster' ? 'clawster' : null;
-    clawbot?.updateConfig(data.gatewayUrl, data.gatewayToken, newAgentId);
-
     closeOnboardingAndStartApp();
     return true;
-  });
-
-  // Read OpenClaw config file
-  ipcMain.handle('read-openclaw-config', () => {
-    const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-    try {
-      if (fs.existsSync(configPath)) {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        return JSON.parse(content);
-      }
-    } catch (error) {
-      console.error('Failed to read OpenClaw config:', error);
-    }
-    return null;
-  });
-
-  // Read OpenClaw workspace files
-  ipcMain.handle('read-openclaw-workspace', () => {
-    const workspacePath = path.join(os.homedir(), '.openclaw', 'workspace');
-    const result: {
-      exists: boolean;
-      identity: string | null;
-      soul: string | null;
-      hasMemory: boolean;
-    } = {
-      exists: false,
-      identity: null,
-      soul: null,
-      hasMemory: false,
-    };
-
-    try {
-      if (fs.existsSync(workspacePath)) {
-        result.exists = true;
-
-        const identityPath = path.join(workspacePath, 'IDENTITY.md');
-        if (fs.existsSync(identityPath)) {
-          result.identity = fs.readFileSync(identityPath, 'utf-8');
-        }
-
-        const soulPath = path.join(workspacePath, 'SOUL.md');
-        if (fs.existsSync(soulPath)) {
-          result.soul = fs.readFileSync(soulPath, 'utf-8');
-        }
-
-        const memoryPath = path.join(workspacePath, 'memory.md');
-        result.hasMemory = fs.existsSync(memoryPath);
-      }
-    } catch (error) {
-      console.error('Failed to read OpenClaw workspace:', error);
-    }
-
-    return result;
-  });
-
-  // Create Clawster workspace
-  ipcMain.handle('create-clawster-workspace', (_event, options: {
-    identity: string;
-    soul: string;
-    migrateMemory: boolean;
-  }) => {
-    const clawsterWorkspace = path.join(os.homedir(), '.openclaw', 'workspace-clawster');
-
-    try {
-      // Create directory
-      fs.mkdirSync(clawsterWorkspace, { recursive: true });
-
-      // Write identity and soul files
-      fs.writeFileSync(path.join(clawsterWorkspace, 'IDENTITY.md'), options.identity);
-      fs.writeFileSync(path.join(clawsterWorkspace, 'SOUL.md'), options.soul);
-
-      // Handle memory migration
-      const destMemory = path.join(clawsterWorkspace, 'memory.md');
-      if (options.migrateMemory) {
-        const sourceMemory = path.join(os.homedir(), '.openclaw', 'workspace', 'memory.md');
-        if (fs.existsSync(sourceMemory)) {
-          fs.copyFileSync(sourceMemory, destMemory);
-          store.set('onboarding.memoryMigrated', true);
-        } else {
-          store.set('onboarding.memoryMigrated', false);
-        }
-      } else {
-        // Starting fresh - delete existing memory if present
-        if (fs.existsSync(destMemory)) {
-          fs.unlinkSync(destMemory);
-        }
-        store.set('onboarding.memoryMigrated', false);
-      }
-
-      store.set('onboarding.clawsterWorkspacePath', clawsterWorkspace);
-      return { success: true, path: clawsterWorkspace };
-    } catch (error) {
-      console.error('Failed to create Clawster workspace:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Validate gateway connection by making a real Responses API request
-  ipcMain.handle('validate-gateway', async (_event, url: string, token: string) => {
-    const makeRequest = async () => {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      return fetch(`${url}/v1/responses`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: 'openclaw',
-          input: 'hi',
-          max_output_tokens: 5,
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-    };
-
-    try {
-      let response = await makeRequest();
-
-      // 405 means the gateway's HTTP responses endpoint is disabled.
-      // Auto-enable it in OpenClaw config and restart the gateway.
-      if (response.status === 405) {
-        console.log('[Gateway] 405 detected — enabling HTTP endpoints');
-        const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-        try {
-          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-          if (!config.gateway) config.gateway = {};
-          if (!config.gateway.http) config.gateway.http = {};
-          if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
-          if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
-          if (!config.gateway.http.endpoints.responses) config.gateway.http.endpoints.responses = {};
-          config.gateway.http.endpoints.chatCompletions.enabled = true;
-          config.gateway.http.endpoints.responses.enabled = true;
-          fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-          // Reinstall and restart the gateway to ensure endpoint config is applied
-          await execAsync('openclaw gateway stop', { timeout: 10000 }).catch(() => {});
-          await execAsync('openclaw gateway install --force', { timeout: 10000 });
-          await execAsync('openclaw gateway start', { timeout: 10000 });
-
-          // Wait for gateway to come back up before retrying
-          for (let i = 0; i < 10; i++) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            try {
-              const health = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
-              if (health.ok || health.status === 200) break;
-            } catch {
-              // Gateway may still be starting; keep retrying
-            }
-          }
-
-          response = await makeRequest();
-        } catch (configError) {
-          console.error('[Gateway] Failed to auto-enable responses endpoint:', configError);
-          return { success: false, error: '405: HTTP responses endpoint disabled. Add gateway.http.endpoints.responses.enabled=true to ~/.openclaw/openclaw.json' };
-        }
-      }
-
-      if (response.ok) {
-        return { success: true };
-      } else {
-        const errorText = await response.text();
-        return { success: false, error: `${response.status}: ${errorText.slice(0, 100)}` };
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('fetch failed') || msg.includes('ECONNREFUSED')) {
-        return { success: false, error: 'Gateway not reachable — is it running?' };
-      }
-      if (msg.includes('timed out') || msg.includes('AbortError')) {
-        return { success: false, error: 'Connection timed out — gateway may be slow or unreachable' };
-      }
-      return { success: false, error: msg };
-    }
   });
 
   // Get default identity and soul from app resources
@@ -3029,18 +2260,6 @@ function setupIPC() {
     } catch (error) {
       console.error('Failed to read default personality:', error);
       return { identity: '', soul: '' };
-    }
-  });
-
-  // Save personality files to workspace
-  ipcMain.handle('save-personality', (_event, workspacePath: string, identity: string, soul: string) => {
-    try {
-      fs.writeFileSync(path.join(workspacePath, 'IDENTITY.md'), identity);
-      fs.writeFileSync(path.join(workspacePath, 'SOUL.md'), soul);
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to save personality:', error);
-      return { success: false, error: String(error) };
     }
   });
 
@@ -3262,44 +2481,11 @@ function setupTray() {
   }
 }
 
-// Ensure gateway.http.endpoints are enabled in OpenClaw config.
-// Many users are missing this block, which prevents Clawster from connecting.
-function ensureGatewayHttpEndpoints(): void {
-  const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-  try {
-    if (!fs.existsSync(configPath)) return;
-
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (!config.gateway) return; // No gateway config at all — nothing to patch
-
-    const endpoints = config.gateway.http?.endpoints;
-    const needsChatCompletions = !endpoints?.chatCompletions?.enabled;
-    const needsResponses = !endpoints?.responses?.enabled;
-
-    if (!needsChatCompletions && !needsResponses) return; // Already configured
-
-    console.log('[Gateway] HTTP endpoints missing — auto-injecting into openclaw.json');
-    if (!config.gateway.http) config.gateway.http = {};
-    if (!config.gateway.http.endpoints) config.gateway.http.endpoints = {};
-    if (!config.gateway.http.endpoints.chatCompletions) config.gateway.http.endpoints.chatCompletions = {};
-    if (!config.gateway.http.endpoints.responses) config.gateway.http.endpoints.responses = {};
-    config.gateway.http.endpoints.chatCompletions.enabled = true;
-    config.gateway.http.endpoints.responses.enabled = true;
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    console.log('[Gateway] HTTP endpoints injected into openclaw.json');
-  } catch (error) {
-    console.error('[Gateway] Failed to ensure HTTP endpoints:', error);
-  }
-}
-
 // App lifecycle
 app.whenReady().then(async () => {
   setupIPC();
   setupAutoUpdater();
   setupTray();
-
-  // Ensure HTTP endpoints are configured before any UI loads
-  ensureGatewayHttpEndpoints();
 
   // Check onboarding status
   const onboardingCompleted = store.get('onboarding.completed') as boolean;
