@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
-import * as fs from 'fs/promises';
-import * as os from 'os';
+import * as fs from 'fs';
 import * as path from 'path';
 import type { ChatProvider, ChatResponse, ChatStreamHandlers } from './types';
 import { parseActionFromResponse } from './parse-action';
@@ -21,11 +20,11 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
   private identityPrompt: string = '';
   private soulPrompt: string = '';
 
-  constructor(baseUrl: string, deviceId: string) {
+  constructor(baseUrl: string, deviceId: string, personalityDir: string) {
     super();
     this.baseUrl = baseUrl;
     this.deviceId = deviceId;
-    this.loadPersonalityFiles();
+    this.loadPersonalityFiles(personalityDir);
     this.checkConnection();
     this.startPolling();
   }
@@ -43,15 +42,18 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
     return { connected: this.connected, error: this.lastError };
   }
 
-  private async loadPersonalityFiles(): Promise<void> {
-    const workspacePath = path.join(os.homedir(), '.clawster');
+  private loadPersonalityFiles(personalityDir: string): void {
     try {
-      const identityPath = path.join(workspacePath, 'IDENTITY.md');
-      this.identityPrompt = await fs.readFile(identityPath, 'utf-8').catch(() => '');
+      const identityPath = path.join(personalityDir, 'IDENTITY.md');
+      if (fs.existsSync(identityPath)) {
+        this.identityPrompt = fs.readFileSync(identityPath, 'utf-8');
+      }
     } catch { /* no identity file */ }
     try {
-      const soulPath = path.join(workspacePath, 'SOUL.md');
-      this.soulPrompt = await fs.readFile(soulPath, 'utf-8').catch(() => '');
+      const soulPath = path.join(personalityDir, 'SOUL.md');
+      if (fs.existsSync(soulPath)) {
+        this.soulPrompt = fs.readFileSync(soulPath, 'utf-8');
+      }
     } catch { /* no soul file */ }
   }
 
@@ -196,7 +198,7 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
       }
 
       if (!response.body) {
-        return this.chat(message, history);
+        return { type: 'message', text: 'No response body received.' };
       }
 
       return this.consumeStream(response, handlers);
@@ -206,18 +208,40 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
     }
   }
 
+  private parseSseLines(
+    text: string,
+    handlers: ChatStreamHandlers,
+    state: { rawText: string }
+  ): boolean {
+    let shouldStop = false;
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      const payload = trimmed.slice(5).trim();
+      if (payload === '[DONE]') { shouldStop = true; continue; }
+
+      try {
+        const chunk = JSON.parse(payload) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string' && delta.length > 0) {
+          state.rawText += delta;
+          handlers.onDelta?.(delta, state.rawText);
+        }
+      } catch { /* skip malformed chunks */ }
+    }
+    return shouldStop;
+  }
+
   private async consumeStream(
     response: Response,
     handlers: ChatStreamHandlers
   ): Promise<ChatResponse> {
-    if (!response.body) {
-      return { type: 'message', text: 'No response body received.' };
-    }
-
-    const reader = response.body.getReader();
+    const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let rawText = '';
+    const state = { rawText: '' };
     let done = false;
 
     while (!done) {
@@ -230,49 +254,16 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
         buffer = events.pop() ?? '';
 
         for (const evt of events) {
-          for (const line of evt.split('\n')) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data:')) continue;
-            const payload = trimmed.slice(5).trim();
-            if (payload === '[DONE]') { done = true; continue; }
-
-            try {
-              const chunk = JSON.parse(payload) as {
-                choices?: Array<{ delta?: { content?: string } }>;
-              };
-              const delta = chunk.choices?.[0]?.delta?.content;
-              if (typeof delta === 'string' && delta.length > 0) {
-                rawText += delta;
-                handlers.onDelta?.(delta, rawText);
-              }
-            } catch {
-              // skip malformed chunks
-            }
-          }
+          if (this.parseSseLines(evt, handlers, state)) done = true;
         }
       }
     }
 
     if (buffer.trim()) {
-      for (const line of buffer.split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) continue;
-        const payload = trimmed.slice(5).trim();
-        if (payload === '[DONE]') continue;
-        try {
-          const chunk = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-          };
-          const delta = chunk.choices?.[0]?.delta?.content;
-          if (typeof delta === 'string' && delta.length > 0) {
-            rawText += delta;
-            handlers.onDelta?.(delta, rawText);
-          }
-        } catch { /* skip */ }
-      }
+      this.parseSseLines(buffer, handlers, state);
     }
 
-    return this.toResponse(rawText || 'No response');
+    return this.toResponse(state.rawText || 'No response');
   }
 
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {

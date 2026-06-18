@@ -224,23 +224,22 @@ async function sendChatPopup(
   }
 }
 
-// Start idle detection
+let idleNotified = false;
+
 function startIdleDetection() {
   idleCheckInterval = setInterval(() => {
     const idleTime = Date.now() - lastActivityTime;
 
-    if (idleTime > IDLE_THRESHOLD) {
-      // Only send idle message once per idle period
-      if (idleTime < IDLE_THRESHOLD + 10000) {
-        sendChatPopup('idle');
-      }
+    if (idleTime > IDLE_THRESHOLD && !idleNotified) {
+      idleNotified = true;
+      sendChatPopup('idle');
     }
   }, 30000);
 }
 
-// Reset idle timer on activity
 function resetIdleTimer() {
   lastActivityTime = Date.now();
+  idleNotified = false;
 }
 
 function startMainApp() {
@@ -280,7 +279,10 @@ function startMainApp() {
     deviceId = randomUUID();
     store.set('deviceId', deviceId);
   }
-  chatProvider = new CloudChatProvider(proxyUrl, deviceId);
+  const personalityDir = isDev
+    ? path.join(__dirname, '../../personality')
+    : path.join(process.resourcesPath, 'personality');
+  chatProvider = new CloudChatProvider(proxyUrl, deviceId, personalityDir);
 
   chatProvider.on('connection-changed', (status: { connected: boolean; error: string | null }) => {
     getPetWindow()?.webContents.send('clawbot-connection-changed', status);
