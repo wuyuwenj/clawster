@@ -3,6 +3,7 @@ import type { ChatResponse, ChatStreamHandlers } from './types';
 import { LocalToolProvider } from './local-tool-provider';
 import { executeTool } from './tool-executor';
 import { getTemplateResponse } from './personality-responses';
+import { logInteraction } from './interaction-logger';
 
 function stripScreenContext(message: string): string {
   return message.replace(/^\[Screen Context:.*?\]\s*/s, '');
@@ -29,10 +30,13 @@ export class ChatRouter extends EventEmitter {
     _history: Array<{ role: 'user' | 'assistant'; content: string }> = []
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
+    const start = Date.now();
     const toolCall = await this.toolModel.classify(rawInput);
+    const latencyMs = Date.now() - start;
 
     if (toolCall.tool) {
       const result = await executeTool(toolCall.tool, toolCall.args);
+      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         return {
@@ -48,6 +52,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput);
+    logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
     return { type: 'message', text: reply };
   }
 
@@ -57,10 +62,13 @@ export class ChatRouter extends EventEmitter {
     handlers: ChatStreamHandlers = {}
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
+    const start = Date.now();
     const toolCall = await this.toolModel.classify(rawInput);
+    const latencyMs = Date.now() - start;
 
     if (toolCall.tool) {
       const result = await executeTool(toolCall.tool, toolCall.args);
+      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         const text = result.response || '';
@@ -79,6 +87,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput);
+    logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
     handlers.onDelta?.(reply, reply);
     return { type: 'message', text: reply };
   }
