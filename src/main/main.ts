@@ -19,7 +19,8 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { CloudChatProvider, LocalToolProvider, ChatRouter } from './chat';
+import { LocalToolProvider, ChatRouter } from './chat';
+import { LocalChatProvider } from './chat/local-chat-provider';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
@@ -273,25 +274,22 @@ function startMainApp() {
     });
   }
 
-  const proxyUrl = store.get('clawbot.url') as string;
-  let deviceId = store.get('deviceId') as string | undefined;
-  if (!deviceId) {
-    deviceId = randomUUID();
-    store.set('deviceId', deviceId);
-  }
   const personalityDir = isDev
     ? path.join(__dirname, '../../personality')
     : path.join(process.resourcesPath, 'personality');
-  const cloud = new CloudChatProvider(proxyUrl, deviceId, personalityDir);
-  const local = new LocalToolProvider();
-  chatProvider = new ChatRouter(cloud, local);
 
-  chatProvider.on('connection-changed', (status: { connected: boolean; error: string | null }) => {
-    getPetWindow()?.webContents.send('clawbot-connection-changed', status);
-    getAssistantWindow()?.webContents.send('clawbot-connection-changed', status);
-    getPetChatWindow()?.webContents.send('clawbot-connection-changed', status);
-    getChatbarWindow()?.webContents.send('clawbot-connection-changed', status);
-  });
+  let personalityPrompt = '';
+  try {
+    const identity = fs.readFileSync(path.join(personalityDir, 'IDENTITY.md'), 'utf-8');
+    const soul = fs.readFileSync(path.join(personalityDir, 'SOUL.md'), 'utf-8');
+    if (identity) personalityPrompt += `\nIDENTITY:\n${identity}`;
+    if (soul) personalityPrompt += `\nSOUL:\n${soul}`;
+  } catch { /* personality files optional */ }
+
+  const toolModel = new LocalToolProvider();
+  const chatModel = new LocalChatProvider();
+  chatProvider = new ChatRouter(toolModel, chatModel);
+  chatProvider.setPersonalityPrompt(personalityPrompt);
 
   // Initialize watchers
   watchers = new Watchers(store, (event) => {

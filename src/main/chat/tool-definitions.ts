@@ -15,6 +15,7 @@ Available tools:
 - play_music(query: string - Song/artist/genre, action: string [play|pause|next|previous] - Playback action): Play music
 - send_notification(title: string (required), body: string (required)): Show a system notification
 - search_files(query: string (required), directory: string - Directory to search in): Search for files
+- list_files(directory: string (required) - Directory path e.g. "~/Desktop", "~/Downloads"): List files in a directory
 - get_weather(location: string - City or location): Get current weather or forecast
 - set_timer(duration: string (required) - e.g. "5 minutes", label: string): Set a countdown timer
 

@@ -14,26 +14,44 @@ export class LocalToolProvider {
   private baseUrl: string;
   private model: string;
   private available: boolean = false;
+  private availabilityChecked: boolean = false;
+  private checkPromise: Promise<void> | null = null;
 
-  constructor(model: string = 'clawster-tool-1.5b-q4:latest', baseUrl: string = 'http://localhost:11434') {
+  constructor(model: string = 'clawster-tool-1.5b-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
     this.model = model;
     this.baseUrl = baseUrl;
-    this.checkAvailability();
+    this.checkPromise = this.checkAvailability();
   }
 
   private async checkAvailability(): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/tags`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      if (!response.ok) { this.available = false; return; }
-      const data = await response.json() as { models?: Array<{ name: string }> };
-      this.available = data.models?.some(m => m.name === this.model) ?? false;
-      if (this.available) {
-        console.log(`[LocalTool] Model ${this.model} available via Ollama`);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+        const response = await fetch(`${this.baseUrl}/api/tags`, {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) continue;
+        const data = await response.json() as { models?: Array<{ name: string }> };
+        this.available = data.models?.some(m => m.name === this.model) ?? false;
+        if (this.available) {
+          console.log(`[LocalTool] Model ${this.model} available via Ollama`);
+        } else {
+          console.log(`[LocalTool] Model ${this.model} not found in Ollama`);
+        }
+        this.availabilityChecked = true;
+        return;
+      } catch {
+        console.log(`[LocalTool] Ollama check attempt ${attempt + 1}/3 failed`);
       }
-    } catch {
-      this.available = false;
+    }
+    this.available = false;
+    this.availabilityChecked = true;
+    console.log(`[LocalTool] Ollama not reachable at ${this.baseUrl} after 3 attempts`);
+  }
+
+  private async ensureChecked(): Promise<void> {
+    if (!this.availabilityChecked && this.checkPromise) {
+      await this.checkPromise;
     }
   }
 
@@ -42,6 +60,7 @@ export class LocalToolProvider {
   }
 
   async classify(input: string): Promise<ToolCall> {
+    await this.ensureChecked();
     if (!this.available) return { tool: null, args: {} };
 
     try {

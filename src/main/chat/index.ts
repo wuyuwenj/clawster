@@ -1,6 +1,7 @@
 export type { ChatProvider, ChatResponse, ChatStreamHandlers } from './types';
 export { CloudChatProvider } from './cloud-provider';
 export { LocalToolProvider } from './local-tool-provider';
+export { LocalChatProvider } from './local-chat-provider';
 export { ChatRouter } from './chat-router';
 export { executeTool } from './tool-executor';
 export { parseActionFromResponse } from './parse-action';
