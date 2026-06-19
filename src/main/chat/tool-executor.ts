@@ -144,6 +144,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       }
     }
 
+    case 'create_timer':
     case 'set_timer': {
       const duration = args.duration as string;
       const label = args.label as string || 'Timer';

@@ -19,7 +19,7 @@ export class LocalToolProvider {
   private availabilityChecked: boolean = false;
   private checkPromise: Promise<void> | null = null;
 
-  constructor(model: string = 'clawster-tool-v2-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
+  constructor(model: string = 'clawster-tool-v3-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
     this.model = model;
     this.baseUrl = baseUrl;
     this.checkPromise = this.checkAvailability();
