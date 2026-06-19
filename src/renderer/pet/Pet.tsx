@@ -38,7 +38,18 @@ const moodToState = (mood: Mood): string => {
     case 'mouth_o':
       return 'state-mouth-o';
     case 'thinking':
+    case 'worried':
       return 'state-worried';
+    case 'huff':
+      return 'state-huff';
+    case 'peek':
+      return 'state-peek';
+    case 'side-eye':
+      return 'state-side-eye';
+    case 'tap':
+      return 'state-tap';
+    case 'scoot':
+      return 'state-scoot';
     default:
       return 'state-idle';
   }
