@@ -1,9 +1,39 @@
-import { shell, Notification } from 'electron';
+import { shell, Notification, BrowserWindow } from 'electron';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PET_ACTION_TOOLS } from './tool-definitions';
 
+let notifyCallback: ((title: string, body: string) => void) | null = null;
+
+export function setNotifyCallback(cb: (title: string, body: string) => void): void {
+  notifyCallback = cb;
+}
+
+function notify(title: string, body: string): void {
+  try {
+    const n = new Notification({ title, body });
+    n.show();
+  } catch { /* notifications may not work in dev mode */ }
+  notifyCallback?.(title, body);
+}
+
 const execAsync = promisify(exec);
+
+function parseDurationMs(input: string): number {
+  if (!input) return 0;
+  const lower = input.toLowerCase();
+  const numMatch = lower.match(/(\d+)/);
+  if (!numMatch) return 0;
+  const num = parseInt(numMatch[1], 10);
+  if (lower.includes('hour')) return num * 3600000;
+  if (lower.includes('min')) return num * 60000;
+  if (lower.includes('sec')) return num * 1000;
+  if (lower.startsWith('in ')) {
+    if (lower.includes('hour')) return num * 3600000;
+    return num * 60000;
+  }
+  return num * 60000;
+}
 
 export interface ToolResult {
   handled: boolean;
@@ -54,7 +84,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
     case 'send_notification': {
       const title = args.title as string || 'Clawster';
       const body = args.body as string || '';
-      new Notification({ title, body }).show();
+      notify(title, body);
       return { handled: true, response: `Notification sent!` };
     }
 
@@ -97,13 +127,94 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       }
     }
 
-    case 'get_weather':
-      return { handled: true, response: "Weather integration coming soon! Check your favorite weather app for now." };
+    case 'get_weather': {
+      const location = (args.location as string) || '';
+      try {
+        const url = location
+          ? `https://wttr.in/${encodeURIComponent(location)}?format=%l:+%C+%t+%h+humidity+%w+wind`
+          : `https://wttr.in/?format=%l:+%C+%t+%h+humidity+%w+wind`;
+        const { stdout } = await execAsync(`curl -s "${url}"`, { timeout: 5000 });
+        const weather = stdout.trim();
+        if (!weather || weather.includes('Unknown')) {
+          return { handled: true, response: `Couldn't find weather for "${location}".` };
+        }
+        return { handled: true, response: weather };
+      } catch {
+        return { handled: true, response: "Couldn't check the weather right now." };
+      }
+    }
 
     case 'set_timer': {
       const duration = args.duration as string;
       const label = args.label as string || 'Timer';
-      return { handled: true, response: `Timer set: ${duration}${label !== 'Timer' ? ` (${label})` : ''}. I'll remind you!` };
+      const ms = parseDurationMs(duration);
+      if (ms > 0) {
+        setTimeout(() => {
+          notify(label, `${duration} is up!`);
+        }, ms);
+      }
+      return { handled: true, response: `Timer set for ${duration}!${label !== 'Timer' ? ` (${label})` : ''}` };
+    }
+
+    case 'create_reminder': {
+      const text = args.text as string;
+      const time = args.time as string;
+      if (!text) return { handled: true, response: "What should I remind you about?" };
+      const ms = parseDurationMs(time);
+      if (ms > 0) {
+        setTimeout(() => {
+          notify('Reminder', text);
+        }, ms);
+        return { handled: true, response: `I'll remind you: "${text}" in ${time}` };
+      }
+      try {
+        await execAsync(`osascript -e 'tell application "Reminders" to make new reminder with properties {name:"${text.replace(/"/g, '\\"')}"}'`);
+        return { handled: true, response: `Reminder created: "${text}"` };
+      } catch {
+        return { handled: true, response: `I'll remind you about "${text}" — but I couldn't add it to Reminders.app.` };
+      }
+    }
+
+    case 'get_calendar_events': {
+      try {
+        const script = `
+          tell application "Calendar"
+            set output to ""
+            set today to current date
+            set endDate to today + 7 * days
+            repeat with c in calendars
+              repeat with e in (every event of c whose start date >= today and start date <= endDate)
+                set output to output & (summary of e) & " — " & (start date of e as string) & linefeed
+              end repeat
+            end repeat
+            return output
+          end tell`;
+        const { stdout } = await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 8000 });
+        const events = stdout.trim();
+        if (!events) return { handled: true, response: "No upcoming events found." };
+        const lines = events.split('\n').filter(Boolean).slice(0, 8);
+        return { handled: true, response: `Upcoming events:\n${lines.map(l => `- ${l}`).join('\n')}` };
+      } catch {
+        return { handled: true, response: "Couldn't access Calendar. Make sure Calendar.app has permission." };
+      }
+    }
+
+    case 'create_calendar_event': {
+      const title = args.title as string;
+      const start = args.start as string;
+      if (!title || !start) return { handled: true, response: "I need a title and time for the event." };
+      try {
+        const script = `
+          tell application "Calendar"
+            tell calendar 1
+              make new event with properties {summary:"${title.replace(/"/g, '\\"')}", start date:date "${start}"}
+            end tell
+          end tell`;
+        await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 5000 });
+        return { handled: true, response: `Event created: "${title}" at ${start}` };
+      } catch {
+        return { handled: true, response: `Couldn't create the event. Calendar.app may need permission, or the time format wasn't recognized.` };
+      }
     }
 
     case 'play_music': {
@@ -132,11 +243,6 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return { handled: true, response: "Couldn't control Music app." };
       }
     }
-
-    case 'create_reminder':
-    case 'get_calendar_events':
-    case 'create_calendar_event':
-      return { handled: true, response: "Calendar and reminders integration coming soon!" };
 
     default:
       return { handled: false };

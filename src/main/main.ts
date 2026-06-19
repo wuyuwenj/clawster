@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { LocalToolProvider, ChatRouter } from './chat';
+import { LocalToolProvider, ChatRouter, setNotifyCallback } from './chat';
 import { LocalChatProvider } from './chat/local-chat-provider';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -290,6 +290,14 @@ function startMainApp() {
   const chatModel = new LocalChatProvider();
   chatProvider = new ChatRouter(toolModel, chatModel);
   chatProvider.setPersonalityPrompt(personalityPrompt);
+
+  setNotifyCallback((title, body) => {
+    showPetChat({
+      id: randomUUID(),
+      text: `${title}: ${body}`,
+      quickReplies: ['Thanks!', 'Not now'],
+    });
+  });
 
   // Initialize watchers
   watchers = new Watchers(store, (event) => {
