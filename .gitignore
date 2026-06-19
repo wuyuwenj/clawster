@@ -6,3 +6,6 @@ release/
 .env
 electron-builder.env
 *.omc
+eval/fused-model/
+eval/adapters/
+eval/results-*.json
