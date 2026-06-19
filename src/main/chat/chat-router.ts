@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
 import type { ChatResponse, ChatStreamHandlers } from './types';
 import { LocalToolProvider } from './local-tool-provider';
-import { LocalChatProvider } from './local-chat-provider';
 import { executeTool } from './tool-executor';
+import { getTemplateResponse } from './personality-responses';
 
 function stripScreenContext(message: string): string {
   return message.replace(/^\[Screen Context:.*?\]\s*/s, '');
@@ -10,17 +10,10 @@ function stripScreenContext(message: string): string {
 
 export class ChatRouter extends EventEmitter {
   private toolModel: LocalToolProvider;
-  private chatModel: LocalChatProvider;
-  private personalityPrompt: string = '';
 
-  constructor(toolModel: LocalToolProvider, chatModel: LocalChatProvider) {
+  constructor(toolModel: LocalToolProvider) {
     super();
     this.toolModel = toolModel;
-    this.chatModel = chatModel;
-  }
-
-  setPersonalityPrompt(prompt: string): void {
-    this.personalityPrompt = prompt;
   }
 
   isAvailable(): boolean {
@@ -33,7 +26,7 @@ export class ChatRouter extends EventEmitter {
 
   async chat(
     message: string,
-    history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    _history: Array<{ role: 'user' | 'assistant'; content: string }> = []
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
     const toolCall = await this.toolModel.classify(rawInput);
@@ -54,12 +47,13 @@ export class ChatRouter extends EventEmitter {
       }
     }
 
-    return this.chatModel.chat(rawInput, history, this.personalityPrompt);
+    const reply = toolCall.response || getTemplateResponse(rawInput);
+    return { type: 'message', text: reply };
   }
 
   async chatStream(
     message: string,
-    history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    _history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
     handlers: ChatStreamHandlers = {}
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
@@ -84,16 +78,16 @@ export class ChatRouter extends EventEmitter {
       }
     }
 
-    return this.chatModel.chatStream(rawInput, history, handlers, this.personalityPrompt);
+    const reply = toolCall.response || getTemplateResponse(rawInput);
+    handlers.onDelta?.(reply, reply);
+    return { type: 'message', text: reply };
   }
 
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {
     return { type: 'message', text: "Screen analysis needs the cloud connection. Coming soon!" };
   }
 
-  updateConfig(_baseUrl: string): void {
-    // No-op for local-only mode
-  }
+  updateConfig(_baseUrl: string): void {}
 
   destroy(): void {
     this.toolModel.destroy();

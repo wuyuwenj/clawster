@@ -8,6 +8,7 @@ interface OllamaResponse {
 interface ToolCall {
   tool: string | null;
   args: Record<string, unknown>;
+  response?: string;
 }
 
 export class LocalToolProvider {
@@ -100,11 +101,12 @@ export class LocalToolProvider {
 
       if ('tool' in parsed) {
         const toolName = parsed.tool;
+        const response = typeof parsed.response === 'string' ? parsed.response : undefined;
         if (toolName === null || toolName === 'null' || toolName === 'none') {
-          return { tool: null, args: {} };
+          return { tool: null, args: {}, response };
         }
         if (typeof toolName === 'string') {
-          return { tool: toolName, args: (parsed.args as Record<string, unknown>) || {} };
+          return { tool: toolName, args: (parsed.args as Record<string, unknown>) || {}, response };
         }
       }
 
