@@ -20,7 +20,6 @@ import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback } from './chat';
-import { LocalChatProvider } from './chat/local-chat-provider';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
@@ -287,9 +286,7 @@ function startMainApp() {
   } catch { /* personality files optional */ }
 
   const toolModel = new LocalToolProvider();
-  const chatModel = new LocalChatProvider();
-  chatProvider = new ChatRouter(toolModel, chatModel);
-  chatProvider.setPersonalityPrompt(personalityPrompt);
+  chatProvider = new ChatRouter(toolModel);
 
   setNotifyCallback((title, body) => {
     showPetChat({
