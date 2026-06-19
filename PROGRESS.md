@@ -33,4 +33,29 @@ Plan source: /plan-eng-review decisions D2-D19
 - [x] T7: vitest test suite — 27 tests, 4 files (HMAC auth, action parser, event logger, proxy compat)
 - [x] T9: Worker budget caps — monthly cap + global:disabled kill switch built into T1
 
+- [x] T10: Integrate fine-tuned Qwen 1.5B via Ollama — ChatRouter, LocalToolProvider, tool executor
+- [x] T11: Port eval framework — 89+56 test cases, multi-provider benchmarking
+
+## Benchmark Results
+| Provider | Tool Acc | Args Acc | Latency p50 |
+|----------|----------|----------|-------------|
+| GPT-4o-mini (cloud) | 88.8% | 92.4% | 740ms |
+| Fine-tuned Qwen 1.5B Q4 (local) | 95.5% | 93.4% | 328ms |
+
+- [x] T12: Implement all pending tools (weather, timer, reminder, calendar, music)
+- [x] T13: E2E tool executor tests (14 tests)
+- [x] T14: Local-only architecture (no cloud dependency for basic usage)
+- [x] T15: Conversation latency optimized to ~170ms (single-model, Q4 quantized)
+- [x] T16: Interaction logger (JSONL at ~/.clawster/interactions/)
+- [x] T17: Expose all 14 pet animation states to model
+- [x] T18: Emotion engine (valence/arousal model, context-driven, conversation-aware)
+- [x] T19: Mood field in training data (404 examples with emotional tags)
+
+## Retrain Needed
+The following changes require one model retrain to take effect:
+- `list_files` tool (20 training examples)
+- All 14 mood states (29 examples)
+- Inline conversation responses with mood tags (77 examples)
+- Run: `cp eval/train-data/*.jsonl ../clawster/eval/train-data/ && retrain`
+
 ## Progress Log
