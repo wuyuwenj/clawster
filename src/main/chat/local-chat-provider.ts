@@ -6,7 +6,7 @@ export class LocalChatProvider {
   private baseUrl: string;
   private model: string;
 
-  constructor(model: string = 'qwen2.5:7b', baseUrl: string = 'http://127.0.0.1:11434') {
+  constructor(model: string = 'qwen2.5:1.5b', baseUrl: string = 'http://127.0.0.1:11434') {
     this.model = model;
     this.baseUrl = baseUrl;
   }
