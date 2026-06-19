@@ -118,6 +118,16 @@ export const DATASET: TestCase[] = [
   { input: 'locate the readme file', expected_tool: 'search_files', expected_args: { query: 'readme' }, category: 'files', difficulty: 'easy' },
 
   // ============================================================
+  // LIST FILES (6 cases)
+  // ============================================================
+  { input: "what files are on my desktop", expected_tool: 'list_files', expected_args: { directory: '~/Desktop' }, category: 'files', difficulty: 'easy' },
+  { input: "show me my downloads", expected_tool: 'list_files', expected_args: { directory: '~/Downloads' }, category: 'files', difficulty: 'easy' },
+  { input: "whats in my documents folder", expected_tool: 'list_files', expected_args: { directory: '~/Documents' }, category: 'files', difficulty: 'easy' },
+  { input: "list files in downloads", expected_tool: 'list_files', expected_args: { directory: '~/Downloads' }, category: 'files', difficulty: 'medium' },
+  { input: "what did I download recently", expected_tool: 'list_files', expected_args: { directory: '~/Downloads' }, category: 'files', difficulty: 'hard' },
+  { input: "ls desktop", expected_tool: 'list_files', expected_args: { directory: '~/Desktop' }, category: 'files', difficulty: 'medium' },
+
+  // ============================================================
   // NOTIFICATIONS (3 cases)
   // ============================================================
   { input: 'notify me that the build is done', expected_tool: 'send_notification', expected_args: { title: 'Build Complete', body: 'the build is done' }, category: 'notification', difficulty: 'medium' },

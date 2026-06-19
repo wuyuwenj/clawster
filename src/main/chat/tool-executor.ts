@@ -11,9 +11,21 @@ export interface ToolResult {
   response?: string;
 }
 
+const PET_ACTION_RESPONSES: Record<string, string> = {
+  set_mood: 'On it!',
+  move_to: 'Coming!',
+  move_to_cursor: 'Coming over!',
+  snip: '*snip snip*',
+  wave: '*waves claws*',
+};
+
 export async function executeTool(tool: string, args: Record<string, unknown>): Promise<ToolResult> {
   if ((PET_ACTION_TOOLS as readonly string[]).includes(tool)) {
-    return { handled: true, petAction: { type: tool, ...args } as ToolResult['petAction'] };
+    return {
+      handled: true,
+      petAction: { type: tool, ...args } as ToolResult['petAction'],
+      response: PET_ACTION_RESPONSES[tool] || 'Done!',
+    };
   }
 
   switch (tool) {
@@ -49,15 +61,39 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
     case 'search_files': {
       const query = args.query as string;
       if (!query) return { handled: true, response: "What should I search for?" };
-      const dir = args.directory as string || '~';
+      const dir = (args.directory as string || '~').replace('~', process.env.HOME || '');
+
+      const vagueQueries = ['files', 'file', 'what', 'list', 'show', 'everything', 'all'];
+      if (vagueQueries.includes(query.toLowerCase().trim())) {
+        return executeTool('list_files', { directory: args.directory || '~/Desktop' });
+      }
       try {
-        const { stdout } = await execAsync(`mdfind -onlyin "${dir.replace(/"/g, '\\"')}" "${query.replace(/"/g, '\\"')}" | head -5`, { timeout: 5000 });
+        const { stdout } = await execAsync(`mdfind -onlyin "${dir.replace(/"/g, '\\"')}" "${query.replace(/"/g, '\\"')}" | head -8`, { timeout: 5000 });
         const files = stdout.trim().split('\n').filter(Boolean);
         if (files.length === 0) return { handled: true, response: `No files found matching "${query}".` };
-        const list = files.map(f => f.split('/').pop()).join(', ');
-        return { handled: true, response: `Found: ${list}` };
+        const home = process.env.HOME || '';
+        const formatted = files.map(f => {
+          const short = home ? f.replace(home, '~') : f;
+          return `- ${short}`;
+        }).join('\n');
+        return { handled: true, response: `Found ${files.length} file${files.length > 1 ? 's' : ''}:\n${formatted}` };
       } catch {
         return { handled: true, response: `Couldn't search for "${query}".` };
+      }
+    }
+
+    case 'list_files': {
+      const dir = (args.directory as string || '~/Desktop').replace('~', process.env.HOME || '');
+      try {
+        const { stdout } = await execAsync(`ls -1 "${dir.replace(/"/g, '\\"')}" | head -15`, { timeout: 3000 });
+        const files = stdout.trim().split('\n').filter(Boolean);
+        if (files.length === 0) return { handled: true, response: `That folder is empty.` };
+        const home = process.env.HOME || '';
+        const shortDir = home ? dir.replace(home, '~') : dir;
+        const list = files.map(f => `- ${f}`).join('\n');
+        return { handled: true, response: `Files in ${shortDir}:\n${list}${files.length >= 15 ? '\n(...and more)' : ''}` };
+      } catch {
+        return { handled: true, response: `Couldn't open that folder.` };
       }
     }
 

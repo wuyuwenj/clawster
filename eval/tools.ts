@@ -139,6 +139,14 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
 
+  {
+    name: 'list_files',
+    description: 'List files in a directory',
+    parameters: {
+      directory: { type: 'string', description: 'Directory path (e.g. "~/Desktop", "~/Downloads")', required: true },
+    },
+  },
+
   // --- Weather ---
   {
     name: 'get_weather',

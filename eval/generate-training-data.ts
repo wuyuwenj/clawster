@@ -4,7 +4,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const SYSTEM_PROMPT = 'Respond with JSON: {"tool": "name", "args": {}}. Tools: open_app, play_music, get_calendar_events, create_reminder, set_mood, move_to_cursor, snip, wave, take_screenshot, search_files, set_timer, get_weather, send_notification, open_url, create_calendar_event, run_shell, move_to. If no tool fits, respond {"tool": null}.';
+const SYSTEM_PROMPT = 'Respond with JSON: {"tool": "name", "args": {}}. Tools: open_app, play_music, get_calendar_events, create_reminder, set_mood, move_to_cursor, snip, wave, take_screenshot, search_files, list_files, set_timer, get_weather, send_notification, open_url, create_calendar_event, run_shell, move_to. If no tool fits, respond {"tool": null}.';
 
 interface Example {
   input: string;
@@ -328,6 +328,30 @@ const examples: Example[] = [
   { input: "dig up the config file", output: tool('search_files', { query: 'config' }) },
   { input: "track down my presentation", output: tool('search_files', { query: 'presentation' }) },
   { input: "hunt for the spreadsheet", output: tool('search_files', { query: 'spreadsheet' }) },
+
+  // ============================================================
+  // LIST FILES (20 examples)
+  // ============================================================
+  { input: "what files are on my desktop", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "what's on my desktop", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "show me my desktop files", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "list files on desktop", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "whats in my downloads folder", output: tool('list_files', { directory: '~/Downloads' }) },
+  { input: "show downloads", output: tool('list_files', { directory: '~/Downloads' }) },
+  { input: "what's in my downloads", output: tool('list_files', { directory: '~/Downloads' }) },
+  { input: "list my downloads", output: tool('list_files', { directory: '~/Downloads' }) },
+  { input: "what's in my documents folder", output: tool('list_files', { directory: '~/Documents' }) },
+  { input: "show me my documents", output: tool('list_files', { directory: '~/Documents' }) },
+  { input: "list files in documents", output: tool('list_files', { directory: '~/Documents' }) },
+  { input: "what do I have in documents", output: tool('list_files', { directory: '~/Documents' }) },
+  { input: "show me what's in my home folder", output: tool('list_files', { directory: '~' }) },
+  { input: "list my home directory", output: tool('list_files', { directory: '~' }) },
+  { input: "what folders are on my desktop", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "show desktop contents", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "what did I download recently", output: tool('list_files', { directory: '~/Downloads' }) },
+  { input: "ls desktop", output: tool('list_files', { directory: '~/Desktop' }) },
+  { input: "dir downloads", output: tool('list_files', { directory: '~/Downloads' }) },
+  { input: "list my pictures folder", output: tool('list_files', { directory: '~/Pictures' }) },
 
   // ============================================================
   // NOTIFICATIONS (10 examples)
