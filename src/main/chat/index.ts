@@ -1,5 +1,9 @@
 export type { ChatProvider, ChatResponse, ChatStreamHandlers } from './types';
 export { CloudChatProvider } from './cloud-provider';
+export { LocalToolProvider } from './local-tool-provider';
+export { ChatRouter } from './chat-router';
+export { executeTool } from './tool-executor';
 export { parseActionFromResponse } from './parse-action';
 export { buildAuthHeaders, signRequest } from './hmac-auth';
 export { SYSTEM_PROMPT } from './system-prompt';
+export { TOOL_PROMPT, PET_ACTION_TOOLS, SYSTEM_TOOLS } from './tool-definitions';

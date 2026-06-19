@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { CloudChatProvider } from './chat';
+import { CloudChatProvider, LocalToolProvider, ChatRouter } from './chat';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
@@ -105,7 +105,7 @@ app.disableHardwareAcceleration();
 
 // Services
 let watchers: Watchers | null = null;
-let chatProvider: CloudChatProvider | null = null;
+let chatProvider: ChatRouter | null = null;
 const store = createStore();
 const tutorialManager = new TutorialManager(store);
 
@@ -282,7 +282,9 @@ function startMainApp() {
   const personalityDir = isDev
     ? path.join(__dirname, '../../personality')
     : path.join(process.resourcesPath, 'personality');
-  chatProvider = new CloudChatProvider(proxyUrl, deviceId, personalityDir);
+  const cloud = new CloudChatProvider(proxyUrl, deviceId, personalityDir);
+  const local = new LocalToolProvider();
+  chatProvider = new ChatRouter(cloud, local);
 
   chatProvider.on('connection-changed', (status: { connected: boolean; error: string | null }) => {
     getPetWindow()?.webContents.send('clawbot-connection-changed', status);
@@ -297,8 +299,6 @@ function startMainApp() {
     resetIdleTimer();
 
     // Send events to ClawBot
-    chatProvider?.sendEvent(event);
-
     // Forward to pet window for reactions
     getPetWindow()?.webContents.send('activity-event', event);
 
