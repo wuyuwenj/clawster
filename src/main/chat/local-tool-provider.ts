@@ -217,6 +217,64 @@ export class LocalToolProvider {
     }
   }
 
+  async generateResponse(
+    input: string,
+    mood: string,
+    onDelta: (delta: string, partial: string) => void
+  ): Promise<string | null> {
+    if (!this.available) return null;
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'qwen2.5:1.5b',
+          messages: [
+            { role: 'system', content: `You are Clawster, a cute desktop pet lobster. Respond in 1-2 short sentences. Be fun and playful. Your current mood is ${mood}. Do NOT output JSON. Just respond naturally.` },
+            { role: 'user', content: input },
+          ],
+          stream: true,
+          keep_alive: '10m',
+          options: { temperature: 0.7, num_predict: 40 },
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok || !response.body) return null;
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const chunk = JSON.parse(line) as { message?: { content?: string } };
+            const delta = chunk.message?.content || '';
+            if (delta) {
+              fullText += delta;
+              onDelta(delta, fullText);
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      return fullText || null;
+    } catch {
+      return null;
+    }
+  }
+
   destroy(): void {
     // Nothing to clean up — Ollama manages its own lifecycle
   }

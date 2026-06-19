@@ -74,13 +74,25 @@ export class ChatRouter extends EventEmitter {
     const rawInput = stripScreenContext(message);
     const start = Date.now();
 
+    this.emotionEngine?.onInteraction();
+
+    let responseAborted = false;
+    let streamedText = '';
+
+    const responsePromise = this.toolModel.generateResponse(rawInput, 'happy', (delta, partial) => {
+      if (!responseAborted) {
+        streamedText = partial;
+        handlers.onDelta?.(delta, partial);
+      }
+    });
+
     const toolCall = await this.toolModel.classify(rawInput);
     const latencyMs = Date.now() - start;
 
-    this.emotionEngine?.onInteraction();
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
     if (toolCall.tool) {
+      responseAborted = true;
       const result = await executeTool(toolCall.tool, toolCall.args);
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
 
@@ -100,9 +112,10 @@ export class ChatRouter extends EventEmitter {
       }
     }
 
-    const reply = toolCall.response || getTemplateResponse(rawInput);
+    const fullReply = await responsePromise;
+    const reply = fullReply || getTemplateResponse(rawInput, toolCall.mood);
     logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
-    handlers.onDelta?.(reply, reply);
+    if (!fullReply) handlers.onDelta?.(reply, reply);
     return { type: 'message', text: reply };
   }
 
