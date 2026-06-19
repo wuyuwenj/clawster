@@ -20,6 +20,7 @@ import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback } from './chat';
+import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
@@ -288,6 +289,18 @@ function startMainApp() {
   const toolModel = new LocalToolProvider();
   chatProvider = new ChatRouter(toolModel);
 
+  // Start emotion engine
+  const emotionEngine = new EmotionEngine();
+  emotionEngine.start((mood, _state) => {
+    const petWindow = getPetWindow();
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents.send('clawbot-mood', { state: mood });
+    }
+  });
+
+  // Wire chat router to feed mood signals to emotion engine
+  chatProvider.setEmotionEngine(emotionEngine);
+
   setNotifyCallback((title, body) => {
     showPetChat({
       id: randomUUID(),
@@ -301,15 +314,16 @@ function startMainApp() {
     // Reset idle timer on any activity
     resetIdleTimer();
 
-    // Send events to ClawBot
     // Forward to pet window for reactions
     getPetWindow()?.webContents.send('activity-event', event);
 
     // Forward to assistant window
     getAssistantWindow()?.webContents.send('activity-event', event);
 
-    // Trigger chat popup on app switch (with cooldown)
+    // Feed app switches to emotion engine
     if (event.type === 'app_focus_changed' && event.app) {
+      emotionEngine.onAppSwitch(event.app);
+
       const now = Date.now();
       if (now - lastAppSwitchChat > APP_SWITCH_CHAT_COOLDOWN) {
         lastAppSwitchChat = now;

@@ -4,6 +4,7 @@ import { LocalToolProvider } from './local-tool-provider';
 import { executeTool } from './tool-executor';
 import { getTemplateResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
+import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
   return message.replace(/^\[Screen Context:.*?\]\s*/s, '');
@@ -11,10 +12,15 @@ function stripScreenContext(message: string): string {
 
 export class ChatRouter extends EventEmitter {
   private toolModel: LocalToolProvider;
+  private emotionEngine: EmotionEngine | null = null;
 
   constructor(toolModel: LocalToolProvider) {
     super();
     this.toolModel = toolModel;
+  }
+
+  setEmotionEngine(engine: EmotionEngine): void {
+    this.emotionEngine = engine;
   }
 
   isAvailable(): boolean {
@@ -34,8 +40,11 @@ export class ChatRouter extends EventEmitter {
     const toolCall = await this.toolModel.classify(rawInput);
     const latencyMs = Date.now() - start;
 
+    this.emotionEngine?.onInteraction();
+
     if (toolCall.tool) {
       const result = await executeTool(toolCall.tool, toolCall.args);
+      if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
@@ -52,6 +61,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput);
+    if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
     logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
     return { type: 'message', text: reply };
   }
@@ -66,8 +76,11 @@ export class ChatRouter extends EventEmitter {
     const toolCall = await this.toolModel.classify(rawInput);
     const latencyMs = Date.now() - start;
 
+    this.emotionEngine?.onInteraction();
+
     if (toolCall.tool) {
       const result = await executeTool(toolCall.tool, toolCall.args);
+      if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
@@ -87,6 +100,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput);
+    if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
     logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
     handlers.onDelta?.(reply, reply);
     return { type: 'message', text: reply };

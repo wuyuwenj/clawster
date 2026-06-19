@@ -9,6 +9,7 @@ interface ToolCall {
   tool: string | null;
   args: Record<string, unknown>;
   response?: string;
+  mood?: string;
 }
 
 export class LocalToolProvider {
@@ -60,11 +61,19 @@ export class LocalToolProvider {
     return this.available;
   }
 
-  async classify(input: string): Promise<ToolCall> {
+  async classify(
+    input: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  ): Promise<ToolCall> {
     await this.ensureChecked();
     if (!this.available) return { tool: null, args: {} };
 
     try {
+      const recentHistory = history.slice(-3).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
       const response = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,6 +81,7 @@ export class LocalToolProvider {
           model: this.model,
           messages: [
             { role: 'system', content: TOOL_PROMPT },
+            ...recentHistory,
             { role: 'user', content: input },
           ],
           stream: false,
@@ -102,11 +112,12 @@ export class LocalToolProvider {
       if ('tool' in parsed) {
         const toolName = parsed.tool;
         const response = typeof parsed.response === 'string' ? parsed.response : undefined;
+        const mood = typeof parsed.mood === 'string' ? parsed.mood : undefined;
         if (toolName === null || toolName === 'null' || toolName === 'none') {
-          return { tool: null, args: {}, response };
+          return { tool: null, args: {}, response, mood };
         }
         if (typeof toolName === 'string') {
-          return { tool: toolName, args: (parsed.args as Record<string, unknown>) || {}, response };
+          return { tool: toolName, args: (parsed.args as Record<string, unknown>) || {}, response, mood };
         }
       }
 
