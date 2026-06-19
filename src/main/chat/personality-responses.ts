@@ -102,6 +102,56 @@ const RESPONSE_SETS: ResponseSet[] = [
   },
 ];
 
+const MOOD_RESPONSES: Record<string, string[]> = {
+  happy: [
+    "Hey! *snip snip* What's up?",
+    "*happy wiggle* What can I do for you?",
+    "Hiya! Ready to help!",
+  ],
+  excited: [
+    "*bounces excitedly* Yay!",
+    "Woohoo! *waves claws*",
+    "This is awesome! *snip snip*",
+  ],
+  proud: [
+    "*puffs up proudly* You know it!",
+    "Why thank you! *takes a bow*",
+    "That's right! *proud snip*",
+  ],
+  curious: [
+    "*tilts head* Hmm, interesting!",
+    "Ooh, tell me more! *peeks*",
+    "That's a good question! *curious snip*",
+  ],
+  worried: [
+    "Aww, I'm sorry to hear that. I'm here for you. *gentle snip*",
+    "That's rough. Tomorrow will be better! *scoots closer*",
+    "I'm here if you need me. *quiet snip*",
+  ],
+  mad: [
+    "*crosses claws* Hmph!",
+    "That's annoying! *huff*",
+  ],
+  huff: [
+    "*puffs steam* Ugh!",
+    "*frustrated snip* That's not cool.",
+  ],
+  'side-eye': [
+    "*looks sideways* ...really?",
+    "*suspicious snip* Hmm.",
+    "Bruh. *side-eye*",
+  ],
+  doze: [
+    "*yawns* Getting sleepy... *snip*",
+    "Zzz... oh, hi! *blinks*",
+  ],
+  idle: [
+    "I'm here! Need anything?",
+    "*snip* What's up?",
+    "Just chilling! Let me know if you need something.",
+  ],
+};
+
 const FALLBACK_RESPONSES = [
   "Hmm, I'm not sure about that! But I can open apps, play music, set timers, and more. Try asking me to do something!",
   "*tilts head curiously* I'm better at doing things than chatting! Try 'open safari' or 'set a timer'.",
@@ -109,14 +159,26 @@ const FALLBACK_RESPONSES = [
   "Interesting! I'm more of an action lobster though. Want me to open an app or set a timer?",
 ];
 
-export function getTemplateResponse(input: string): string {
+function pick(arr: string[]): string {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export function getTemplateResponse(input: string, mood?: string): string {
   const trimmed = input.trim();
+
+  // Pattern matching first (specific responses for known inputs)
   for (const set of RESPONSE_SETS) {
     for (const pattern of set.patterns) {
       if (pattern.test(trimmed)) {
-        return set.responses[Math.floor(Math.random() * set.responses.length)];
+        return pick(set.responses);
       }
     }
   }
-  return FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)];
+
+  // Mood-based response if model provided a mood signal
+  if (mood && MOOD_RESPONSES[mood]) {
+    return pick(MOOD_RESPONSES[mood]);
+  }
+
+  return pick(FALLBACK_RESPONSES);
 }

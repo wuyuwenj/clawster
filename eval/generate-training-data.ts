@@ -15,8 +15,8 @@ function tool(name: string, args: Record<string, any> = {}, mood: string = 'happ
   return JSON.stringify({ tool: name, args, mood });
 }
 
-function chat(response: string, mood: string = 'happy'): string {
-  return JSON.stringify({ tool: null, response, mood });
+function chat(_response: string, mood: string = 'happy'): string {
+  return JSON.stringify({ tool: null, mood });
 }
 
 const examples: Example[] = [

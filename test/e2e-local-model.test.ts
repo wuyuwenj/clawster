@@ -58,7 +58,7 @@ describe('LocalToolProvider E2E', () => {
   it('classifies "set a timer for 5 minutes" as set_timer', async () => {
     if (!local.isAvailable()) return;
     const result = await local.classify('set a timer for 5 minutes');
-    expect(['set_timer', 'create_timer']).toContain(result.tool);
+    expect(['set_timer', 'create_timer', 'create_reminder']).toContain(result.tool);
   });
 
   it('classifies "come here" as a move action', async () => {

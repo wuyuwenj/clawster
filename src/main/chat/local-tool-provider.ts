@@ -19,7 +19,7 @@ export class LocalToolProvider {
   private availabilityChecked: boolean = false;
   private checkPromise: Promise<void> | null = null;
 
-  constructor(model: string = 'clawster-tool-v3-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
+  constructor(model: string = 'clawster-tool-v4-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
     this.model = model;
     this.baseUrl = baseUrl;
     this.checkPromise = this.checkAvailability();
@@ -88,7 +88,7 @@ export class LocalToolProvider {
           keep_alive: '10m',
           options: { temperature: 0 },
         }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) return { tool: null, args: {} };
@@ -96,6 +96,92 @@ export class LocalToolProvider {
       const data = await response.json() as OllamaResponse;
       const raw = data.message?.content || '';
       return this.parseToolCall(raw);
+    } catch (error) {
+      console.error('[LocalTool] Classification failed:', error);
+      return { tool: null, args: {} };
+    }
+  }
+
+  async classifyStream(
+    input: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    onResponseDelta?: (delta: string, partial: string) => void
+  ): Promise<ToolCall> {
+    await this.ensureChecked();
+    if (!this.available) return { tool: null, args: {} };
+
+    try {
+      const recentHistory = history.slice(-3).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+      const response = await fetch(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: TOOL_PROMPT },
+            ...recentHistory,
+            { role: 'user', content: input },
+          ],
+          stream: true,
+          keep_alive: '10m',
+          options: { temperature: 0 },
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok || !response.body) return { tool: null, args: {} };
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+      let responseText = '';
+      let inResponse = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const chunk = JSON.parse(line) as { message?: { content?: string }; done?: boolean };
+            const delta = chunk.message?.content || '';
+            if (delta) {
+              fullText += delta;
+
+              if (onResponseDelta) {
+                if (!inResponse && fullText.includes('"response"')) {
+                  inResponse = true;
+                  const match = fullText.match(/"response"\s*:\s*"/);
+                  if (match) {
+                    const afterQuote = fullText.slice(fullText.indexOf(match[0]) + match[0].length);
+                    responseText = afterQuote;
+                    const clean = responseText.replace(/"\s*,?\s*"mood.*$/, '').replace(/"\s*}?\s*$/, '');
+                    if (clean) onResponseDelta(clean, clean);
+                  }
+                } else if (inResponse) {
+                  const clean = delta.replace(/"\s*,?\s*"mood.*$/, '').replace(/"\s*}?\s*$/, '');
+                  if (clean && !clean.includes('"mood"') && !clean.includes('"tool"')) {
+                    responseText += delta;
+                    onResponseDelta(clean, responseText.replace(/"\s*,?\s*"mood.*$/, '').replace(/"\s*}?\s*$/, ''));
+                  }
+                }
+              }
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
+
+      return this.parseToolCall(fullText);
     } catch (error) {
       console.error('[LocalTool] Classification failed:', error);
       return { tool: null, args: {} };
