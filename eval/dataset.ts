@@ -59,6 +59,16 @@ export const DATASET: TestCase[] = [
   { input: 'move to the center of the screen', expected_tool: 'move_to', expected_args: { x: 960, y: 540 }, category: 'pet', difficulty: 'medium' },
   { input: 'think about something', expected_tool: 'set_mood', expected_args: { value: 'thinking' }, category: 'pet', difficulty: 'easy' },
 
+  // New mood states
+  { input: 'do a spin', expected_tool: 'set_mood', expected_args: { value: 'spin' }, category: 'pet', difficulty: 'easy' },
+  { input: 'look proud', expected_tool: 'set_mood', expected_args: { value: 'proud' }, category: 'pet', difficulty: 'easy' },
+  { input: 'be mad', expected_tool: 'set_mood', expected_args: { value: 'mad' }, category: 'pet', difficulty: 'easy' },
+  { input: 'give me side eye', expected_tool: 'set_mood', expected_args: { value: 'side-eye' }, category: 'pet', difficulty: 'medium' },
+  { input: 'play peekaboo', expected_tool: 'set_mood', expected_args: { value: 'peek' }, category: 'pet', difficulty: 'medium' },
+  { input: 'do a barrel roll', expected_tool: 'set_mood', expected_args: { value: 'spin' }, category: 'pet', difficulty: 'hard' },
+  { input: 'be grumpy', expected_tool: 'set_mood', expected_args: { value: 'mad' }, category: 'pet', difficulty: 'medium' },
+  { input: 'tap your claws', expected_tool: 'set_mood', expected_args: { value: 'tap' }, category: 'pet', difficulty: 'easy' },
+
   // ============================================================
   // APP LAUNCHING (8 cases)
   // ============================================================

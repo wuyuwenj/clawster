@@ -23,7 +23,7 @@ export const TOOLS: ToolDefinition[] = [
       value: {
         type: 'string',
         description: 'The mood to set',
-        enum: ['idle', 'happy', 'curious', 'sleeping', 'thinking', 'excited'],
+        enum: ['idle', 'happy', 'curious', 'sleeping', 'thinking', 'excited', 'proud', 'mad', 'spin', 'huff', 'peek', 'side-eye', 'tap', 'scoot'],
         required: true,
       },
     },

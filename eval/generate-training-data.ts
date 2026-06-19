@@ -149,6 +149,44 @@ const examples: Example[] = [
   { input: "don't move", output: tool('set_mood', { value: 'idle' }) },
   { input: "freeze", output: tool('set_mood', { value: 'idle' }) },
 
+  // proud
+  { input: "look proud", output: tool('set_mood', { value: 'proud' }) },
+  { input: "be proud of yourself", output: tool('set_mood', { value: 'proud' }) },
+  { input: "puff up", output: tool('set_mood', { value: 'proud' }) },
+  { input: "show off", output: tool('set_mood', { value: 'proud' }) },
+  // mad / crossed
+  { input: "be mad", output: tool('set_mood', { value: 'mad' }) },
+  { input: "get angry", output: tool('set_mood', { value: 'mad' }) },
+  { input: "cross your arms", output: tool('set_mood', { value: 'mad' }) },
+  { input: "look annoyed", output: tool('set_mood', { value: 'mad' }) },
+  { input: "be grumpy", output: tool('set_mood', { value: 'mad' }) },
+  // spin
+  { input: "do a spin", output: tool('set_mood', { value: 'spin' }) },
+  { input: "spin around", output: tool('set_mood', { value: 'spin' }) },
+  { input: "twirl", output: tool('set_mood', { value: 'spin' }) },
+  { input: "do a barrel roll", output: tool('set_mood', { value: 'spin' }) },
+  // huff
+  { input: "huff", output: tool('set_mood', { value: 'huff' }) },
+  { input: "be frustrated", output: tool('set_mood', { value: 'huff' }) },
+  { input: "get steamy", output: tool('set_mood', { value: 'huff' }) },
+  // peek
+  { input: "peek at me", output: tool('set_mood', { value: 'peek' }) },
+  { input: "play peekaboo", output: tool('set_mood', { value: 'peek' }) },
+  { input: "hide and peek", output: tool('set_mood', { value: 'peek' }) },
+  // side-eye
+  { input: "give me side eye", output: tool('set_mood', { value: 'side-eye' }) },
+  { input: "look suspicious", output: tool('set_mood', { value: 'side-eye' }) },
+  { input: "side eye", output: tool('set_mood', { value: 'side-eye' }) },
+  { input: "look at me funny", output: tool('set_mood', { value: 'side-eye' }) },
+  // tap
+  { input: "tap your claws", output: tool('set_mood', { value: 'tap' }) },
+  { input: "be impatient", output: tool('set_mood', { value: 'tap' }) },
+  { input: "tap tap tap", output: tool('set_mood', { value: 'tap' }) },
+  // scoot
+  { input: "scoot over", output: tool('set_mood', { value: 'scoot' }) },
+  { input: "scootch", output: tool('set_mood', { value: 'scoot' }) },
+  { input: "hop sideways", output: tool('set_mood', { value: 'scoot' }) },
+
   // move_to_cursor - ANY vague directional/come-here request without coordinates
   // Include diverse vocabulary: crawl, scuttle, waddle, etc.
   { input: "come here", output: tool('move_to_cursor', {}) },
