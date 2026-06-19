@@ -97,18 +97,20 @@ export class ChatRouter extends EventEmitter {
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
-        const text = result.response || '';
-        handlers.onDelta?.(text, text);
+        if (!streamedText) {
+          const text = result.response || '';
+          handlers.onDelta?.(text, text);
+        }
         return {
           type: 'action',
-          text,
+          text: streamedText || result.response || '',
           action: { type: result.petAction.type, payload: result.petAction },
         };
       }
 
       if (result.handled && result.response) {
-        handlers.onDelta?.(result.response, result.response);
-        return { type: 'message', text: result.response };
+        if (!streamedText) handlers.onDelta?.(result.response, result.response);
+        return { type: 'message', text: streamedText || result.response };
       }
     }
 
