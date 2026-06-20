@@ -13,7 +13,16 @@ function stripScreenContext(message: string): string {
 
 const MOOD_KEYWORDS = /\b(mood|sleep|happy|sad|spin|mad|angry|curious|excited|proud|huff|peek|side.eye|tap|scoot|idle|dance|wake|cheer|grumpy|tired|bored|nap|doze|wave|snip|chill|relax|calm)\b/i;
 
-function isFalsePositiveMood(input: string, tool: string | null): boolean {
+const KNOWN_TOOLS = new Set([
+  'set_mood', 'move_to', 'move_to_cursor', 'snip', 'wave', 'open_app', 'open_url',
+  'take_screenshot', 'get_calendar_events', 'create_calendar_event', 'create_reminder',
+  'play_music', 'send_notification', 'search_files', 'list_files', 'get_weather',
+  'set_timer', 'create_timer',
+]);
+
+function isFalsePositiveTool(input: string, tool: string | null): boolean {
+  if (!tool) return false;
+  if (!KNOWN_TOOLS.has(tool)) return true;
   if (tool !== 'set_mood') return false;
   if (MOOD_KEYWORDS.test(input)) return false;
   if (input.trim().length <= 2) return true;
@@ -61,7 +70,7 @@ export class ChatRouter extends EventEmitter {
     this.emotionEngine?.onInteraction();
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
-    if (toolCall.tool && !isFalsePositiveMood(rawInput, toolCall.tool)) {
+    if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const result = await executeTool(toolCall.tool, toolCall.args);
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
@@ -117,7 +126,7 @@ export class ChatRouter extends EventEmitter {
 
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
-    if (toolCall.tool && !isFalsePositiveMood(rawInput, toolCall.tool)) {
+    if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       responseAborted = true;
       const result = await executeTool(toolCall.tool, toolCall.args);
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
