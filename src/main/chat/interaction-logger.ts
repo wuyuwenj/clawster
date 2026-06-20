@@ -24,6 +24,7 @@ export interface InteractionEntry {
   args?: Record<string, unknown>;
   response?: string;
   mood?: string;
+  model?: string;
   latencyMs: number;
   ts: number;
 }

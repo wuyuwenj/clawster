@@ -61,6 +61,10 @@ export class LocalToolProvider {
     return this.available;
   }
 
+  getModelName(): string {
+    return this.model;
+  }
+
   async classify(
     input: string,
     history: Array<{ role: 'user' | 'assistant'; content: string }> = []

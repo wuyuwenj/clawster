@@ -7,6 +7,7 @@ import type { LocalToolProvider } from '../src/main/chat/local-tool-provider';
 function makeFakeToolModel() {
   const calls: Array<{ input: string; history: Array<{ role: string; content: string }> }> = [];
   const fake = {
+    getModelName: () => 'test-model',
     classify: async (
       input: string,
       history: Array<{ role: 'user' | 'assistant'; content: string }> = []
@@ -90,6 +91,7 @@ describe('ChatRouter multi-turn memory', () => {
 // Tool model that always returns a fixed tool call.
 function makeToolModelReturning(toolCall: Record<string, unknown>) {
   const fake = {
+    getModelName: () => 'test-model',
     classify: async () => toolCall,
     destroy() {},
   };
@@ -126,6 +128,7 @@ describe('isFalsePositiveTool conversational guard', () => {
 describe('ChatRouter inline personality responses (P11)', () => {
   it('returns the model-generated response when present', async () => {
     const fake = {
+      getModelName: () => 'test-model',
       classify: async () => ({ tool: null, args: {}, response: 'Hehe, you crack me up! *snip*', mood: 'happy' }),
       destroy() {},
     } as unknown as LocalToolProvider;
@@ -136,6 +139,7 @@ describe('ChatRouter inline personality responses (P11)', () => {
 
   it('falls back to a template when the model gives no response', async () => {
     const fake = {
+      getModelName: () => 'test-model',
       classify: async () => ({ tool: null, args: {}, mood: 'happy' }),
       destroy() {},
     } as unknown as LocalToolProvider;
