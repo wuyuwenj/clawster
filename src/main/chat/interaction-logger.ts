@@ -23,6 +23,7 @@ export interface InteractionEntry {
   tool: string | null;
   args?: Record<string, unknown>;
   response?: string;
+  mood?: string;
   latencyMs: number;
   ts: number;
 }

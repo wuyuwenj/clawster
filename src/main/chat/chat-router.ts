@@ -4,10 +4,20 @@ import { LocalToolProvider } from './local-tool-provider';
 import { executeTool } from './tool-executor';
 import { getTemplateResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
+import { checkSafety } from './safety-filter';
 import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
   return message.replace(/^\[Screen Context:.*?\]\s*/s, '');
+}
+
+const MOOD_KEYWORDS = /\b(mood|sleep|happy|sad|spin|mad|angry|curious|excited|proud|huff|peek|side.eye|tap|scoot|idle|dance|wake|cheer|grumpy|tired|bored|nap|doze|wave|snip|chill|relax|calm)\b/i;
+
+function isFalsePositiveMood(input: string, tool: string | null): boolean {
+  if (tool !== 'set_mood') return false;
+  if (MOOD_KEYWORDS.test(input)) return false;
+  if (input.trim().length <= 2) return true;
+  return true;
 }
 
 export class ChatRouter extends EventEmitter {
@@ -36,16 +46,24 @@ export class ChatRouter extends EventEmitter {
     _history: Array<{ role: 'user' | 'assistant'; content: string }> = []
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
+
+    const safety = checkSafety(rawInput);
+    if (safety.blocked) {
+      this.emotionEngine?.onConversationMood('worried');
+      logInteraction({ input: rawInput, tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      return { type: 'message', text: safety.response! };
+    }
+
     const start = Date.now();
     const toolCall = await this.toolModel.classify(rawInput);
     const latencyMs = Date.now() - start;
 
     this.emotionEngine?.onInteraction();
+    if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
-    if (toolCall.tool) {
+    if (toolCall.tool && !isFalsePositiveMood(rawInput, toolCall.tool)) {
       const result = await executeTool(toolCall.tool, toolCall.args);
-      if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
-      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
+      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         return {
@@ -61,8 +79,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
-    if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
-    logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
+    logInteraction({ input: rawInput, tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
     return { type: 'message', text: reply };
   }
 
@@ -72,6 +89,15 @@ export class ChatRouter extends EventEmitter {
     handlers: ChatStreamHandlers = {}
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
+
+    const safety = checkSafety(rawInput);
+    if (safety.blocked) {
+      this.emotionEngine?.onConversationMood('worried');
+      handlers.onDelta?.(safety.response!, safety.response!);
+      logInteraction({ input: rawInput, tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      return { type: 'message', text: safety.response! };
+    }
+
     const start = Date.now();
 
     this.emotionEngine?.onInteraction();
@@ -91,10 +117,10 @@ export class ChatRouter extends EventEmitter {
 
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
-    if (toolCall.tool) {
+    if (toolCall.tool && !isFalsePositiveMood(rawInput, toolCall.tool)) {
       responseAborted = true;
       const result = await executeTool(toolCall.tool, toolCall.args);
-      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, latencyMs, ts: Date.now() });
+      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         if (!streamedText) {
@@ -116,7 +142,7 @@ export class ChatRouter extends EventEmitter {
 
     const fullReply = await responsePromise;
     const reply = fullReply || getTemplateResponse(rawInput, toolCall.mood);
-    logInteraction({ input: rawInput, tool: null, response: reply, latencyMs, ts: Date.now() });
+    logInteraction({ input: rawInput, tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
     if (!fullReply) handlers.onDelta?.(reply, reply);
     return { type: 'message', text: reply };
   }
