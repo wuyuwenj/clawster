@@ -116,25 +116,25 @@ as belt-and-suspenders.
    are screenshot-capture-not-wired from bare dev test scripts, not the real app,
    where main.ts wires captureScreen).
 
-### Post-parity finding: prompt-alignment (attempted, reverted — recommended future work)
+### Post-parity finding: prompt-alignment — TESTED & REJECTED
 A production-faithful eval (datasets run through LocalToolProvider + the runtime
 guard — exactly what the app does) measured v8 at **91.1% std / 78.6% holdout**
 and exposed **under-firing** of classic cases (reminders/pet actions → null).
-Diagnosed root cause: the training SYSTEM_PROMPT is **stale** (a short prompt
-missing the 10 P2-P10 tools) AND **differs from the runtime TOOL_PROMPT** — a
-train/inference mismatch that likely caps accuracy.
+Hypothesis: the stale, mismatched training prompt (short, missing 10 tools, ≠
+runtime TOOL_PROMPT) caps accuracy.
 
-Attempted the fix (train on the runtime TOOL_PROMPT verbatim), but the retrain
-hit a **Metal OOM**: the ~6× longer prompt blew GPU memory, compounded by a 12GB
-`qwen3.5:4b` model from another session pinning unified memory (could not be
-unloaded — shared infra, not ours to kill). Reverted the change to keep the repo
-consistent with the deployed v8.
+**Tested it properly:** aligned the training prompt to the runtime TOOL_PROMPT
+and retrained (batch-size 2, max-seq-length 1536 — the ~6× longer prompt needs
+the smaller batch; a first batch-size-4 attempt OOM'd against a 12GB qwen3.5:4b
+pinned by another session). Result: despite a much lower val loss (0.040 vs
+~0.15), the aligned model was **slightly WORSE in production** — 89.7% std /
+76.8% holdout, reject 90% (vs v8's 91.1 / 78.6 / 100). The low val loss just
+reflects fitting the training format; the under-firing persisted.
 
-**Recommended future work (when GPU memory is free):** import TOOL_PROMPT into
-generate-training-data.ts (single source of truth), regenerate, and retrain at
-`--batch-size 2 --max-seq-length ~1536` (the longer prompt needs the smaller
-batch). Expected to reduce runtime under-firing. The production-faithful eval
-script lives at /tmp/prod-eval.ts (re-creatable) and is the honest measure.
+**Conclusion:** the train/runtime prompt mismatch was NOT the cause — the
+under-firing is a fundamental 1.5B-model limitation under conversation-heavy
+training. Reverted the alignment; **v8 remains the shipped model.** Hypothesis
+investigated and closed (not deferred).
 
 ### Final state
 **v8 (clawster-tool-v8-q4) is the shipped model.** All 12 OpenClaw parity
