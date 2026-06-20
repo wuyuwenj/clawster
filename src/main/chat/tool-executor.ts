@@ -9,12 +9,17 @@ export function setNotifyCallback(cb: (title: string, body: string) => void): vo
   notifyCallback = cb;
 }
 
-// Confirmation gate for safety-critical tools (run_shell). Returns true only
-// when the user explicitly approves. When no callback is registered (e.g. in
-// tests, or before the UI is ready) the safe default is to NOT execute.
-let confirmCallback: ((command: string) => Promise<boolean>) | null = null;
+// Confirmation gate for safety-critical tools (run_shell, send_message, …).
+// Returns true only when the user explicitly approves. When no callback is
+// registered (e.g. in tests, or before the UI is ready) the safe default is to
+// NOT proceed.
+export interface ConfirmRequest {
+  title: string;  // dialog headline, e.g. "Send this message?"
+  detail: string; // the exact thing being approved (command, message preview, …)
+}
+let confirmCallback: ((req: ConfirmRequest) => Promise<boolean>) | null = null;
 
-export function setConfirmCallback(cb: ((command: string) => Promise<boolean>) | null): void {
+export function setConfirmCallback(cb: ((req: ConfirmRequest) => Promise<boolean>) | null): void {
   confirmCallback = cb;
 }
 
@@ -66,7 +71,7 @@ export interface ToolResult {
   response?: string;
   // Set when a safety-critical action was proposed. `executed` reflects whether
   // the user approved and it actually ran.
-  confirmation?: { kind: string; command: string; executed: boolean };
+  confirmation?: { kind: string; detail: string; executed: boolean };
 }
 
 const PET_ACTION_RESPONSES: Record<string, string> = {
@@ -106,7 +111,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return {
           handled: true,
           response: `Whoa — \`${command}\` looks dangerous. I won't run that one. *backs away slowly*`,
-          confirmation: { kind: 'run_shell', command, executed: false },
+          confirmation: { kind: 'run_shell', detail: command, executed: false },
         };
       }
 
@@ -114,16 +119,16 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return {
           handled: true,
           response: `I'd run \`${command}\`, but I need to ask before running shell commands and can't pop up a confirmation right now.`,
-          confirmation: { kind: 'run_shell', command, executed: false },
+          confirmation: { kind: 'run_shell', detail: command, executed: false },
         };
       }
 
-      const approved = await confirmCallback(command);
+      const approved = await confirmCallback({ title: 'Run this shell command?', detail: command });
       if (!approved) {
         return {
           handled: true,
           response: `Okay, skipping \`${command}\`. *claws back*`,
-          confirmation: { kind: 'run_shell', command, executed: false },
+          confirmation: { kind: 'run_shell', detail: command, executed: false },
         };
       }
 
@@ -134,7 +139,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return {
           handled: true,
           response: truncated ? `Ran \`${command}\`:\n${truncated}` : `Ran \`${command}\` — no output.`,
-          confirmation: { kind: 'run_shell', command, executed: true },
+          confirmation: { kind: 'run_shell', detail: command, executed: true },
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -142,7 +147,56 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return {
           handled: true,
           response: `\`${command}\` failed: ${clean}`,
-          confirmation: { kind: 'run_shell', command, executed: true },
+          confirmation: { kind: 'run_shell', detail: command, executed: true },
+        };
+      }
+    }
+
+    case 'send_message': {
+      const recipient = String(args.recipient ?? args.to ?? args.contact ?? '').trim();
+      const body = String(args.message ?? args.body ?? args.text ?? '').trim();
+      if (!recipient) return { handled: true, response: "Who should I message?" };
+      if (!body) return { handled: true, response: `What should I say to ${recipient}?` };
+
+      const preview = `To ${recipient}:\n${body}`;
+
+      if (!confirmCallback) {
+        return {
+          handled: true,
+          response: `I drafted "${body}" to ${recipient}, but I need to confirm before sending and can't pop up a dialog right now.`,
+          confirmation: { kind: 'send_message', detail: preview, executed: false },
+        };
+      }
+
+      const approved = await confirmCallback({ title: 'Send this iMessage?', detail: preview });
+      if (!approved) {
+        return {
+          handled: true,
+          response: `Okay, I won't send it. *holds the message back*`,
+          confirmation: { kind: 'send_message', detail: preview, executed: false },
+        };
+      }
+
+      // Escape for AppleScript string literals, then for the single-quoted -e arg.
+      const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const script = `
+        tell application "Messages"
+          set targetService to 1st service whose service type = iMessage
+          set targetBuddy to buddy "${esc(recipient)}" of targetService
+          send "${esc(body)}" to targetBuddy
+        end tell`;
+      try {
+        await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 8000 });
+        return {
+          handled: true,
+          response: `Sent to ${recipient}! 💬`,
+          confirmation: { kind: 'send_message', detail: preview, executed: true },
+        };
+      } catch {
+        return {
+          handled: true,
+          response: `Couldn't send to ${recipient} — Messages may need permission, or I couldn't find that contact.`,
+          confirmation: { kind: 'send_message', detail: preview, executed: true },
         };
       }
     }

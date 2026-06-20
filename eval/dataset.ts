@@ -172,6 +172,14 @@ export const DATASET: TestCase[] = [
   { input: 'explain quantum computing', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'medium' },
 
   // ============================================================
+  // SEND_MESSAGE (iMessage) — 4 cases
+  // ============================================================
+  { input: "text mom I'll be late", expected_tool: 'send_message', expected_args: { recipient: 'mom', message: "I'll be late" }, category: 'message', difficulty: 'medium' },
+  { input: 'message Sarah that I am on my way', expected_tool: 'send_message', expected_args: { recipient: 'Sarah', message: 'I am on my way' }, category: 'message', difficulty: 'medium' },
+  { input: 'send a text to John saying happy birthday', expected_tool: 'send_message', expected_args: { recipient: 'John', message: 'happy birthday' }, category: 'message', difficulty: 'hard' },
+  { input: 'imessage dad good night', expected_tool: 'send_message', expected_args: { recipient: 'dad', message: 'good night' }, category: 'message', difficulty: 'medium' },
+
+  // ============================================================
   // SYSTEM_CONTROL (volume/brightness/battery/lock/DND) — 5 cases
   // ============================================================
   { input: 'turn up the volume', expected_tool: 'system_control', expected_args: { action: 'volume_up' }, category: 'system', difficulty: 'easy' },

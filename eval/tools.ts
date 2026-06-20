@@ -83,6 +83,14 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'send_message',
+    description: 'Send an iMessage to a contact (asks for confirmation first)',
+    parameters: {
+      recipient: { type: 'string', description: 'Contact name or phone/email', required: true },
+      message: { type: 'string', description: 'The message text to send', required: true },
+    },
+  },
+  {
     name: 'take_screenshot',
     description: 'Capture the current screen',
     parameters: {},

@@ -550,6 +550,22 @@ const examples: Example[] = [
   { input: "turn off do not disturb", output: tool('system_control', { action: 'dnd_off' }, 'happy') },
 
   // ============================================================
+  // SEND_MESSAGE — iMessage (12 examples). Gated by a confirmation dialog.
+  // ============================================================
+  { input: "text mom I'll be late", output: tool('send_message', { recipient: 'mom', message: "I'll be late" }, 'happy') },
+  { input: "message Sarah that I'm on my way", output: tool('send_message', { recipient: 'Sarah', message: "I'm on my way" }, 'happy') },
+  { input: "send a text to John saying happy birthday", output: tool('send_message', { recipient: 'John', message: 'happy birthday' }, 'excited') },
+  { input: "imessage dad good night", output: tool('send_message', { recipient: 'dad', message: 'good night' }, 'happy') },
+  { input: "tell Alex I'll call later", output: tool('send_message', { recipient: 'Alex', message: "I'll call later" }, 'happy') },
+  { input: "text my wife I love you", output: tool('send_message', { recipient: 'my wife', message: 'I love you' }, 'happy') },
+  { input: "send mike a message that the meeting moved to 3pm", output: tool('send_message', { recipient: 'mike', message: 'the meeting moved to 3pm' }, 'happy') },
+  { input: "message 555-1234 saying I'm outside", output: tool('send_message', { recipient: '555-1234', message: "I'm outside" }, 'happy') },
+  { input: "text grandma thank you for the gift", output: tool('send_message', { recipient: 'grandma', message: 'thank you for the gift' }, 'happy') },
+  { input: "let emma know I'm running 10 minutes behind", output: tool('send_message', { recipient: 'emma', message: "I'm running 10 minutes behind" }, 'happy') },
+  { input: "send a text to the group that dinner is cancelled", output: tool('send_message', { recipient: 'the group', message: 'dinner is cancelled' }, 'worried') },
+  { input: "shoot chris a message see you tomorrow", output: tool('send_message', { recipient: 'chris', message: 'see you tomorrow' }, 'happy') },
+
+  // ============================================================
   // RUN_SHELL — terminal/command execution (14 examples)
   // Explicit command/terminal phrasing only; gated by a confirmation dialog.
   // ============================================================
