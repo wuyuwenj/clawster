@@ -79,10 +79,14 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
   reject/disambiguation examples. Promoted (default now v7). Unlocks close_app +
   block_apps + remember/recall. Training-only reject fix underperformed → added
   a deterministic runtime CONVERSATIONAL_INPUTS guard in isFalsePositiveTool.
-- ⏳ **Staged for P10-P12 retrain:** what_time (P10, 13), **P11 response field**
-  (chat() now emits `response`; ~120 conversation examples now train inline
-  replies + 14 new personality examples). Retrain must also add remember↔recall
-  contrastive examples (v7 confuses them) + more reject.
+- 🔄 **FINAL retrain running** (P10+P11+P12 + remember/recall fix + tool-recall
+  boost). First final-retrain attempt (clawster-tool-next-q4, pre-boost) beat v7
+  on holdout (+7.2pp), reject (+10/+40pp), memory (+25pp), time (+50pp) and
+  added working inline conversation (P11), but dipped on standard tool acc
+  (91.1→87.7) — the conversation-heavy data made it under-fire newer tools
+  ("what time"→null, "text mom"→wave, "run df -h"→open_app, "focus"→
+  system_control). Added 22 tool-recall examples (what_time/send_message/
+  run_shell/block_apps) and retraining to recover tool acc while keeping gains.
 
 ## Benchmark Results (142-case standard dataset, fixed harness)
 | Model | Std tool | Std reject | close | focus | mem | holdout tool |
