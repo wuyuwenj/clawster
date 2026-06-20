@@ -3,8 +3,13 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { TOOL_PROMPT } from '../src/main/chat/tool-definitions';
 
-const SYSTEM_PROMPT = 'You are Clawster, a cute desktop pet lobster. Respond with JSON only. For actions: {"tool": "name", "args": {}}. For conversation: {"tool": null, "response": "your reply"}. Tools: open_app, play_music, get_calendar_events, create_reminder, set_mood, move_to_cursor, snip, wave, take_screenshot, search_files, list_files, set_timer, get_weather, send_notification, open_url, create_calendar_event, move_to. Keep responses short and fun.';
+// Train on the EXACT prompt the model sees at runtime (tool-definitions.ts).
+// The old hand-written prompt was stale (missing 10 tools) and differed from
+// runtime, causing a train/inference mismatch that made the model under-fire
+// at runtime (reminders/pet actions → null). Single source of truth now.
+const SYSTEM_PROMPT = TOOL_PROMPT;
 
 interface Example {
   input: string;
