@@ -14,6 +14,8 @@ Available tools:
 - run_shell(command: string (required) - The shell command to run): Run a terminal/shell command (asks for confirmation before running)
 - send_message(recipient: string (required) - Contact name or phone/email, message: string (required) - What to say): Send an iMessage (asks for confirmation before sending)
 - take_screenshot(): Capture the current screen
+- read_clipboard(): Read and show what's currently on the clipboard
+- summarize_clipboard(): Read the clipboard and give a short summary of it
 - get_calendar_events(date: string - Date to check (e.g. "today", "tomorrow"), count: number - Max events): List upcoming calendar events
 - create_calendar_event(title: string (required), start: string (required), end: string - Start/end time): Create a new calendar event
 - create_reminder(text: string (required) - What to remind about, time: string (required) - When to remind): Set a reminder

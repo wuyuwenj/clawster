@@ -172,6 +172,14 @@ export const DATASET: TestCase[] = [
   { input: 'explain quantum computing', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'medium' },
 
   // ============================================================
+  // CLIPBOARD (read/summarize) — 4 cases
+  // ============================================================
+  { input: "what's on my clipboard", expected_tool: 'read_clipboard', expected_args: {}, category: 'clipboard', difficulty: 'easy' },
+  { input: 'what did I just copy', expected_tool: 'read_clipboard', expected_args: {}, category: 'clipboard', difficulty: 'medium' },
+  { input: 'summarize my clipboard', expected_tool: 'summarize_clipboard', expected_args: {}, category: 'clipboard', difficulty: 'medium' },
+  { input: 'tldr my clipboard', expected_tool: 'summarize_clipboard', expected_args: {}, category: 'clipboard', difficulty: 'hard' },
+
+  // ============================================================
   // SEND_MESSAGE (iMessage) — 4 cases
   // ============================================================
   { input: "text mom I'll be late", expected_tool: 'send_message', expected_args: { recipient: 'mom', message: "I'll be late" }, category: 'message', difficulty: 'medium' },

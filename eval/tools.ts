@@ -95,6 +95,16 @@ export const TOOLS: ToolDefinition[] = [
     description: 'Capture the current screen',
     parameters: {},
   },
+  {
+    name: 'read_clipboard',
+    description: "Read and show what's currently on the clipboard",
+    parameters: {},
+  },
+  {
+    name: 'summarize_clipboard',
+    description: 'Read the clipboard and give a short summary of it',
+    parameters: {},
+  },
 
   // --- Calendar ---
   {

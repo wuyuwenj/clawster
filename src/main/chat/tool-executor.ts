@@ -65,6 +65,23 @@ function parseDurationMs(input: string): number {
   return num * 60000;
 }
 
+// Structural summary of arbitrary clipboard text: detect a likely content type,
+// then report size + a clean one-line preview. Deterministic and local — no LLM.
+function summarizeText(text: string): string {
+  const trimmed = text.trim();
+  const chars = trimmed.length;
+  const words = (trimmed.match(/\S+/g) || []).length;
+  const lines = trimmed.split('\n').length;
+  let kind = 'text';
+  if (/^https?:\/\/\S+$/i.test(trimmed)) kind = 'a link';
+  else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) kind = 'an email address';
+  else if (/^\s*[[{]/.test(trimmed) && /[\]}]\s*$/.test(trimmed)) kind = 'JSON/data';
+  else if (/(^|\n)\s*(function|const|let|var|import |class |def |=>|<\/?[a-z]+>|;\s*$)/m.test(trimmed)) kind = 'code';
+  else if (/(^|\n)\s*[-*•]\s+\S+/.test(trimmed) && (trimmed.match(/(^|\n)\s*[-*•]\s+/g) || []).length >= 2) kind = 'a list';
+  const preview = trimmed.replace(/\s+/g, ' ').slice(0, 160);
+  return `Looks like ${kind} — ${words} word${words === 1 ? '' : 's'}, ${lines} line${lines === 1 ? '' : 's'}, ${chars} chars.\nPreview: ${preview}${trimmed.length > 160 ? '…' : ''}`;
+}
+
 export interface ToolResult {
   handled: boolean;
   petAction?: { type: string; value?: string; x?: number; y?: number };
@@ -211,6 +228,29 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
 
     case 'take_screenshot':
       return { handled: false, response: 'Taking a screenshot!' };
+
+    case 'read_clipboard': {
+      try {
+        const { stdout } = await execAsync('pbpaste', { timeout: 3000, maxBuffer: 1024 * 1024 });
+        const text = stdout.replace(/\s+$/, '');
+        if (!text.trim()) return { handled: true, response: "Your clipboard is empty!" };
+        const truncated = text.length > 1200 ? text.slice(0, 1200) + '\n…(truncated)' : text;
+        return { handled: true, response: `Here's your clipboard:\n${truncated}` };
+      } catch {
+        return { handled: true, response: "Couldn't read the clipboard." };
+      }
+    }
+
+    case 'summarize_clipboard': {
+      try {
+        const { stdout } = await execAsync('pbpaste', { timeout: 3000, maxBuffer: 1024 * 1024 });
+        const text = stdout.trim();
+        if (!text) return { handled: true, response: "Your clipboard is empty — nothing to summarize!" };
+        return { handled: true, response: summarizeText(text) };
+      } catch {
+        return { handled: true, response: "Couldn't read the clipboard to summarize." };
+      }
+    }
 
     case 'send_notification': {
       const title = args.title as string || 'Clawster';

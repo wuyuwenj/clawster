@@ -550,6 +550,22 @@ const examples: Example[] = [
   { input: "turn off do not disturb", output: tool('system_control', { action: 'dnd_off' }, 'happy') },
 
   // ============================================================
+  // CLIPBOARD — read_clipboard / summarize_clipboard (12 examples)
+  // ============================================================
+  { input: "what's on my clipboard", output: tool('read_clipboard', {}, 'curious') },
+  { input: "what did I just copy", output: tool('read_clipboard', {}, 'curious') },
+  { input: "show me my clipboard", output: tool('read_clipboard', {}, 'curious') },
+  { input: "read my clipboard", output: tool('read_clipboard', {}, 'curious') },
+  { input: "what's in my copy buffer", output: tool('read_clipboard', {}, 'curious') },
+  { input: "paste what I copied", output: tool('read_clipboard', {}, 'happy') },
+  { input: "whats copied right now", output: tool('read_clipboard', {}, 'curious') },
+  { input: "summarize my clipboard", output: tool('summarize_clipboard', {}, 'curious') },
+  { input: "give me a summary of what I copied", output: tool('summarize_clipboard', {}, 'curious') },
+  { input: "tldr my clipboard", output: tool('summarize_clipboard', {}, 'curious') },
+  { input: "summarize what's in my clipboard", output: tool('summarize_clipboard', {}, 'curious') },
+  { input: "what's the gist of what I copied", output: tool('summarize_clipboard', {}, 'curious') },
+
+  // ============================================================
   // SEND_MESSAGE — iMessage (12 examples). Gated by a confirmation dialog.
   // ============================================================
   { input: "text mom I'll be late", output: tool('send_message', { recipient: 'mom', message: "I'll be late" }, 'happy') },
