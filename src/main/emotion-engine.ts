@@ -87,11 +87,13 @@ export class EmotionEngine {
   onConversationMood(mood: string): void {
     const targetValence = MOOD_VALENCE_MAP[mood];
     const targetArousal = MOOD_AROUSAL_MAP[mood];
+    const isNegative = targetValence !== undefined && targetValence < 0;
+    const boost = isNegative ? 0.8 : MOOD_BOOST_FACTOR;
     if (targetValence !== undefined) {
-      this.valence += (targetValence - this.valence) * MOOD_BOOST_FACTOR;
+      this.valence += (targetValence - this.valence) * boost;
     }
     if (targetArousal !== undefined) {
-      this.arousal += (targetArousal - this.arousal) * MOOD_BOOST_FACTOR;
+      this.arousal += (targetArousal - this.arousal) * boost;
     }
     this.valence = clamp(this.valence, -1, 1);
     this.arousal = clamp(this.arousal, 0, 1);

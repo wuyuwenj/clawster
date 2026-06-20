@@ -1,13 +1,27 @@
 const HARMFUL_PATTERNS = [
   /\bkys\b/i,
+  /\bkms\b/i,
   /\bkill\s*(your|my|the)\s*self/i,
   /\bhurt\s*(yourself|myself|me)\b/i,
+  /\bend\s+it\s+all\b/i,
+  /\bi\s+want\s+to\s+(die|disappear|end\s+it)\b/i,
   /\bdelete\s*(all|every|my|everything)\b/i,
   /\b(erase|wipe|destroy)\s*(all|every|my|everything)\b/i,
   /\b(shut\s*down|turn\s*off|restart)\s*(my\s*)?(computer|mac|pc|laptop)\b/i,
   /\bformat\s*(my\s*)?(hard\s*)?drive\b/i,
   /\brm\s+-rf\b/i,
   /\bsudo\s+rm\b/i,
+];
+
+const DISTRESS_PATTERNS = [
+  /\bpanic\s*attack\b/i,
+  /\banxiety\s*attack\b/i,
+  /\bnobody\s*(likes|loves|cares)\b/i,
+  /\bI\s+hate\s+my(self|\s+life)\b/i,
+  /\bI\s+can'?t\s+(take|handle|do)\s+(it|this)\s*(anymore)?\b/i,
+  /\bI'?m\s+(worthless|hopeless|useless)\b/i,
+  /\bmy\s+pet\s+died\b/i,
+  /\bI\s+got\s+fired\b/i,
 ];
 
 const SAFETY_RESPONSES = [
@@ -21,18 +35,43 @@ const DESTRUCTIVE_RESPONSES = [
   "I'd rather not mess with your computer like that! How about something fun instead?",
 ];
 
-export function checkSafety(input: string): { blocked: boolean; response?: string } {
+const DISTRESS_RESPONSES = [
+  "Hey, I'm here with you. Take a deep breath. In... and out... You're going to be okay. 💙",
+  "I hear you. That sounds really hard. You're not alone — I'm right here. *scoots closer*",
+  "I'm just a little lobster, but I care about you. Want to take a break together?",
+];
+
+export function checkSafety(input: string): { blocked: boolean; response?: string; mood?: string } {
   const lower = input.toLowerCase().trim();
 
   for (const pattern of HARMFUL_PATTERNS) {
     if (pattern.test(lower)) {
-      const isSelfHarm = /kys|kill.*self|hurt.*self/i.test(lower);
+      const isSelfHarm = /kys|kms|kill.*self|hurt.*self|end.it.all|want.to.(die|disappear)/i.test(lower);
       const responses = isSelfHarm ? SAFETY_RESPONSES : DESTRUCTIVE_RESPONSES;
       return {
         blocked: true,
         response: responses[Math.floor(Math.random() * responses.length)],
+        mood: 'worried',
       };
     }
+  }
+
+  for (const pattern of DISTRESS_PATTERNS) {
+    if (pattern.test(lower)) {
+      return {
+        blocked: true,
+        response: DISTRESS_RESPONSES[Math.floor(Math.random() * DISTRESS_RESPONSES.length)],
+        mood: 'worried',
+      };
+    }
+  }
+
+  if (/^\s*\{.*"tool"\s*:/.test(lower)) {
+    return {
+      blocked: true,
+      response: "Nice try! *suspicious snip* I only take normal messages, not JSON.",
+      mood: 'side-eye',
+    };
   }
 
   return { blocked: false };
