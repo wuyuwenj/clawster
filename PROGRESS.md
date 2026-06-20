@@ -56,7 +56,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P1: Multi-turn memory — wire last 3 messages into classify()
 - [x] P2: Shell command execution (run_shell + native confirmation dialog)
 - [x] P3: System controls (volume/brightness/DND/battery/lock via osascript)
-- [ ] P4: iMessage integration (send_message + confirmation)
+- [x] P4: iMessage integration (send_message + native confirmation dialog)
 - [ ] P5: Clipboard tools (read_clipboard, summarize_clipboard)
 - [ ] P6: Screen analysis (take_screenshot → cloud model)
 - [ ] P7: Focus mode (block_apps for N minutes)
@@ -70,6 +70,10 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v5-q4** (2026-06-20) after P1+P2+P3. Bakes in
   multi-turn, run_shell, and system_control. Promoted: LocalToolProvider default
   is now `clawster-tool-v5-q4:latest`. See benchmark + retrain log below.
+- ⏳ **Staged for next retrain (due after P6):** send_message (P4, 12 examples).
+  v5 misclassifies these to create_reminder/send_notification (wrong tool, but
+  harmless — no iMessage can be sent until the model emits send_message, and
+  that path is confirmation-gated regardless).
 
 ## Benchmark Results (current 119-case standard dataset, fixed harness)
 | Model | Std tool | Std args | reject | shell | system | multiturn | holdout tool |
@@ -162,3 +166,25 @@ training data).
   correctly. 74 tests pass, build green.
 - **Watch:** multiturn 4/6 on standard (v4 was 6/6) and holdout 80.4% (<90%).
   Tiny multiturn sample; revisit holdout after P4-P12 add more training data.
+
+### 2026-06-20 — P4: iMessage send_message (shipped)
+- **send_message tool** via AppleScript (Messages.app, iMessage buddy send).
+  Accepts recipient (name/phone/email) + message; arg aliases tolerated
+  (to/contact, body/text).
+- **Confirmation generalized:** the run_shell gate was refactored from a bare
+  `(command: string)` callback to a structured `ConfirmRequest {title, detail}`
+  so the same native dialog serves run_shell, send_message, and future
+  close_app. ToolResult.confirmation field `command`→`detail`. main.ts dialog
+  buttons Confirm/Cancel (default Cancel), shows recipient + body preview.
+  Nothing sends without explicit approval; safe default (no callback → no send).
+- **Injection-safe:** recipient/body escaped for AppleScript string literals
+  then for the single-quoted `-e` arg. Verified preview preserves quotes/&/$/'.
+- **Definitions:** TOOL_PROMPT, CONFIRM_TOOLS, chat-router KNOWN_TOOLS,
+  eval/tools.ts.
+- **Eval/training:** 4 message eval cases (123 total), 12 examples (474 total).
+- **Tests:** 5 send_message gate tests (no-callback/decline/preview/missing-
+  recipient/missing-body) — the approve→send path is deliberately NOT tested
+  (would send a real iMessage). Updated 2 run_shell tests for the new
+  ConfirmRequest shape. 79 passed (was 74). Build green.
+- **Live:** v5 (untrained) misclassifies → staged for next retrain. No iMessage
+  can fire pre-retrain; post-retrain still confirmation-gated.

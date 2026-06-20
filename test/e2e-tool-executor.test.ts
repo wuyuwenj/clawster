@@ -105,12 +105,12 @@ describe('run_shell confirmation gate', () => {
     setConfirmCallback(null);
     const result = await executeTool('run_shell', { command: 'echo should-not-run' });
     expect(result.handled).toBe(true);
-    expect(result.confirmation).toEqual({ kind: 'run_shell', command: 'echo should-not-run', executed: false });
+    expect(result.confirmation).toEqual({ kind: 'run_shell', detail: 'echo should-not-run', executed: false });
   });
 
   it('does NOT execute when the user declines', async () => {
     let asked = '';
-    setConfirmCallback(async (cmd) => { asked = cmd; return false; });
+    setConfirmCallback(async (req) => { asked = req.detail; return false; });
     const result = await executeTool('run_shell', { command: 'echo nope' });
     expect(asked).toBe('echo nope');
     expect(result.confirmation?.executed).toBe(false);
@@ -144,6 +144,50 @@ describe('run_shell confirmation gate', () => {
     const result = await executeTool('run_shell', { command: '' });
     expect(result.handled).toBe(true);
     expect(result.response).toMatch(/what command/i);
+  });
+});
+
+// Never test the approve->send path: that would send a real iMessage. Only the
+// safety gate (no send without explicit approval) is exercised here.
+describe('send_message confirmation gate', () => {
+  afterEach(() => setConfirmCallback(null));
+
+  it('does NOT send when no confirmation callback is registered', async () => {
+    setConfirmCallback(null);
+    const result = await executeTool('send_message', { recipient: 'Mom', message: 'hi' });
+    expect(result.handled).toBe(true);
+    expect(result.confirmation).toEqual({ kind: 'send_message', detail: 'To Mom:\nhi', executed: false });
+  });
+
+  it('does NOT send when the user declines', async () => {
+    let asked = '';
+    setConfirmCallback(async (req) => { asked = req.detail; return false; });
+    const result = await executeTool('send_message', { recipient: 'Mom', message: 'hi there' });
+    expect(asked).toBe('To Mom:\nhi there');
+    expect(result.confirmation?.executed).toBe(false);
+    expect(result.response).toMatch(/won't send|holds the message/i);
+  });
+
+  it('shows recipient + body in the confirmation preview', async () => {
+    const seen: string[] = [];
+    setConfirmCallback(async (req) => { seen.push(req.title, req.detail); return false; });
+    await executeTool('send_message', { recipient: 'Alex', message: 'see you at 5' });
+    expect(seen[0]).toMatch(/send/i);
+    expect(seen[1]).toContain('Alex');
+    expect(seen[1]).toContain('see you at 5');
+  });
+
+  it('asks who to message when recipient is missing', async () => {
+    setConfirmCallback(async () => true);
+    const result = await executeTool('send_message', { message: 'hello' });
+    expect(result.response).toMatch(/who/i);
+    expect(result.confirmation).toBeUndefined();
+  });
+
+  it('asks what to say when message body is missing', async () => {
+    setConfirmCallback(async () => true);
+    const result = await executeTool('send_message', { recipient: 'Mom' });
+    expect(result.response).toMatch(/what should I say/i);
   });
 });
 

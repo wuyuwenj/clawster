@@ -329,18 +329,19 @@ function startMainApp() {
     });
   });
 
-  // Confirmation gate for safety-critical tools (run_shell). Shows a native
-  // modal with the exact command; nothing runs unless the user clicks Run.
-  setConfirmCallback(async (command) => {
+  // Confirmation gate for safety-critical tools (run_shell, send_message, …).
+  // Shows a native modal with the exact action; nothing proceeds unless the
+  // user clicks the confirm button.
+  setConfirmCallback(async (req) => {
     const parent = getPetWindow() || getAssistantWindow() || getChatbarWindow() || undefined;
     const opts = {
       type: 'warning' as const,
-      buttons: ['Run', 'Cancel'],
+      buttons: ['Confirm', 'Cancel'],
       defaultId: 1,
       cancelId: 1,
-      title: 'Clawster wants to run a command',
-      message: 'Run this shell command?',
-      detail: command,
+      title: 'Clawster needs your OK',
+      message: req.title,
+      detail: req.detail,
       noLink: true,
     };
     const { response } = parent && !parent.isDestroyed()
