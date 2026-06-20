@@ -59,7 +59,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P4: iMessage integration (send_message + native confirmation dialog)
 - [x] P5: Clipboard tools (read_clipboard, summarize_clipboard)
 - [x] P6: Screen analysis (take_screenshot → cloud vision, graceful fallback)
-- [ ] P7: Focus mode (block_apps for N minutes)
+- [x] P7: Focus mode (block_apps — hides distracting apps for N minutes)
 - [ ] P8: Personalization memory (~/.clawster/prefs.json → system prompt)
 - [ ] P9: Close/quit app (close_app via osascript)
 - [ ] P10: Time/date (what_time, day of week, countdowns)
@@ -73,6 +73,9 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v6-q4** (2026-06-20) after P4+P5+P6. Promoted
   (default model now v6). Unlocks send_message/clipboard/screen-analysis. Open
   regression: holdout over-triggering — reject-strengthening retrain pending.
+- ⏳ **Staged for P7-P9 retrain:** block_apps (P7, 12). **The P7-P9 retrain MUST
+  also add reject/negative + music↔system_control disambiguation examples** to
+  recover the v6 holdout regression (71.4% → target >90%).
 
 ## Benchmark Results (130-case standard dataset, fixed harness)
 | Model | Std tool | Std reject | msg | clip | shell | sys | shot | holdout tool |
@@ -226,3 +229,18 @@ retrain to recover holdout toward the >90% stop target.
 - **Note:** test/e2e-local-model.test.ts is flaky under vitest parallelism when
   Ollama is under load (live-model dep) — passes in isolation; not caused by
   feature changes.
+
+### 2026-06-20 — P7: Focus mode (shipped)
+- **block_apps tool:** hides distracting apps (System Events `set visible …
+  false`) and re-hides every 10s for the window (default 25 min) to enforce
+  focus, auto-stopping after N minutes. Non-destructive (hide ≠ quit) → no
+  confirmation. resolveFocusApps() handles array / comma / "and" / vague
+  ("social media", "distractions" → default list: Slack, Discord, Messages,
+  Mail, Telegram).
+- **Definitions:** TOOL_PROMPT, chat-router KNOWN_TOOLS, eval/tools.ts.
+- **Eval/training:** 4 focus eval cases (134 total), 12 examples (506 total).
+- **Tests:** 5 resolveFocusApps tests (array/comma/and/vague/empty) — the hide
+  path is never executed in tests (would hide real apps + start a timer), same
+  policy as system_control. 93 passed (was 88). Build green.
+- **Live:** resolveFocusApps verified; v6 untrained on block_apps → staged for
+  the P7-P9 retrain.

@@ -26,6 +26,7 @@ Available tools:
 - get_weather(location: string - City or location): Get current weather or forecast
 - set_timer(duration: string (required) - e.g. "5 minutes", label: string): Set a countdown timer
 - system_control(action: string (required) [volume_up|volume_down|mute|unmute|set_volume|brightness_up|brightness_down|battery|lock_screen|sleep|dnd_on|dnd_off], value: number - 0-100 for set_volume): Control system settings (volume, brightness, battery, lock, Do Not Disturb)
+- block_apps(apps: string - Apps to hide (e.g. "Slack, Discord") or omit for defaults, minutes: number - How long): Focus mode — hide distracting apps for a while
 
 If the user request does not match any tool, respond with: {"tool": null, "response": "your short fun reply"}
 Always respond with ONLY a JSON object.

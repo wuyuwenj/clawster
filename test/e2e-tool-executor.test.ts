@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
 }));
 
-import { executeTool, setConfirmCallback } from '../src/main/chat/tool-executor';
+import { executeTool, setConfirmCallback, resolveFocusApps } from '../src/main/chat/tool-executor';
 
 describe('Tool executor E2E', () => {
   it('get_weather returns real weather data', async () => {
@@ -229,6 +229,36 @@ function getClipboard(): Promise<string> {
     execFile('pbpaste', (err, stdout) => resolve(err ? '' : stdout));
   });
 }
+
+// block_apps hides real apps + starts a re-hide timer, so only the pure
+// app-resolution helper is exercised here (never executeTool('block_apps')).
+describe('resolveFocusApps (focus mode app resolution)', () => {
+  it('keeps an explicit array of apps', () => {
+    expect(resolveFocusApps(['Slack', 'Discord'])).toEqual(['Slack', 'Discord']);
+  });
+
+  it('splits a comma-separated string', () => {
+    expect(resolveFocusApps('Slack, Discord, Mail')).toEqual(['Slack', 'Discord', 'Mail']);
+  });
+
+  it('splits on "and"', () => {
+    expect(resolveFocusApps('Slack and Discord')).toEqual(['Slack', 'Discord']);
+  });
+
+  it('falls back to defaults for vague phrasing', () => {
+    const def = resolveFocusApps('social media');
+    expect(def).toContain('Slack');
+    expect(def.length).toBeGreaterThan(2);
+    expect(resolveFocusApps('distractions')).toEqual(def);
+  });
+
+  it('falls back to defaults for empty/missing input', () => {
+    const def = resolveFocusApps(undefined);
+    expect(def.length).toBeGreaterThan(2);
+    expect(resolveFocusApps('')).toEqual(def);
+    expect(resolveFocusApps([])).toEqual(def);
+  });
+});
 
 describe('clipboard tools', () => {
   let original = '';

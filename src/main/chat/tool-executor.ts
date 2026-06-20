@@ -82,6 +82,42 @@ function summarizeText(text: string): string {
   return `Looks like ${kind} — ${words} word${words === 1 ? '' : 's'}, ${lines} line${lines === 1 ? '' : 's'}, ${chars} chars.\nPreview: ${preview}${trimmed.length > 160 ? '…' : ''}`;
 }
 
+// Resolve the list of apps to hide for focus mode. Accepts an array, a
+// comma/"and"-separated string, or vague phrasing (→ default distraction list).
+const DEFAULT_DISTRACTIONS = ['Slack', 'Discord', 'Messages', 'Mail', 'Telegram'];
+export function resolveFocusApps(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    const list = raw.map(s => String(s).trim()).filter(Boolean);
+    return list.length ? list : DEFAULT_DISTRACTIONS;
+  }
+  if (typeof raw === 'string') {
+    const s = raw.trim();
+    if (!s || /\b(distract\w*|social|everything|all)\b/i.test(s)) return DEFAULT_DISTRACTIONS;
+    const list = s.split(/\s*(?:,|;|\band\b)\s*/i).map(p => p.trim()).filter(Boolean);
+    return list.length ? list : DEFAULT_DISTRACTIONS;
+  }
+  return DEFAULT_DISTRACTIONS;
+}
+
+// Focus mode: hide the given apps now and keep re-hiding them for the window.
+let focusTimer: ReturnType<typeof setInterval> | null = null;
+function hideApps(apps: string[]): void {
+  for (const app of apps) {
+    const safe = app.replace(/["\\]/g, '');
+    execAsync(`osascript -e 'tell application "System Events" to set visible of (every process whose name is "${safe}") to false'`).catch(() => {});
+  }
+}
+function startFocusMode(apps: string[], minutes: number): void {
+  if (focusTimer) { clearInterval(focusTimer); focusTimer = null; }
+  hideApps(apps);
+  let ticks = 0;
+  const maxTicks = Math.max(1, minutes) * 6; // re-hide every 10s for the window
+  focusTimer = setInterval(() => {
+    hideApps(apps);
+    if (++ticks >= maxTicks) { if (focusTimer) clearInterval(focusTimer); focusTimer = null; }
+  }, 10000);
+}
+
 export interface ToolResult {
   handled: boolean;
   petAction?: { type: string; value?: string; x?: number; y?: number };
@@ -476,6 +512,17 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       } catch {
         return { handled: true, response: "Couldn't do that — I might need Accessibility permission in System Settings." };
       }
+    }
+
+    case 'block_apps': {
+      const apps = resolveFocusApps(args.apps ?? args.app ?? args.list);
+      const durMs = parseDurationMs(String(args.minutes ?? args.duration ?? args.time ?? '25 minutes'));
+      const minutes = durMs > 0 ? Math.max(1, Math.round(durMs / 60000)) : 25;
+      startFocusMode(apps, minutes);
+      return {
+        handled: true,
+        response: `Focus mode on for ${minutes} min! Hiding ${apps.join(', ')}. *raises a tiny claw barrier* 🛡️`,
+      };
     }
 
     default:
