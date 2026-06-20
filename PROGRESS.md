@@ -70,20 +70,23 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v5-q4** (2026-06-20) after P1+P2+P3. Bakes in
   multi-turn, run_shell, and system_control. Promoted: LocalToolProvider default
   is now `clawster-tool-v5-q4:latest`. See benchmark + retrain log below.
-- ⏳ **RETRAIN DUE (P4+P5+P6 = 3 features):** send_message (P4, 12),
-  read/summarize_clipboard (P5, 12), screen-analysis phrasing (P6, +8
-  take_screenshot). Retraining now per cadence rule.
+- ✅ **RETRAINED → clawster-tool-v6-q4** (2026-06-20) after P4+P5+P6. Promoted
+  (default model now v6). Unlocks send_message/clipboard/screen-analysis. Open
+  regression: holdout over-triggering — reject-strengthening retrain pending.
 
-## Benchmark Results (current 119-case standard dataset, fixed harness)
-| Model | Std tool | Std args | reject | shell | system | multiturn | holdout tool |
-|-------|----------|----------|--------|-------|--------|-----------|--------------|
-| clawster-tool-v4-q4 | 88.2% | 97.2% | 90% | 0% | 0% | 100% | 85.7% |
-| **clawster-tool-v5-q4** | **96.6%** | 96.1% | 100% | 100% | 100% | 67% | 80.4% |
+## Benchmark Results (130-case standard dataset, fixed harness)
+| Model | Std tool | Std reject | msg | clip | shell | sys | shot | holdout tool |
+|-------|----------|-----------|-----|------|-------|-----|------|--------------|
+| clawster-tool-v5-q4 | 91.5% | 100% | 0% | 0% | 100% | 100% | 100% | 83.9% |
+| **clawster-tool-v6-q4** | **96.2%** | 80%* | 100% | 100% | 100% | 100% | 100% | 71.4% |
 
-Net: v5 is +8.4pp standard tool acc, unlocks shell+system (0→100%), reject
-90→100%. Standard now >95% target. Open items: multiturn 4/6 (small sample),
-holdout 80.4% (<90% target, no new categories in holdout — revisit after more
-training data).
+v6 (current default). Net vs v5: +4.7pp standard tool acc, unlocks
+send_message + clipboard (0→100%). *Standard reject 80% but ALL failures are
+set_mood false positives that `isFalsePositiveTool` drops at runtime → zero
+real reject impact. **Open regression:** holdout 83.9→71.4% (over-triggering:
+set_mood false positives [guard-caught] + music paraphrases + system_control
+stealing some music/app intents). Next: reject/disambiguation-strengthening
+retrain to recover holdout toward the >90% stop target.
 
 ## Progress Log
 
