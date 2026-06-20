@@ -75,11 +75,11 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     }
     if (moveAnimation) clearInterval(moveAnimation);
 
-    const [startX, startY] = petWindow.getPosition();
+    const [startX, startY] = getPetWindow()?.getPosition() ?? [0, 0];
     const startTime = Date.now();
 
     // Notify renderer that movement started
-    petWindow.webContents.send('pet-moving', { moving: true });
+    getPetWindow()?.webContents.send('pet-moving', { moving: true });
 
     moveAnimation = setInterval(() => {
       const win = getPetWindow();
@@ -123,7 +123,7 @@ function seekAttention() {
   }
 
   const cursor = screen.getCursorScreenPoint();
-  const [petX, petY] = petWindow.getPosition();
+  const [petX, petY] = getPetWindow()?.getPosition() ?? [0, 0];
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
   const offset = 80;
@@ -138,7 +138,7 @@ function seekAttention() {
 
   if (distance > 600) {
     console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
-    petWindow.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
+    getPetWindow()?.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
     animateMoveTo(targetX, targetY, 1500);
   } else {
     console.log('[AttentionSeeker] Too close, not moving');
@@ -194,32 +194,32 @@ async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
   try {
     switch (behavior) {
       case 'blink':
-        petWindow.webContents.send('idle-behavior', { type: 'blink' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'blink' });
         break;
 
       case 'look_around':
-        petWindow.webContents.send('idle-behavior', { type: 'look_around' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'look_around' });
         break;
 
       case 'snip_claws':
-        petWindow.webContents.send('idle-behavior', { type: 'snip_claws' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'snip_claws' });
         break;
 
       case 'yawn':
-        petWindow.webContents.send('idle-behavior', { type: 'yawn' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'yawn' });
         break;
 
       case 'stretch':
-        petWindow.webContents.send('idle-behavior', { type: 'stretch' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'stretch' });
         break;
 
       case 'wiggle':
-        petWindow.webContents.send('idle-behavior', { type: 'wiggle' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'wiggle' });
         break;
 
       case 'wander':
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-        const [currentX, currentY] = petWindow.getPosition();
+        const [currentX, currentY] = getPetWindow()?.getPosition() ?? [0, 0];
 
         const wanderX = Math.max(0, Math.min(
           currentX + (Math.random() - 0.5) * 400,
@@ -230,7 +230,7 @@ async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
           screenHeight - 300
         ));
 
-        petWindow.webContents.send('idle-behavior', { type: 'wander', direction: wanderX > currentX ? 'right' : 'left' });
+        getPetWindow()?.webContents.send('idle-behavior', { type: 'wander', direction: wanderX > currentX ? 'right' : 'left' });
         await animateMoveTo(wanderX, wanderY, 2000);
         break;
     }
@@ -273,7 +273,7 @@ function fallAsleep(): void {
   if (isSleepingState || !petWindow) return;
   isSleepingState = true;
   console.log('[Sleep] Falling asleep - showing doze state');
-  petWindow.webContents.send('clawbot-mood', { state: 'doze' });
+  getPetWindow()?.webContents.send('clawbot-mood', { state: 'doze' });
 
   setTimeout(() => {
     if (isSleepingState && getPetWindow()) {
@@ -288,7 +288,7 @@ function wakeUp(): void {
   if (!isSleepingState || !petWindow) return;
   isSleepingState = false;
   console.log('[Sleep] Waking up - showing startle state');
-  petWindow.webContents.send('clawbot-mood', { state: 'startle' });
+  getPetWindow()?.webContents.send('clawbot-mood', { state: 'startle' });
 
   setTimeout(() => {
     if (!isSleepingState && getPetWindow()) {
@@ -348,7 +348,7 @@ export async function executePetAction(action: PetAction): Promise<void> {
           isSleepingState = true;
           console.log(`[Sleep] Entered sleep state via set_mood: ${action.value}`);
         }
-        petWindow.webContents.send('clawbot-mood', { state: action.value });
+        getPetWindow()?.webContents.send('clawbot-mood', { state: action.value });
       }
       break;
 
@@ -372,14 +372,14 @@ export async function executePetAction(action: PetAction): Promise<void> {
     }
 
     case 'snip':
-      petWindow.webContents.send('clawbot-mood', { state: 'curious' });
+      getPetWindow()?.webContents.send('clawbot-mood', { state: 'curious' });
       setTimeout(() => {
         getPetWindow()?.webContents.send('clawbot-mood', { state: 'idle' });
       }, 2000);
       break;
 
     case 'wave':
-      petWindow.webContents.send('clawbot-mood', { state: 'happy' });
+      getPetWindow()?.webContents.send('clawbot-mood', { state: 'happy' });
       setTimeout(() => {
         getPetWindow()?.webContents.send('clawbot-mood', { state: 'idle' });
       }, 3000);
@@ -389,7 +389,7 @@ export async function executePetAction(action: PetAction): Promise<void> {
       if (typeof action.x === 'number' && typeof action.y === 'number') {
         const lookX = Math.max(0, Math.min(action.x - 150, screenWidth - 300));
         const lookY = Math.max(0, Math.min(action.y - 150, screenHeight - 300));
-        petWindow.webContents.send('clawbot-mood', { state: 'curious' });
+        getPetWindow()?.webContents.send('clawbot-mood', { state: 'curious' });
         await animateMoveTo(lookX, lookY, action.duration || 1200);
       }
       break;
