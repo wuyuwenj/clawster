@@ -93,7 +93,7 @@ export function resolveFocusApps(raw: unknown): string[] {
   }
   if (typeof raw === 'string') {
     const s = raw.trim();
-    if (!s || /\b(distract\w*|social|everything|all)\b/i.test(s)) return DEFAULT_DISTRACTIONS;
+    if (!s || /\b(distract\w*|social|everything|all|focus)\b/i.test(s)) return DEFAULT_DISTRACTIONS;
     const list = s.split(/\s*(?:,|;|\band\b)\s*/i).map(p => p.trim()).filter(Boolean);
     return list.length ? list : DEFAULT_DISTRACTIONS;
   }
