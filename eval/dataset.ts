@@ -199,6 +199,14 @@ export const DATASET: TestCase[] = [
   { input: 'shut down terminal', expected_tool: 'close_app', expected_args: { app: 'Terminal' }, category: 'closeapp', difficulty: 'hard' },
 
   // ============================================================
+  // WHAT_TIME (time/date/countdown) — 4 cases
+  // ============================================================
+  { input: 'what time is it', expected_tool: 'what_time', expected_args: {}, category: 'time', difficulty: 'easy' },
+  { input: 'what day is it', expected_tool: 'what_time', expected_args: {}, category: 'time', difficulty: 'easy' },
+  { input: "what's today's date", expected_tool: 'what_time', expected_args: {}, category: 'time', difficulty: 'medium' },
+  { input: 'how many days until 2026-12-25', expected_tool: 'what_time', expected_args: { until: '2026-12-25' }, category: 'time', difficulty: 'hard' },
+
+  // ============================================================
   // PERSONALIZATION (remember/recall) — 4 cases
   // ============================================================
   { input: 'remember I like jazz', expected_tool: 'remember_preference', expected_args: { preference: 'likes jazz' }, category: 'memory', difficulty: 'medium' },

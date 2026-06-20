@@ -75,6 +75,13 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'what_time',
+    description: 'Tell the current time/date/day, or count down to a date',
+    parameters: {
+      until: { type: 'string', description: 'Optional date to count down to, e.g. "2026-12-25"', required: false },
+    },
+  },
+  {
     name: 'run_shell',
     description: 'Run a shell command',
     parameters: {

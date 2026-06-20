@@ -548,6 +548,23 @@ const examples: Example[] = [
   { input: "ugh", output: chat("I feel that. *sympathetic snip*", "side-eye") },
 
   // ============================================================
+  // WHAT_TIME — time / date / day / countdown (13 examples)
+  // ============================================================
+  { input: "what time is it", output: tool('what_time', {}, 'happy') },
+  { input: "what's the time", output: tool('what_time', {}, 'happy') },
+  { input: "do you have the time", output: tool('what_time', {}, 'happy') },
+  { input: "what day is it", output: tool('what_time', {}, 'happy') },
+  { input: "what's today's date", output: tool('what_time', {}, 'happy') },
+  { input: "what day of the week is it", output: tool('what_time', {}, 'happy') },
+  { input: "tell me the date", output: tool('what_time', {}, 'happy') },
+  { input: "is it friday yet", output: tool('what_time', {}, 'curious') },
+  { input: "what's the current time and date", output: tool('what_time', {}, 'happy') },
+  { input: "how long until christmas", output: tool('what_time', { until: '2026-12-25' }, 'excited') },
+  { input: "countdown to new years", output: tool('what_time', { until: '2027-01-01' }, 'excited') },
+  { input: "how many days until 2026-12-25", output: tool('what_time', { until: '2026-12-25' }, 'curious') },
+  { input: "days until the new year", output: tool('what_time', { until: '2027-01-01' }, 'curious') },
+
+  // ============================================================
   // PERSONALIZATION — remember_preference / recall_preferences (13 examples)
   // ============================================================
   { input: "remember I like jazz", output: tool('remember_preference', { preference: 'likes jazz' }, 'happy') },

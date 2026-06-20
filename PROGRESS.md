@@ -62,7 +62,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P7: Focus mode (block_apps — hides distracting apps for N minutes)
 - [x] P8: Personalization memory (remember/recall → ~/.clawster/prefs.json)
 - [x] P9: Close/quit app (close_app via osascript + confirmation dialog)
-- [ ] P10: Time/date (what_time, day of week, countdowns)
+- [x] P10: Time/date (what_time — time/date/day + date countdowns)
 - [ ] P11: Natural conversation (inline personality responses)
 - [ ] P12: Contextual quick replies (dynamic buttons by tool/mood)
 
@@ -77,6 +77,8 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
   reject/disambiguation examples. Promoted (default now v7). Unlocks close_app +
   block_apps + remember/recall. Training-only reject fix underperformed → added
   a deterministic runtime CONVERSATIONAL_INPUTS guard in isFalsePositiveTool.
+- ⏳ **Staged for P10-P12 retrain:** what_time (P10, 13). Retrain must also add
+  remember↔recall contrastive examples (v7 confuses them) + more reject.
 
 ## Benchmark Results (142-case standard dataset, fixed harness)
 | Model | Std tool | Std reject | close | focus | mem | holdout tool |
@@ -284,3 +286,14 @@ reject over-reports vs real behavior.
   approve→quit NOT tested (would quit a real app). 106 passed (was 102). Build
   green.
 - **Live:** gate verified (declined/no-callback → no quit, correct preview).
+
+### 2026-06-20 — P10: Time/date (shipped)
+- **what_time tool:** current time + weekday + date via toLocaleTimeString/
+  toLocaleDateString; optional `until` date → countdown (days/hours/minutes).
+  Past date → "already passed". Benign read-only, no confirmation.
+- **Definitions:** TOOL_PROMPT, chat-router KNOWN_TOOLS, eval/tools.ts.
+- **Eval/training:** 4 time eval cases (146 total), 13 examples (full set ~579).
+- **Tests:** 3 what_time tests (current time shape, future countdown "3 days",
+  past "already passed"). 113 passed (was 110). Build green.
+- **Live:** "It's <time> on <weekday, date>"; countdown to 2026-12-25 →
+  "187 days, 13 hours to go!". v7 untrained on what_time → staged for retrain.
