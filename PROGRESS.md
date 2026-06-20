@@ -116,6 +116,16 @@ as belt-and-suspenders.
    are screenshot-capture-not-wired from bare dev test scripts, not the real app,
    where main.ts wires captureScreen).
 
+### Post-parity: prompt-alignment fix (in progress)
+A production-faithful eval (datasets run through LocalToolProvider + the runtime
+guard — exactly what the app does) showed v8 at **91.1% std / 78.6% holdout**,
+LOWER than the harness (93.2/85.7) and under-firing classic cases (reminders/
+pet actions → null). Root cause: the training SYSTEM_PROMPT was stale (missing
+10 tools) AND differed from the runtime TOOL_PROMPT — a train/inference
+mismatch. Fix: training now uses the runtime TOOL_PROMPT verbatim (single source
+of truth). Retraining to realize the alignment; promote if production eval
+improves.
+
 ### Earlier model history
 - **v7** (after P7-P9): unlocked close_app/block_apps/memory; training-only reject
   fix underperformed → added the deterministic CONVERSATIONAL_INPUTS runtime
