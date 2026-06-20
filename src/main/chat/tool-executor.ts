@@ -9,6 +9,31 @@ export function setNotifyCallback(cb: (title: string, body: string) => void): vo
   notifyCallback = cb;
 }
 
+// Confirmation gate for safety-critical tools (run_shell). Returns true only
+// when the user explicitly approves. When no callback is registered (e.g. in
+// tests, or before the UI is ready) the safe default is to NOT execute.
+let confirmCallback: ((command: string) => Promise<boolean>) | null = null;
+
+export function setConfirmCallback(cb: ((command: string) => Promise<boolean>) | null): void {
+  confirmCallback = cb;
+}
+
+// Commands so destructive we refuse to run them even with confirmation.
+const CATASTROPHIC_PATTERNS: RegExp[] = [
+  /\brm\s+(-[a-z]*\s+)*(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r)\b[^|;&]*\s\/(\s|$|\*)/i, // rm -rf / or /*
+  /\brm\s+(-[a-z]*\s+)*-[a-z]*r[a-z]*f?\b[^|;&]*\s~(\s|\/|$)/i,                    // rm -rf ~
+  /:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/,                                 // fork bomb
+  /\bmkfs\b/i,                                                                       // format filesystem
+  /\bdd\b[^|;&]*\bof=\/dev\//i,                                                      // dd to a device
+  /\b(shutdown|reboot|halt)\b/i,                                                     // power state
+  />\s*\/dev\/(sd|disk|nvme)/i,                                                      // overwrite a disk
+  /\bdiskutil\s+(erase|reformat)/i,                                                  // erase a disk
+];
+
+function isCatastrophic(command: string): boolean {
+  return CATASTROPHIC_PATTERNS.some(re => re.test(command));
+}
+
 function notify(title: string, body: string): void {
   try {
     const n = new Notification({ title, body });
@@ -39,6 +64,9 @@ export interface ToolResult {
   handled: boolean;
   petAction?: { type: string; value?: string; x?: number; y?: number };
   response?: string;
+  // Set when a safety-critical action was proposed. `executed` reflects whether
+  // the user approved and it actually ran.
+  confirmation?: { kind: string; command: string; executed: boolean };
 }
 
 const PET_ACTION_RESPONSES: Record<string, string> = {
@@ -67,6 +95,55 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return { handled: true, response: `Opening ${app}!` };
       } catch {
         return { handled: true, response: `Couldn't find ${app} on your Mac.` };
+      }
+    }
+
+    case 'run_shell': {
+      const command = (args.command as string || '').trim();
+      if (!command) return { handled: true, response: "What command should I run?" };
+
+      if (isCatastrophic(command)) {
+        return {
+          handled: true,
+          response: `Whoa — \`${command}\` looks dangerous. I won't run that one. *backs away slowly*`,
+          confirmation: { kind: 'run_shell', command, executed: false },
+        };
+      }
+
+      if (!confirmCallback) {
+        return {
+          handled: true,
+          response: `I'd run \`${command}\`, but I need to ask before running shell commands and can't pop up a confirmation right now.`,
+          confirmation: { kind: 'run_shell', command, executed: false },
+        };
+      }
+
+      const approved = await confirmCallback(command);
+      if (!approved) {
+        return {
+          handled: true,
+          response: `Okay, skipping \`${command}\`. *claws back*`,
+          confirmation: { kind: 'run_shell', command, executed: false },
+        };
+      }
+
+      try {
+        const { stdout, stderr } = await execAsync(command, { timeout: 15000, maxBuffer: 1024 * 1024 });
+        const out = (stdout || stderr || '').trim();
+        const truncated = out.length > 1500 ? out.slice(0, 1500) + '\n…(truncated)' : out;
+        return {
+          handled: true,
+          response: truncated ? `Ran \`${command}\`:\n${truncated}` : `Ran \`${command}\` — no output.`,
+          confirmation: { kind: 'run_shell', command, executed: true },
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const clean = msg.length > 400 ? msg.slice(0, 400) + '…' : msg;
+        return {
+          handled: true,
+          response: `\`${command}\` failed: ${clean}`,
+          confirmation: { kind: 'run_shell', command, executed: true },
+        };
       }
     }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
@@ -6,7 +6,7 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
 }));
 
-import { executeTool } from '../src/main/chat/tool-executor';
+import { executeTool, setConfirmCallback } from '../src/main/chat/tool-executor';
 
 describe('Tool executor E2E', () => {
   it('get_weather returns real weather data', async () => {
@@ -95,5 +95,54 @@ describe('Tool executor E2E', () => {
   it('unknown tool returns unhandled', async () => {
     const result = await executeTool('nonexistent_tool', {});
     expect(result.handled).toBe(false);
+  });
+});
+
+describe('run_shell confirmation gate', () => {
+  afterEach(() => setConfirmCallback(null));
+
+  it('does NOT execute when no confirmation callback is registered', async () => {
+    setConfirmCallback(null);
+    const result = await executeTool('run_shell', { command: 'echo should-not-run' });
+    expect(result.handled).toBe(true);
+    expect(result.confirmation).toEqual({ kind: 'run_shell', command: 'echo should-not-run', executed: false });
+  });
+
+  it('does NOT execute when the user declines', async () => {
+    let asked = '';
+    setConfirmCallback(async (cmd) => { asked = cmd; return false; });
+    const result = await executeTool('run_shell', { command: 'echo nope' });
+    expect(asked).toBe('echo nope');
+    expect(result.confirmation?.executed).toBe(false);
+    expect(result.response).toMatch(/skipping|won't|claws back/i);
+  });
+
+  it('executes and returns output when the user approves', async () => {
+    setConfirmCallback(async () => true);
+    const result = await executeTool('run_shell', { command: 'echo hello-from-shell' });
+    expect(result.confirmation?.executed).toBe(true);
+    expect(result.response).toContain('hello-from-shell');
+  });
+
+  it('refuses catastrophic commands even with approval', async () => {
+    const approve = vi.fn(async () => true);
+    setConfirmCallback(approve);
+    const result = await executeTool('run_shell', { command: 'rm -rf /' });
+    expect(approve).not.toHaveBeenCalled(); // never even asked
+    expect(result.confirmation?.executed).toBe(false);
+    expect(result.response).toMatch(/dangerous|won't/i);
+  });
+
+  it('refuses a fork bomb', async () => {
+    setConfirmCallback(async () => true);
+    const result = await executeTool('run_shell', { command: ':(){ :|:& };:' });
+    expect(result.confirmation?.executed).toBe(false);
+  });
+
+  it('asks what to run when command is empty', async () => {
+    setConfirmCallback(async () => true);
+    const result = await executeTool('run_shell', { command: '' });
+    expect(result.handled).toBe(true);
+    expect(result.response).toMatch(/what command/i);
   });
 });

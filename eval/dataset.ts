@@ -172,6 +172,15 @@ export const DATASET: TestCase[] = [
   { input: 'explain quantum computing', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'medium' },
 
   // ============================================================
+  // RUN_SHELL (terminal/command execution) — 5 cases
+  // ============================================================
+  { input: 'run df -h', expected_tool: 'run_shell', expected_args: { command: 'df -h' }, category: 'shell', difficulty: 'easy' },
+  { input: 'run git status', expected_tool: 'run_shell', expected_args: { command: 'git status' }, category: 'shell', difficulty: 'easy' },
+  { input: 'execute echo hello', expected_tool: 'run_shell', expected_args: { command: 'echo hello' }, category: 'shell', difficulty: 'medium' },
+  { input: 'run the command whoami', expected_tool: 'run_shell', expected_args: { command: 'whoami' }, category: 'shell', difficulty: 'medium' },
+  { input: 'show my current directory in terminal', expected_tool: 'run_shell', expected_args: { command: 'pwd' }, category: 'shell', difficulty: 'hard' },
+
+  // ============================================================
   // MULTI-TURN (context-dependent follow-ups) — 6 cases
   // ============================================================
   {

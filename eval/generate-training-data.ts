@@ -530,6 +530,25 @@ const examples: Example[] = [
   { input: "ugh", output: chat("I feel that. *sympathetic snip*", "side-eye") },
 
   // ============================================================
+  // RUN_SHELL — terminal/command execution (14 examples)
+  // Explicit command/terminal phrasing only; gated by a confirmation dialog.
+  // ============================================================
+  { input: "run ls in my home folder", output: tool('run_shell', { command: 'ls ~' }, 'curious') },
+  { input: "run df -h", output: tool('run_shell', { command: 'df -h' }, 'curious') },
+  { input: "execute echo hello", output: tool('run_shell', { command: 'echo hello' }, 'happy') },
+  { input: "run the command whoami", output: tool('run_shell', { command: 'whoami' }, 'curious') },
+  { input: "show me my current directory in terminal", output: tool('run_shell', { command: 'pwd' }, 'curious') },
+  { input: "what node version do I have", output: tool('run_shell', { command: 'node --version' }, 'curious') },
+  { input: "run git status", output: tool('run_shell', { command: 'git status' }, 'curious') },
+  { input: "list running processes", output: tool('run_shell', { command: 'ps aux | head' }, 'curious') },
+  { input: "ping google from the terminal", output: tool('run_shell', { command: 'ping -c 4 google.com' }, 'curious') },
+  { input: "run brew update", output: tool('run_shell', { command: 'brew update' }, 'happy') },
+  { input: "execute the command uptime", output: tool('run_shell', { command: 'uptime' }, 'curious') },
+  { input: "run cat package.json", output: tool('run_shell', { command: 'cat package.json' }, 'curious') },
+  { input: "show my git branches in terminal", output: tool('run_shell', { command: 'git branch' }, 'curious') },
+  { input: "run npm test", output: tool('run_shell', { command: 'npm test' }, 'curious') },
+
+  // ============================================================
   // MULTI-TURN — context-dependent follow-ups (16 examples)
   // The model must use prior turns to resolve the current request.
   // ============================================================

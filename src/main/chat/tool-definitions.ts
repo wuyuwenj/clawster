@@ -11,6 +11,7 @@ Available tools:
 - wave(): Wave claws happily
 - open_app(app: string (required) - Application name (e.g. "Spotify", "Safari", "Terminal")): Open an application by name
 - open_url(url: string (required) - The URL to open): Open a URL in the default browser
+- run_shell(command: string (required) - The shell command to run): Run a terminal/shell command (asks for confirmation before running)
 - take_screenshot(): Capture the current screen
 - get_calendar_events(date: string - Date to check (e.g. "today", "tomorrow"), count: number - Max events): List upcoming calendar events
 - create_calendar_event(title: string (required), start: string (required), end: string - Start/end time): Create a new calendar event
@@ -29,5 +30,8 @@ Do NOT include any other text.`;
 export const PET_ACTION_TOOLS = ['set_mood', 'move_to', 'move_to_cursor', 'snip', 'wave'] as const;
 
 export const SYSTEM_TOOLS = ['open_app', 'open_url', 'take_screenshot', 'send_notification', 'search_files'] as const;
+
+// Tools that must get explicit user approval before they take effect.
+export const CONFIRM_TOOLS = ['run_shell'] as const;
 
 export const FUTURE_TOOLS = ['get_calendar_events', 'create_calendar_event', 'create_reminder', 'play_music', 'get_weather', 'set_timer'] as const;
