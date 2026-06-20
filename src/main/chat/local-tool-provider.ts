@@ -19,7 +19,7 @@ export class LocalToolProvider {
   private availabilityChecked: boolean = false;
   private checkPromise: Promise<void> | null = null;
 
-  constructor(model: string = 'clawster-tool-v4-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
+  constructor(model: string = 'clawster-tool-v5-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
     this.model = model;
     this.baseUrl = baseUrl;
     this.checkPromise = this.checkAvailability();
@@ -86,7 +86,10 @@ export class LocalToolProvider {
           ],
           stream: false,
           keep_alive: '10m',
-          options: { temperature: 0, num_predict: 40 },
+          // 80-token cap: long tool calls (create_calendar_event) need ~60;
+          // short outputs still stop early at EOS, so this only prevents
+          // truncation of the longest valid JSON. See eval/providers.ts.
+          options: { temperature: 0, num_predict: 80 },
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -128,7 +131,7 @@ export class LocalToolProvider {
           ],
           stream: true,
           keep_alive: '10m',
-          options: { temperature: 0 },
+          options: { temperature: 0, num_predict: 80 },
         }),
         signal: AbortSignal.timeout(10000),
       });

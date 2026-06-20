@@ -66,23 +66,21 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [ ] P11: Natural conversation (inline personality responses)
 - [ ] P12: Contextual quick replies (dynamic buttons by tool/mood)
 
-## Retrain Needed
-The following changes require one model retrain to take effect:
-- `list_files` tool (20 training examples)
-- All 14 mood states (29 examples)
-- Inline conversation responses with mood tags (77 examples)
-- **Multi-turn follow-ups (P1)** — 16 multi-turn examples teaching context resolution
-  ("how about downloads?" after "what's on my desktop?"); v4 model already
-  conditions on history but doesn't fully exploit it (e.g. "now do safari" →
-  open_url instead of open_app). Retrain will fix.
-- **run_shell (P2)** — 14 examples. v4 model has never seen run_shell, so it
-  hallucinates tool names (run_git_status, execute) which chat-router's
-  isFalsePositiveTool guard drops → no runtime breakage, but run_shell won't
-  fire until retrain.
-- **system_control (P3)** — 16 examples. v4 hallucinates (set_mood{loud},
-  get_battery) → dropped by guard. Won't fire until retrain.
-- **⚠️ RETRAIN DUE: P1+P2+P3 = 3 features.** Retraining now per cadence rule.
-- Run: `cp eval/train-data/*.jsonl ../clawster/eval/train-data/ && retrain`
+## Retrain Status
+- ✅ **RETRAINED → clawster-tool-v5-q4** (2026-06-20) after P1+P2+P3. Bakes in
+  multi-turn, run_shell, and system_control. Promoted: LocalToolProvider default
+  is now `clawster-tool-v5-q4:latest`. See benchmark + retrain log below.
+
+## Benchmark Results (current 119-case standard dataset, fixed harness)
+| Model | Std tool | Std args | reject | shell | system | multiturn | holdout tool |
+|-------|----------|----------|--------|-------|--------|-----------|--------------|
+| clawster-tool-v4-q4 | 88.2% | 97.2% | 90% | 0% | 0% | 100% | 85.7% |
+| **clawster-tool-v5-q4** | **96.6%** | 96.1% | 100% | 100% | 100% | 67% | 80.4% |
+
+Net: v5 is +8.4pp standard tool acc, unlocks shell+system (0→100%), reject
+90→100%. Standard now >95% target. Open items: multiturn 4/6 (small sample),
+holdout 80.4% (<90% target, no new categories in holdout — revisit after more
+training data).
 
 ## Progress Log
 
@@ -143,3 +141,24 @@ The following changes require one model retrain to take effect:
   Suite: 74 passed (was 71). Build green.
 - **Live check:** battery executor returns "Battery is at 46%, charging 🔋".
   Model hallucinates system_control intents (expected) → retrain due.
+
+### 2026-06-20 — Retrain → clawster-tool-v5-q4 (promoted)
+- **Pipeline:** LoRA 600 iters (16 layers, lr 2e-4, batch 4) on 462 examples →
+  val loss 4.156→0.146 (stable, no overfit), train loss 0.059. Fused → Ollama
+  import → Q4_K_M quantize → clawster-tool-v5-q4 (986 MB).
+- **Eval-harness bugs found & fixed during validation (not model regressions):**
+  1. Ollama eval provider set no `num_predict`, so the Modelfile default of 20
+     truncated longer JSON (reminders, calendar events) → scored as "no tool".
+     Both v4 and v5 hit reminder=0% until fixed. Set eval + runtime to 80.
+  2. `eval/tools.ts` lacked `system_control`, so valid outputs were rejected
+     (system=0%). Added it.
+  Also raised runtime `LocalToolProvider` num_predict 40→80 (classify +
+  classifyStream): 40 truncated the longest valid tool call
+  (create_calendar_event with start+end ≈ 60 tokens) in the real app.
+- **Result:** v5 standard 96.6% (v4 88.2%), reject 100% (v4 90%), shell+system
+  0→100%. Decisively better → promoted (LocalToolProvider default = v5).
+- **Verified live (default model):** reminder, run_shell, system_control
+  (volume+lock), and long create_calendar_event{start,end} all classify
+  correctly. 74 tests pass, build green.
+- **Watch:** multiturn 4/6 on standard (v4 was 6/6) and holdout 80.4% (<90%).
+  Tiny multiturn sample; revisit holdout after P4-P12 add more training data.

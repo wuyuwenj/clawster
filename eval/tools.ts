@@ -75,6 +75,14 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'system_control',
+    description: 'Control system settings (volume, brightness, battery, lock, Do Not Disturb)',
+    parameters: {
+      action: { type: 'string', description: 'volume_up|volume_down|mute|unmute|set_volume|brightness_up|brightness_down|battery|lock_screen|sleep|dnd_on|dnd_off', required: true },
+      value: { type: 'number', description: '0-100 for set_volume', required: false },
+    },
+  },
+  {
     name: 'take_screenshot',
     description: 'Capture the current screen',
     parameters: {},

@@ -237,7 +237,10 @@ export function createOllamaProvider(options: {
         ],
         stream: false,
         keep_alive: '10m',
-        options: { temperature: 0 },
+        // 80 tokens of headroom: the longest tool JSON (create_calendar_event
+        // with start+end+mood) is ~60 tokens. The Modelfile default of 20 would
+        // truncate it into invalid JSON, mis-scoring valid outputs as "no tool".
+        options: { temperature: 0, num_predict: 80 },
       }),
     });
 
