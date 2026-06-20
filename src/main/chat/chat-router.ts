@@ -42,9 +42,15 @@ function isFalsePositiveTool(input: string, tool: string | null): boolean {
   return true;
 }
 
+interface VisionProvider {
+  analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse>;
+}
+
 export class ChatRouter extends EventEmitter {
   private toolModel: LocalToolProvider;
   private emotionEngine: EmotionEngine | null = null;
+  private visionProvider: VisionProvider | null = null;
+  private screenCapturer: (() => Promise<string | null>) | null = null;
 
   constructor(toolModel: LocalToolProvider) {
     super();
@@ -53,6 +59,33 @@ export class ChatRouter extends EventEmitter {
 
   setEmotionEngine(engine: EmotionEngine): void {
     this.emotionEngine = engine;
+  }
+
+  // Cloud vision client used for screen analysis (the local model has no vision).
+  setVisionProvider(provider: VisionProvider | null): void {
+    this.visionProvider = provider;
+  }
+
+  // Captures the current screen as a data URL (wired to main's captureScreen).
+  setScreenCapturer(fn: (() => Promise<string | null>) | null): void {
+    this.screenCapturer = fn;
+  }
+
+  // Capture the screen and describe it. Used by the take_screenshot tool path.
+  private async handleScreenshot(question: string): Promise<ChatResponse> {
+    if (!this.visionProvider) {
+      return { type: 'message', text: "I'd love to look, but screen analysis needs the cloud connection turned on!" };
+    }
+    let image: string | null = null;
+    try {
+      image = this.screenCapturer ? await this.screenCapturer() : null;
+    } catch {
+      image = null;
+    }
+    if (!image) {
+      return { type: 'message', text: "I couldn't grab a screenshot — I may need screen recording permission." };
+    }
+    return this.visionProvider.analyzeScreen(image, question);
   }
 
   isAvailable(): boolean {
@@ -82,6 +115,12 @@ export class ChatRouter extends EventEmitter {
 
     this.emotionEngine?.onInteraction();
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
+
+    if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
+      const screenResponse = await this.handleScreenshot(rawInput);
+      logInteraction({ input: rawInput, tool: 'take_screenshot', response: screenResponse.text, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      return screenResponse;
+    }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const result = await executeTool(toolCall.tool, toolCall.args);
@@ -129,6 +168,14 @@ export class ChatRouter extends EventEmitter {
 
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
+    if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
+      const screenResponse = await this.handleScreenshot(rawInput);
+      const text = screenResponse.text || '';
+      handlers.onDelta?.(text, text);
+      logInteraction({ input: rawInput, tool: 'take_screenshot', response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      return screenResponse;
+    }
+
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const result = await executeTool(toolCall.tool, toolCall.args);
       logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
@@ -156,7 +203,10 @@ export class ChatRouter extends EventEmitter {
   }
 
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {
-    return { type: 'message', text: "Screen analysis needs the cloud connection. Coming soon!" };
+    if (!this.visionProvider) {
+      return { type: 'message', text: "Screen analysis needs the cloud connection turned on!" };
+    }
+    return this.visionProvider.analyzeScreen(imageDataUrl, question);
   }
 
   updateConfig(_baseUrl: string): void {}

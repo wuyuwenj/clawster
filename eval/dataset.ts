@@ -121,6 +121,9 @@ export const DATASET: TestCase[] = [
   { input: 'take a screenshot', expected_tool: 'take_screenshot', expected_args: {}, category: 'screenshot', difficulty: 'easy' },
   { input: 'capture my screen', expected_tool: 'take_screenshot', expected_args: {}, category: 'screenshot', difficulty: 'easy' },
   { input: 'what am I looking at', expected_tool: 'take_screenshot', expected_args: {}, category: 'screenshot', difficulty: 'hard' },
+  { input: 'what do you see on my screen', expected_tool: 'take_screenshot', expected_args: {}, category: 'screenshot', difficulty: 'medium' },
+  { input: 'describe my screen', expected_tool: 'take_screenshot', expected_args: {}, category: 'screenshot', difficulty: 'hard' },
+  { input: 'can you see my screen', expected_tool: 'take_screenshot', expected_args: {}, category: 'screenshot', difficulty: 'hard' },
 
   // ============================================================
   // FILE SEARCH (5 cases)

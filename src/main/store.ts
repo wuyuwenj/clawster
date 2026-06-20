@@ -22,6 +22,7 @@ interface TutorialState {
 interface StoreSchema {
   clawbot: {
     url: string;
+    deviceId?: string;
   };
   watch: {
     activeApp: boolean;

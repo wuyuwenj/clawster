@@ -316,3 +316,50 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
     }
   }
 }
+
+export interface VisionProvider {
+  analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse>;
+}
+
+// Lightweight, on-demand screen-analysis client. Unlike CloudChatProvider it
+// does NOT poll or hold a connection — it only contacts the proxy when the user
+// explicitly asks about their screen, preserving the local-first default.
+export function createProxyVision(baseUrl: string, deviceId: string): VisionProvider {
+  return {
+    async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {
+      if (!imageDataUrl) {
+        return { type: 'message', text: "I couldn't grab a screenshot to look at." };
+      }
+      const userQuestion = question?.trim() || 'What do you see on my screen?';
+      const body = JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: `${userQuestion}\n\nPlease describe what is visible in the attached screenshot, briefly and helpfully.` },
+              { type: 'image_url', image_url: { url: imageDataUrl } },
+            ],
+          },
+        ],
+      });
+      try {
+        const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(body, deviceId) },
+          body,
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!response.ok) {
+          return { type: 'message', text: "I couldn't analyze your screen right now — my cloud eyes are offline." };
+        }
+        const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const text = data.choices?.[0]?.message?.content?.trim();
+        return { type: 'message', text: text || "I looked but couldn't make out anything useful." };
+      } catch {
+        return { type: 'message', text: "I couldn't reach my cloud eyes to look at your screen." };
+      }
+    },
+  };
+}

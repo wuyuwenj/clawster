@@ -58,7 +58,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P3: System controls (volume/brightness/DND/battery/lock via osascript)
 - [x] P4: iMessage integration (send_message + native confirmation dialog)
 - [x] P5: Clipboard tools (read_clipboard, summarize_clipboard)
-- [ ] P6: Screen analysis (take_screenshot → cloud model)
+- [x] P6: Screen analysis (take_screenshot → cloud vision, graceful fallback)
 - [ ] P7: Focus mode (block_apps for N minutes)
 - [ ] P8: Personalization memory (~/.clawster/prefs.json → system prompt)
 - [ ] P9: Close/quit app (close_app via osascript)
@@ -70,9 +70,9 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v5-q4** (2026-06-20) after P1+P2+P3. Bakes in
   multi-turn, run_shell, and system_control. Promoted: LocalToolProvider default
   is now `clawster-tool-v5-q4:latest`. See benchmark + retrain log below.
-- ⏳ **Staged for next retrain (due after P6):** send_message (P4, 12),
-  read_clipboard + summarize_clipboard (P5, 12). v5 misclassifies these (wrong
-  tool, but harmless — wrong tools are benign reads or confirmation-gated).
+- ⏳ **RETRAIN DUE (P4+P5+P6 = 3 features):** send_message (P4, 12),
+  read/summarize_clipboard (P5, 12), screen-analysis phrasing (P6, +8
+  take_screenshot). Retraining now per cadence rule.
 
 ## Benchmark Results (current 119-case standard dataset, fixed harness)
 | Model | Std tool | Std args | reject | shell | system | multiturn | holdout tool |
@@ -202,3 +202,24 @@ training data).
 - **Live:** summarizeText correctly tags JSON/code/plain; clipboard restored
   after probing. v5 untrained → misclassifies (take_screenshot/list_files,
   harmless), staged for retrain.
+
+### 2026-06-20 — P6: Screen analysis (shipped)
+- **Cloud vision wired:** ChatRouter.analyzeScreen() (was a "Coming soon" stub)
+  now delegates to an injectable VisionProvider. take_screenshot is special-
+  cased in chat()/chatStream(): capture screen via setScreenCapturer →
+  analyzeScreen. This activates the existing ScreenshotQuestion hotkey flow too.
+- **Local-first preserved:** new `createProxyVision(url, deviceId)` factory is a
+  one-shot HMAC-authed client — NO background polling/connection (unlike
+  CloudChatProvider). Cloud is contacted only when the user asks about their
+  screen. Persistent deviceId added to store (clawbot.deviceId).
+- **Graceful degradation everywhere:** no vision provider → "needs cloud"; no
+  image → "couldn't grab a screenshot"; proxy unreachable → "couldn't reach my
+  cloud eyes". Verified live (proxy is unreachable in this env → friendly
+  fallback, no crash).
+- **Eval/training:** 6 screenshot eval cases (130 total), +8 screen-analysis
+  examples (494 total, take_screenshot 25).
+- **Tests:** 5 chat-router screen tests (delegate, no-provider, capture+analyze
+  routing, no-provider degrade, capture-fail). 88 passed (was 83). Build green.
+- **Note:** test/e2e-local-model.test.ts is flaky under vitest parallelism when
+  Ollama is under load (live-model dep) — passes in isolation; not caused by
+  feature changes.
