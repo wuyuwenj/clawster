@@ -5,6 +5,7 @@ import { executeTool } from './tool-executor';
 import { getTemplateResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
 import { checkSafety } from './safety-filter';
+import { getQuickReplies } from './quick-replies';
 import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
@@ -144,7 +145,7 @@ export class ChatRouter extends EventEmitter {
     if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const screenResponse = await this.handleScreenshot(rawInput);
       logInteraction({ input: rawInput, tool: 'take_screenshot', response: screenResponse.text, mood: toolCall.mood, latencyMs, ts: Date.now() });
-      return screenResponse;
+      return { ...screenResponse, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
@@ -156,17 +157,18 @@ export class ChatRouter extends EventEmitter {
           type: 'action',
           text: result.response || '',
           action: { type: result.petAction.type, payload: result.petAction },
+          quickReplies: getQuickReplies(toolCall.tool, toolCall.mood),
         };
       }
 
       if (result.handled && result.response) {
-        return { type: 'message', text: result.response };
+        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood) };
       }
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
     logInteraction({ input: rawInput, tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
-    return { type: 'message', text: reply };
+    return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
   }
 
   async chatStream(
@@ -198,7 +200,7 @@ export class ChatRouter extends EventEmitter {
       const text = screenResponse.text || '';
       handlers.onDelta?.(text, text);
       logInteraction({ input: rawInput, tool: 'take_screenshot', response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
-      return screenResponse;
+      return { ...screenResponse, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
@@ -212,19 +214,20 @@ export class ChatRouter extends EventEmitter {
           type: 'action',
           text,
           action: { type: result.petAction.type, payload: result.petAction },
+          quickReplies: getQuickReplies(toolCall.tool, toolCall.mood),
         };
       }
 
       if (result.handled && result.response) {
         handlers.onDelta?.(result.response, result.response);
-        return { type: 'message', text: result.response };
+        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood) };
       }
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
     logInteraction({ input: rawInput, tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
     handlers.onDelta?.(reply, reply);
-    return { type: 'message', text: reply };
+    return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
   }
 
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {

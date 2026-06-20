@@ -5,6 +5,8 @@ export interface ChatResponse {
     type: string;
     payload: unknown;
   };
+  // Contextual quick-reply suggestions based on the tool/mood of this response.
+  quickReplies?: string[];
 }
 
 export interface ChatStreamHandlers {

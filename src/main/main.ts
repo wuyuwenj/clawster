@@ -652,7 +652,7 @@ function setupIPC() {
   };
 
   // Show final response as a speech bubble on the pet when appropriate
-  const maybeShowPetResponse = (responseText?: string) => {
+  const maybeShowPetResponse = (responseText?: string, quickReplies?: string[]) => {
     const assistantWindow = getAssistantWindow();
     const chatbarWindow = getChatbarWindow();
     const petWindow = getPetWindow();
@@ -663,7 +663,7 @@ function setupIPC() {
         id: randomUUID(),
         text: responseText,
         trigger: 'proactive',
-        quickReplies: ['Thanks!', 'Not now'],
+        quickReplies: quickReplies && quickReplies.length ? quickReplies : ['Thanks!', 'Not now'],
       });
     }
   };
@@ -684,7 +684,7 @@ function setupIPC() {
       await executePetAction(response.action.payload as PetAction);
     }
 
-    maybeShowPetResponse(response.text);
+    maybeShowPetResponse(response.text, response.quickReplies);
 
     return response;
   });
@@ -721,7 +721,7 @@ function setupIPC() {
         }
 
         if (!isChatbarRequest) {
-          maybeShowPetResponse(response.text);
+          maybeShowPetResponse(response.text, response.quickReplies);
         }
 
         if (!sender.isDestroyed()) {

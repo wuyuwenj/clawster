@@ -9,3 +9,4 @@ export { parseActionFromResponse } from './parse-action';
 export { buildAuthHeaders, signRequest } from './hmac-auth';
 export { SYSTEM_PROMPT } from './system-prompt';
 export { TOOL_PROMPT, PET_ACTION_TOOLS, SYSTEM_TOOLS } from './tool-definitions';
+export { getQuickReplies } from './quick-replies';
