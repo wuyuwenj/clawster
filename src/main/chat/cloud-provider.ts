@@ -5,6 +5,7 @@ import type { ChatProvider, ChatResponse, ChatStreamHandlers } from './types';
 import { parseActionFromResponse } from './parse-action';
 import { buildAuthHeaders } from './hmac-auth';
 import { SYSTEM_PROMPT } from './system-prompt';
+import { buildPreferencesPrompt } from './preferences';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -61,6 +62,7 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
     const parts = [SYSTEM_PROMPT];
     if (this.identityPrompt) parts.push(`\n\nIDENTITY:\n${this.identityPrompt}`);
     if (this.soulPrompt) parts.push(`\n\nSOUL:\n${this.soulPrompt}`);
+    parts.push(buildPreferencesPrompt()); // personalization memory (empty if none)
     return parts.join('');
   }
 

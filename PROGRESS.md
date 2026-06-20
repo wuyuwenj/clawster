@@ -60,7 +60,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P5: Clipboard tools (read_clipboard, summarize_clipboard)
 - [x] P6: Screen analysis (take_screenshot → cloud vision, graceful fallback)
 - [x] P7: Focus mode (block_apps — hides distracting apps for N minutes)
-- [ ] P8: Personalization memory (~/.clawster/prefs.json → system prompt)
+- [x] P8: Personalization memory (remember/recall → ~/.clawster/prefs.json)
 - [ ] P9: Close/quit app (close_app via osascript)
 - [ ] P10: Time/date (what_time, day of week, countdowns)
 - [ ] P11: Natural conversation (inline personality responses)
@@ -73,9 +73,10 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v6-q4** (2026-06-20) after P4+P5+P6. Promoted
   (default model now v6). Unlocks send_message/clipboard/screen-analysis. Open
   regression: holdout over-triggering — reject-strengthening retrain pending.
-- ⏳ **Staged for P7-P9 retrain:** block_apps (P7, 12). **The P7-P9 retrain MUST
-  also add reject/negative + music↔system_control disambiguation examples** to
-  recover the v6 holdout regression (71.4% → target >90%).
+- ⏳ **Staged for P7-P9 retrain:** block_apps (P7, 12), remember_preference +
+  recall_preferences (P8, 13). **The P7-P9 retrain MUST also add reject/negative
+  + music↔system_control disambiguation examples** to recover the v6 holdout
+  regression (71.4% → target >90%).
 
 ## Benchmark Results (130-case standard dataset, fixed harness)
 | Model | Std tool | Std reject | msg | clip | shell | sys | shot | holdout tool |
@@ -244,3 +245,20 @@ retrain to recover holdout toward the >90% stop target.
   policy as system_control. 93 passed (was 88). Build green.
 - **Live:** resolveFocusApps verified; v6 untrained on block_apps → staged for
   the P7-P9 retrain.
+
+### 2026-06-20 — P8: Personalization memory (shipped)
+- **New preferences module** (src/main/chat/preferences.ts): persists user facts
+  to ~/.clawster/prefs.json (deduped case-insensitively, capped at 25). Has an
+  overridable path (setPreferencesPath) so tests never touch real prefs.
+- **Tools:** remember_preference (write, arg aliases preference/text/value/fact)
+  and recall_preferences (read → lists stored facts; works locally without
+  cloud). Arg-tolerant.
+- **System-prompt injection:** CloudChatProvider.buildSystemPrompt() now appends
+  buildPreferencesPrompt() (empty when none) so cloud responses are personalized.
+- **Definitions:** TOOL_PROMPT, chat-router KNOWN_TOOLS, eval/tools.ts.
+- **Eval/training:** 4 memory eval cases (138 total), 13 examples (519 total).
+- **Tests:** new test/preferences.test.ts (9 tests: module add/dedupe/empty/
+  prompt-fragment + remember/recall executor round-trip) on a temp path. 102
+  passed (was 93). Build green.
+- **Live:** full round-trip verified (remember → prefs.json → recall → system-
+  prompt fragment). v6 untrained → staged for P7-P9 retrain.

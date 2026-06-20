@@ -2,6 +2,7 @@ import { shell, Notification, BrowserWindow } from 'electron';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PET_ACTION_TOOLS } from './tool-definitions';
+import { addPreference, getPreferences } from './preferences';
 
 let notifyCallback: ((title: string, body: string) => void) | null = null;
 
@@ -512,6 +513,21 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       } catch {
         return { handled: true, response: "Couldn't do that — I might need Accessibility permission in System Settings." };
       }
+    }
+
+    case 'remember_preference': {
+      const pref = String(args.preference ?? args.text ?? args.value ?? args.fact ?? '').trim();
+      if (!pref) return { handled: true, response: "What would you like me to remember?" };
+      addPreference(pref);
+      return { handled: true, response: `Got it — I'll remember that! 🧠 ("${pref}")` };
+    }
+
+    case 'recall_preferences': {
+      const prefs = getPreferences();
+      if (!prefs.length) {
+        return { handled: true, response: "I don't know much about you yet! Tell me to remember something. *curious snip*" };
+      }
+      return { handled: true, response: `Here's what I remember about you:\n${prefs.map(p => `- ${p}`).join('\n')}` };
     }
 
     case 'block_apps': {
