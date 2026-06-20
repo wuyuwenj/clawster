@@ -91,6 +91,14 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'block_apps',
+    description: 'Focus mode — hide distracting apps for a while',
+    parameters: {
+      apps: { type: 'string', description: 'Apps to hide (e.g. "Slack, Discord") or omit for defaults', required: false },
+      minutes: { type: 'number', description: 'How long to keep them hidden', required: false },
+    },
+  },
+  {
     name: 'take_screenshot',
     description: 'Capture the current screen',
     parameters: {},

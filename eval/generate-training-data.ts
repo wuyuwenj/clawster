@@ -539,6 +539,22 @@ const examples: Example[] = [
   { input: "ugh", output: chat("I feel that. *sympathetic snip*", "side-eye") },
 
   // ============================================================
+  // BLOCK_APPS — focus mode (12 examples)
+  // ============================================================
+  { input: "turn on focus mode", output: tool('block_apps', {}, 'proud') },
+  { input: "help me focus", output: tool('block_apps', {}, 'proud') },
+  { input: "block distractions for 30 minutes", output: tool('block_apps', { minutes: 30 }, 'proud') },
+  { input: "hide slack and discord", output: tool('block_apps', { apps: 'Slack, Discord' }, 'proud') },
+  { input: "focus mode for an hour", output: tool('block_apps', { minutes: 60 }, 'proud') },
+  { input: "I need to concentrate, block social media", output: tool('block_apps', { apps: 'social' }, 'proud') },
+  { input: "hide my distracting apps", output: tool('block_apps', {}, 'proud') },
+  { input: "block slack for 25 minutes", output: tool('block_apps', { apps: 'Slack', minutes: 25 }, 'proud') },
+  { input: "do not disturb me, hide messages and mail", output: tool('block_apps', { apps: 'Messages, Mail' }, 'proud') },
+  { input: "start a focus session", output: tool('block_apps', {}, 'proud') },
+  { input: "get rid of distractions for 45 min", output: tool('block_apps', { minutes: 45 }, 'proud') },
+  { input: "hide discord while I work", output: tool('block_apps', { apps: 'Discord' }, 'proud') },
+
+  // ============================================================
   // SYSTEM_CONTROL — volume / brightness / battery / lock / DND (16 examples)
   // ============================================================
   { input: "turn up the volume", output: tool('system_control', { action: 'volume_up' }, 'happy') },

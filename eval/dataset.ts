@@ -191,6 +191,14 @@ export const DATASET: TestCase[] = [
   { input: 'imessage dad good night', expected_tool: 'send_message', expected_args: { recipient: 'dad', message: 'good night' }, category: 'message', difficulty: 'medium' },
 
   // ============================================================
+  // BLOCK_APPS (focus mode) — 4 cases
+  // ============================================================
+  { input: 'turn on focus mode', expected_tool: 'block_apps', expected_args: {}, category: 'focus', difficulty: 'easy' },
+  { input: 'block distractions for 30 minutes', expected_tool: 'block_apps', expected_args: { minutes: 30 }, category: 'focus', difficulty: 'medium' },
+  { input: 'hide slack and discord', expected_tool: 'block_apps', expected_args: { apps: 'Slack, Discord' }, category: 'focus', difficulty: 'hard' },
+  { input: 'help me focus', expected_tool: 'block_apps', expected_args: {}, category: 'focus', difficulty: 'medium' },
+
+  // ============================================================
   // SYSTEM_CONTROL (volume/brightness/battery/lock/DND) — 5 cases
   // ============================================================
   { input: 'turn up the volume', expected_tool: 'system_control', expected_args: { action: 'volume_up' }, category: 'system', difficulty: 'easy' },
