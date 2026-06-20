@@ -209,9 +209,29 @@ async function sendChatPopup(
     }
 
     console.log('[ChatPopup] sendChatPopup', { trigger, context, windowTitle, prompt });
-    const response = await chatProvider.chat(prompt);
 
-    if (response.text && !response.text.includes('error')) {
+    const popupResponses: Record<string, string[]> = {
+      idle: [
+        "Hey, you still there? *pokes with claw*",
+        "Taking a break? Good idea! *yawns*",
+        "*peeks* Everything okay over there?",
+        "I'm getting lonely over here! *snip snip*",
+      ],
+      app_switch: [
+        "Ooh, switching things up!",
+        "Nice app choice! *curious snip*",
+        "What are we doing now? *peeks*",
+      ],
+      proactive: [
+        "Just checking in! Need anything?",
+        "*waves* Hi! I'm here if you need me.",
+      ],
+    };
+
+    const responses = popupResponses[trigger] || popupResponses.proactive;
+    const response = { text: responses[Math.floor(Math.random() * responses.length)] };
+
+    if (response.text) {
       resetInteractionTimer();
       petWindow.webContents.send('chat-popup', {
         id: randomUUID(),
