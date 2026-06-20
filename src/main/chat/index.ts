@@ -1,5 +1,6 @@
 export type { ChatProvider, ChatResponse, ChatStreamHandlers } from './types';
-export { CloudChatProvider } from './cloud-provider';
+export { CloudChatProvider, createProxyVision } from './cloud-provider';
+export type { VisionProvider } from './cloud-provider';
 export { LocalToolProvider } from './local-tool-provider';
 export { LocalChatProvider } from './local-chat-provider';
 export { ChatRouter } from './chat-router';

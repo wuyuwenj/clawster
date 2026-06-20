@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback } from './chat';
+import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -308,6 +308,18 @@ function startMainApp() {
 
   const toolModel = new LocalToolProvider();
   chatProvider = new ChatRouter(toolModel);
+
+  // Wire on-demand cloud vision for screen analysis (local model has no vision).
+  // No background polling — the proxy is only contacted when the user asks about
+  // their screen.
+  let deviceId = store.get('clawbot').deviceId;
+  if (!deviceId) {
+    deviceId = randomUUID();
+    store.set('clawbot', { ...store.get('clawbot'), deviceId });
+  }
+  const proxyUrl = store.get('clawbot').url;
+  chatProvider.setVisionProvider(createProxyVision(proxyUrl, deviceId));
+  chatProvider.setScreenCapturer(() => captureScreen());
 
   // Start emotion engine
   const emotionEngine = new EmotionEngine();
