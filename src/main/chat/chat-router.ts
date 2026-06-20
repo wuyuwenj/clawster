@@ -31,7 +31,7 @@ const KNOWN_TOOLS = new Set([
   'play_music', 'send_notification', 'search_files', 'list_files', 'get_weather',
   'set_timer', 'create_timer', 'run_shell', 'system_control', 'send_message',
   'read_clipboard', 'summarize_clipboard', 'block_apps',
-  'remember_preference', 'recall_preferences', 'close_app',
+  'remember_preference', 'recall_preferences', 'close_app', 'what_time',
 ]);
 
 // Bare greetings / acknowledgements / fillers. When the WHOLE input is one of

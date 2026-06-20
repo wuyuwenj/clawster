@@ -25,6 +25,7 @@ Available tools:
 - search_files(query: string (required), directory: string - Directory to search in): Search for files
 - list_files(directory: string (required) - Directory path e.g. "~/Desktop", "~/Downloads"): List files in a directory
 - get_weather(location: string - City or location): Get current weather or forecast
+- what_time(until: string - Optional date to count down to, e.g. "2026-12-25"): Tell the current time/date/day, or count down to a date
 - set_timer(duration: string (required) - e.g. "5 minutes", label: string): Set a countdown timer
 - system_control(action: string (required) [volume_up|volume_down|mute|unmute|set_volume|brightness_up|brightness_down|battery|lock_screen|sleep|dnd_on|dnd_off], value: number - 0-100 for set_volume): Control system settings (volume, brightness, battery, lock, Do Not Disturb)
 - block_apps(apps: string - Apps to hide (e.g. "Slack, Discord") or omit for defaults, minutes: number - How long): Focus mode — hide distracting apps for a while

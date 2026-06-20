@@ -97,6 +97,25 @@ describe('Tool executor E2E', () => {
     const result = await executeTool('nonexistent_tool', {});
     expect(result.handled).toBe(false);
   });
+
+  it('what_time reports the current time and date', async () => {
+    const result = await executeTool('what_time', {});
+    expect(result.handled).toBe(true);
+    expect(result.response).toMatch(/It's .+ on .+/);
+    expect(result.response).toMatch(/\d/);
+  });
+
+  it('what_time counts down to a future date', async () => {
+    const future = new Date(Date.now() + 3 * 86400000 + 5 * 3600000).toISOString();
+    const result = await executeTool('what_time', { until: future });
+    expect(result.response).toMatch(/to go/i);
+    expect(result.response).toMatch(/3 days/);
+  });
+
+  it('what_time reports a past date as already passed', async () => {
+    const result = await executeTool('what_time', { until: '2000-01-01' });
+    expect(result.response).toMatch(/already passed/i);
+  });
 });
 
 describe('run_shell confirmation gate', () => {

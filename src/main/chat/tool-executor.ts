@@ -578,6 +578,29 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       };
     }
 
+    case 'what_time': {
+      const now = new Date();
+      const until = args.until ?? args.date ?? args.event ?? args.target;
+      if (until) {
+        const target = new Date(String(until));
+        if (!isNaN(target.getTime())) {
+          const ms = target.getTime() - now.getTime();
+          if (ms <= 0) return { handled: true, response: "That moment has already passed! ⏰" };
+          const days = Math.floor(ms / 86400000);
+          const hours = Math.floor((ms % 86400000) / 3600000);
+          const mins = Math.floor((ms % 3600000) / 60000);
+          const parts: string[] = [];
+          if (days) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+          if (hours) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+          if (!days && mins) parts.push(`${mins} minute${mins > 1 ? 's' : ''}`);
+          return { handled: true, response: `${parts.join(', ') || 'Less than a minute'} to go! ⏳` };
+        }
+      }
+      const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      return { handled: true, response: `It's ${time} on ${date}. ⏰` };
+    }
+
     default:
       return { handled: false };
   }
