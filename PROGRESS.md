@@ -116,15 +116,32 @@ as belt-and-suspenders.
    are screenshot-capture-not-wired from bare dev test scripts, not the real app,
    where main.ts wires captureScreen).
 
-### Post-parity: prompt-alignment fix (in progress)
+### Post-parity finding: prompt-alignment (attempted, reverted — recommended future work)
 A production-faithful eval (datasets run through LocalToolProvider + the runtime
-guard — exactly what the app does) showed v8 at **91.1% std / 78.6% holdout**,
-LOWER than the harness (93.2/85.7) and under-firing classic cases (reminders/
-pet actions → null). Root cause: the training SYSTEM_PROMPT was stale (missing
-10 tools) AND differed from the runtime TOOL_PROMPT — a train/inference
-mismatch. Fix: training now uses the runtime TOOL_PROMPT verbatim (single source
-of truth). Retraining to realize the alignment; promote if production eval
-improves.
+guard — exactly what the app does) measured v8 at **91.1% std / 78.6% holdout**
+and exposed **under-firing** of classic cases (reminders/pet actions → null).
+Diagnosed root cause: the training SYSTEM_PROMPT is **stale** (a short prompt
+missing the 10 P2-P10 tools) AND **differs from the runtime TOOL_PROMPT** — a
+train/inference mismatch that likely caps accuracy.
+
+Attempted the fix (train on the runtime TOOL_PROMPT verbatim), but the retrain
+hit a **Metal OOM**: the ~6× longer prompt blew GPU memory, compounded by a 12GB
+`qwen3.5:4b` model from another session pinning unified memory (could not be
+unloaded — shared infra, not ours to kill). Reverted the change to keep the repo
+consistent with the deployed v8.
+
+**Recommended future work (when GPU memory is free):** import TOOL_PROMPT into
+generate-training-data.ts (single source of truth), regenerate, and retrain at
+`--batch-size 2 --max-seq-length ~1536` (the longer prompt needs the smaller
+batch). Expected to reduce runtime under-firing. The production-faithful eval
+script lives at /tmp/prod-eval.ts (re-creatable) and is the honest measure.
+
+### Final state
+**v8 (clawster-tool-v8-q4) is the shipped model.** All 12 OpenClaw parity
+features implemented, tested (121 unit tests green), and trained in. Stop
+condition 3/4 met (see above); the eval-threshold criterion sits at a genuine
+1.5B-model + train/runtime-mismatch ceiling, with a documented path to push it
+further when GPU is available.
 
 ### Earlier model history
 - **v7** (after P7-P9): unlocked close_app/block_apps/memory; training-only reject
