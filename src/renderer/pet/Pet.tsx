@@ -39,6 +39,7 @@ const moodToState = (mood: Mood): string => {
       return 'state-mouth-o';
     case 'thinking':
     case 'worried':
+    case 'sad':
       return 'state-worried';
     case 'huff':
       return 'state-huff';
