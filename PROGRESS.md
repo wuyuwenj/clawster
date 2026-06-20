@@ -64,7 +64,9 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P9: Close/quit app (close_app via osascript + confirmation dialog)
 - [x] P10: Time/date (what_time — time/date/day + date countdowns)
 - [x] P11: Natural conversation (model emits inline personality responses)
-- [ ] P12: Contextual quick replies (dynamic buttons by tool/mood)
+- [x] P12: Contextual quick replies (dynamic buttons by tool/mood)
+
+**ALL 12 PARITY FEATURES IMPLEMENTED.** 🎉
 
 ## Retrain Status
 - ✅ **RETRAINED → clawster-tool-v5-q4** (2026-06-20) after P1+P2+P3. Bakes in
@@ -312,3 +314,15 @@ reject over-reports vs real behavior.
   when absent). 115 passed (was 113). Build green.
 - **Note:** generates inline responses only AFTER the P10-P12 retrain bakes the
   response field into the model. No runtime code change needed (already wired).
+
+### 2026-06-20 — P12: Contextual quick replies (shipped)
+- **New quick-replies module:** getQuickReplies(tool, mood) maps the tool that
+  just ran (or mood for plain conversation) to natural follow-up suggestions
+  (e.g. play_music → ["Next song","Pause"], block_apps → ["How much time
+  left?","Thanks!"], curious → ["Tell me more","Cool!"]); sensible default.
+- **Wired into ChatRouter:** every chat()/chatStream() response now carries
+  `quickReplies` (ChatResponse type extended). main.ts maybeShowPetResponse uses
+  them for the pet speech-bubble buttons (was hardcoded ['Thanks!','Not now']).
+- **Tests:** new test/quick-replies.test.ts (6 tests: tool/mood/default mapping
+  + ChatRouter attaches them). 121 passed (was 115). Build green.
+- **Pure runtime feature** — no model/training change, works immediately on v7.
