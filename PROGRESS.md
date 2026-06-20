@@ -55,7 +55,7 @@ Plan source: /plan-eng-review decisions D2-D19
 Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P1: Multi-turn memory — wire last 3 messages into classify()
 - [x] P2: Shell command execution (run_shell + native confirmation dialog)
-- [ ] P3: System controls (volume/brightness/DND/battery/lock via osascript)
+- [x] P3: System controls (volume/brightness/DND/battery/lock via osascript)
 - [ ] P4: iMessage integration (send_message + confirmation)
 - [ ] P5: Clipboard tools (read_clipboard, summarize_clipboard)
 - [ ] P6: Screen analysis (take_screenshot → cloud model)
@@ -79,6 +79,9 @@ The following changes require one model retrain to take effect:
   hallucinates tool names (run_git_status, execute) which chat-router's
   isFalsePositiveTool guard drops → no runtime breakage, but run_shell won't
   fire until retrain.
+- **system_control (P3)** — 16 examples. v4 hallucinates (set_mood{loud},
+  get_battery) → dropped by guard. Won't fire until retrain.
+- **⚠️ RETRAIN DUE: P1+P2+P3 = 3 features.** Retraining now per cadence rule.
 - Run: `cp eval/train-data/*.jsonl ../clawster/eval/train-data/ && retrain`
 
 ## Progress Log
@@ -122,3 +125,21 @@ The following changes require one model retrain to take effect:
 - **Live check:** v4 model never trained on run_shell → hallucinates tool names,
   dropped by isFalsePositiveTool guard (no breakage). Executor safety gate
   verified directly: echo runs, rm -rf / + fork bomb + shutdown refused.
+
+### 2026-06-20 — P3: System controls (shipped)
+- **system_control tool** (single tool, action enum — easier for 1.5B model than
+  12 separate tools, matching play_music pattern). Actions: volume_up/down,
+  mute/unmute, set_volume(value), brightness_up/down, battery, lock_screen,
+  sleep, dnd_on/dnd_off. All via osascript/pmset one-liners. No confirmation
+  (all benign/reversible). Action strings normalized (lowercase, spaces/hyphens
+  → underscore).
+- **Notes:** brightness uses System Events key codes 144/145 (needs Accessibility
+  permission, built-in display). DND uses legacy NotificationCenter toggle —
+  best-effort, may be a no-op on Focus-based macOS (documented limitation).
+- **Definitions:** added to TOOL_PROMPT + chat-router KNOWN_TOOLS.
+- **Eval/training:** 5 system eval cases (119 total), 16 examples (462 total).
+- **Tests:** 3 read-only tests (battery, unknown-action help, casing) — the
+  side-effectful actions (volume/lock) are deliberately NOT executed in tests.
+  Suite: 74 passed (was 71). Build green.
+- **Live check:** battery executor returns "Battery is at 46%, charging 🔋".
+  Model hallucinates system_control intents (expected) → retrain due.
