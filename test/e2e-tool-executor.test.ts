@@ -192,6 +192,43 @@ describe('send_message confirmation gate', () => {
   });
 });
 
+// Never test the approve->quit path: that would quit a real app. Only the
+// safety gate (no quit without explicit approval) is exercised here.
+describe('close_app confirmation gate', () => {
+  afterEach(() => setConfirmCallback(null));
+
+  it('does NOT quit when no confirmation callback is registered', async () => {
+    setConfirmCallback(null);
+    const result = await executeTool('close_app', { app: 'Spotify' });
+    expect(result.handled).toBe(true);
+    expect(result.confirmation).toEqual({ kind: 'close_app', detail: 'Spotify', executed: false });
+  });
+
+  it('does NOT quit when the user declines', async () => {
+    let asked = '';
+    setConfirmCallback(async (req) => { asked = req.detail; return false; });
+    const result = await executeTool('close_app', { app: 'Safari' });
+    expect(asked).toBe('Safari');
+    expect(result.confirmation?.executed).toBe(false);
+    expect(result.response).toMatch(/leaving Safari open|claws back/i);
+  });
+
+  it('shows the app name in a quit confirmation', async () => {
+    const seen: string[] = [];
+    setConfirmCallback(async (req) => { seen.push(req.title, req.detail); return false; });
+    await executeTool('close_app', { app: 'Discord' });
+    expect(seen[0]).toMatch(/quit/i);
+    expect(seen[1]).toBe('Discord');
+  });
+
+  it('asks which app when none is given', async () => {
+    setConfirmCallback(async () => true);
+    const result = await executeTool('close_app', {});
+    expect(result.response).toMatch(/which app/i);
+    expect(result.confirmation).toBeUndefined();
+  });
+});
+
 // Only exercise read-only / no-op paths here — volume/brightness/lock have real
 // OS side effects and must never run in the test suite.
 describe('system_control (safe paths only)', () => {

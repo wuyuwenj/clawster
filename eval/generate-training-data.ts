@@ -521,10 +521,19 @@ const examples: Example[] = [
   { input: "the weather was nice yesterday", output: chat("Lucky! Hope today's good too.", "happy") },
   { input: "I just played some music", output: chat("Ooh, what did you listen to?", "curious") },
   { input: "I searched for that file before", output: chat("Did you find it? I can help search again!", "curious") },
-  // Close/quit — no close_app tool yet
-  { input: "close spotify", output: chat("I can't close apps yet, but I can open them! *snip*", "side-eye") },
-  { input: "quit safari", output: chat("I can't quit apps yet — try right-clicking the dock icon!", "side-eye") },
-  { input: "close that app", output: chat("Closing apps isn't in my skill set yet! *nervous snip*", "side-eye") },
+  // Close/quit — close_app tool (confirmation-gated)
+  { input: "close spotify", output: tool('close_app', { app: 'Spotify' }, 'happy') },
+  { input: "quit safari", output: tool('close_app', { app: 'Safari' }, 'happy') },
+  { input: "close slack", output: tool('close_app', { app: 'Slack' }, 'happy') },
+  { input: "quit the music app", output: tool('close_app', { app: 'Music' }, 'happy') },
+  { input: "shut down terminal", output: tool('close_app', { app: 'Terminal' }, 'happy') },
+  { input: "exit discord", output: tool('close_app', { app: 'Discord' }, 'happy') },
+  { input: "kill chrome", output: tool('close_app', { app: 'Google Chrome' }, 'happy') },
+  { input: "close out of finder", output: tool('close_app', { app: 'Finder' }, 'happy') },
+  { input: "quit notes", output: tool('close_app', { app: 'Notes' }, 'happy') },
+  { input: "please close zoom", output: tool('close_app', { app: 'zoom.us' }, 'happy') },
+  { input: "shut slack down", output: tool('close_app', { app: 'Slack' }, 'happy') },
+  { input: "close mail", output: tool('close_app', { app: 'Mail' }, 'happy') },
   // Web search — not supported
   { input: "search google for lobster facts", output: chat("I can't search the web, but I can search your files! Try 'find my resume'.", "curious") },
   { input: "google something for me", output: chat("I can't browse the web, but I can open apps, play music, and more!", "curious") },

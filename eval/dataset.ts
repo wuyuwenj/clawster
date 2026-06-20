@@ -191,6 +191,14 @@ export const DATASET: TestCase[] = [
   { input: 'imessage dad good night', expected_tool: 'send_message', expected_args: { recipient: 'dad', message: 'good night' }, category: 'message', difficulty: 'medium' },
 
   // ============================================================
+  // CLOSE_APP (quit apps) — 4 cases
+  // ============================================================
+  { input: 'close spotify', expected_tool: 'close_app', expected_args: { app: 'Spotify' }, category: 'closeapp', difficulty: 'easy' },
+  { input: 'quit safari', expected_tool: 'close_app', expected_args: { app: 'Safari' }, category: 'closeapp', difficulty: 'easy' },
+  { input: 'exit discord', expected_tool: 'close_app', expected_args: { app: 'Discord' }, category: 'closeapp', difficulty: 'medium' },
+  { input: 'shut down terminal', expected_tool: 'close_app', expected_args: { app: 'Terminal' }, category: 'closeapp', difficulty: 'hard' },
+
+  // ============================================================
   // PERSONALIZATION (remember/recall) — 4 cases
   // ============================================================
   { input: 'remember I like jazz', expected_tool: 'remember_preference', expected_args: { preference: 'likes jazz' }, category: 'memory', difficulty: 'medium' },

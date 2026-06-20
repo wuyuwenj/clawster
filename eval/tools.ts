@@ -68,6 +68,13 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'close_app',
+    description: 'Quit/close an application (asks for confirmation first)',
+    parameters: {
+      app: { type: 'string', description: 'Application name to quit', required: true },
+    },
+  },
+  {
     name: 'run_shell',
     description: 'Run a shell command',
     parameters: {

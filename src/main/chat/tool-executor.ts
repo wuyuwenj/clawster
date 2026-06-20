@@ -515,6 +515,43 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       }
     }
 
+    case 'close_app': {
+      const app = String(args.app ?? args.name ?? args.application ?? '').trim();
+      if (!app) return { handled: true, response: "Which app should I close?" };
+
+      if (!confirmCallback) {
+        return {
+          handled: true,
+          response: `I'd close ${app}, but I need to confirm before quitting apps and can't pop up a dialog right now.`,
+          confirmation: { kind: 'close_app', detail: app, executed: false },
+        };
+      }
+
+      const approved = await confirmCallback({ title: 'Quit this app?', detail: app });
+      if (!approved) {
+        return {
+          handled: true,
+          response: `Okay, leaving ${app} open. *claws back*`,
+          confirmation: { kind: 'close_app', detail: app, executed: false },
+        };
+      }
+
+      try {
+        await execAsync(`osascript -e 'tell application "${app.replace(/["\\]/g, '')}" to quit'`, { timeout: 5000 });
+        return {
+          handled: true,
+          response: `Closed ${app}! 👋`,
+          confirmation: { kind: 'close_app', detail: app, executed: true },
+        };
+      } catch {
+        return {
+          handled: true,
+          response: `Couldn't close ${app} — it may not be running.`,
+          confirmation: { kind: 'close_app', detail: app, executed: true },
+        };
+      }
+    }
+
     case 'remember_preference': {
       const pref = String(args.preference ?? args.text ?? args.value ?? args.fact ?? '').trim();
       if (!pref) return { handled: true, response: "What would you like me to remember?" };

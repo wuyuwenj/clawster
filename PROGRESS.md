@@ -61,7 +61,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P6: Screen analysis (take_screenshot → cloud vision, graceful fallback)
 - [x] P7: Focus mode (block_apps — hides distracting apps for N minutes)
 - [x] P8: Personalization memory (remember/recall → ~/.clawster/prefs.json)
-- [ ] P9: Close/quit app (close_app via osascript)
+- [x] P9: Close/quit app (close_app via osascript + confirmation dialog)
 - [ ] P10: Time/date (what_time, day of week, countdowns)
 - [ ] P11: Natural conversation (inline personality responses)
 - [ ] P12: Contextual quick replies (dynamic buttons by tool/mood)
@@ -73,10 +73,10 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v6-q4** (2026-06-20) after P4+P5+P6. Promoted
   (default model now v6). Unlocks send_message/clipboard/screen-analysis. Open
   regression: holdout over-triggering — reject-strengthening retrain pending.
-- ⏳ **Staged for P7-P9 retrain:** block_apps (P7, 12), remember_preference +
-  recall_preferences (P8, 13). **The P7-P9 retrain MUST also add reject/negative
-  + music↔system_control disambiguation examples** to recover the v6 holdout
-  regression (71.4% → target >90%).
+- ⏳ **RETRAIN DUE (P7+P8+P9):** block_apps (P7, 12), remember/recall (P8, 13),
+  close_app (P9, 12, replaces 3 stale "can't close apps" reject examples). The
+  retrain will ALSO add reject/negative + music↔system_control disambiguation
+  examples to recover the v6 holdout regression (71.4% → target >90%).
 
 ## Benchmark Results (130-case standard dataset, fixed harness)
 | Model | Std tool | Std reject | msg | clip | shell | sys | shot | holdout tool |
@@ -262,3 +262,19 @@ retrain to recover holdout toward the >90% stop target.
   passed (was 93). Build green.
 - **Live:** full round-trip verified (remember → prefs.json → recall → system-
   prompt fragment). v6 untrained → staged for P7-P9 retrain.
+
+### 2026-06-20 — P9: Close/quit app (shipped)
+- **close_app tool** (safety-critical) via osascript `tell application "X" to
+  quit`, gated by the same ConfirmRequest dialog as run_shell/send_message.
+  Safe default: no callback → no quit; declined → no quit. Arg aliases
+  app/name/application.
+- **Flipped 3 stale rejection examples** ("close spotify" → "can't close apps
+  yet") to real close_app calls — they would have trained the model to refuse a
+  tool it now has.
+- **Definitions:** TOOL_PROMPT, CONFIRM_TOOLS, chat-router KNOWN_TOOLS,
+  eval/tools.ts.
+- **Eval/training:** 4 closeapp eval cases (142 total), 12 examples (528 total).
+- **Tests:** 4 close_app gate tests (no-callback/decline/preview/missing-app);
+  approve→quit NOT tested (would quit a real app). 106 passed (was 102). Build
+  green.
+- **Live:** gate verified (declined/no-callback → no quit, correct preview).
