@@ -57,7 +57,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P2: Shell command execution (run_shell + native confirmation dialog)
 - [x] P3: System controls (volume/brightness/DND/battery/lock via osascript)
 - [x] P4: iMessage integration (send_message + native confirmation dialog)
-- [ ] P5: Clipboard tools (read_clipboard, summarize_clipboard)
+- [x] P5: Clipboard tools (read_clipboard, summarize_clipboard)
 - [ ] P6: Screen analysis (take_screenshot → cloud model)
 - [ ] P7: Focus mode (block_apps for N minutes)
 - [ ] P8: Personalization memory (~/.clawster/prefs.json → system prompt)
@@ -70,10 +70,9 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v5-q4** (2026-06-20) after P1+P2+P3. Bakes in
   multi-turn, run_shell, and system_control. Promoted: LocalToolProvider default
   is now `clawster-tool-v5-q4:latest`. See benchmark + retrain log below.
-- ⏳ **Staged for next retrain (due after P6):** send_message (P4, 12 examples).
-  v5 misclassifies these to create_reminder/send_notification (wrong tool, but
-  harmless — no iMessage can be sent until the model emits send_message, and
-  that path is confirmation-gated regardless).
+- ⏳ **Staged for next retrain (due after P6):** send_message (P4, 12),
+  read_clipboard + summarize_clipboard (P5, 12). v5 misclassifies these (wrong
+  tool, but harmless — wrong tools are benign reads or confirmation-gated).
 
 ## Benchmark Results (current 119-case standard dataset, fixed harness)
 | Model | Std tool | Std args | reject | shell | system | multiturn | holdout tool |
@@ -188,3 +187,18 @@ training data).
   ConfirmRequest shape. 79 passed (was 74). Build green.
 - **Live:** v5 (untrained) misclassifies → staged for next retrain. No iMessage
   can fire pre-retrain; post-retrain still confirmation-gated.
+
+### 2026-06-20 — P5: Clipboard tools (shipped)
+- **read_clipboard** (pbpaste, truncated to 1200 chars, empty-state message) and
+  **summarize_clipboard** (deterministic structural summary via summarizeText:
+  detects link/email/JSON/code/list, reports words/lines/chars + a one-line
+  preview). Local-only, no LLM — fast and reliable. Both read-only, no
+  confirmation.
+- **Definitions:** TOOL_PROMPT, chat-router KNOWN_TOOLS, eval/tools.ts.
+- **Eval/training:** 4 clipboard eval cases (127 total), 12 examples (486 total).
+- **Tests:** 4 clipboard tests with save/restore of the user's real clipboard
+  (read text, empty state, summary stats, link detection). 83 passed (was 79).
+  Build green.
+- **Live:** summarizeText correctly tags JSON/code/plain; clipboard restored
+  after probing. v5 untrained → misclassifies (take_screenshot/list_files,
+  harmless), staged for retrain.

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
+import { execFile } from 'child_process';
 
 vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
@@ -212,5 +213,51 @@ describe('system_control (safe paths only)', () => {
     const result = await executeTool('system_control', { action: 'BATTERY' });
     expect(result.handled).toBe(true);
     expect(result.response).toMatch(/battery|couldn't/i);
+  }, 6000);
+});
+
+// Reads the real clipboard via pbpaste — saves and restores the user's
+// clipboard so the suite leaves it untouched.
+function setClipboard(text: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const p = execFile('pbcopy', [], (err) => (err ? reject(err) : resolve()));
+    p.stdin!.end(text);
+  });
+}
+function getClipboard(): Promise<string> {
+  return new Promise((resolve) => {
+    execFile('pbpaste', (err, stdout) => resolve(err ? '' : stdout));
+  });
+}
+
+describe('clipboard tools', () => {
+  let original = '';
+  beforeAll(async () => { original = await getClipboard(); });
+  afterAll(async () => { await setClipboard(original); });
+
+  it('read_clipboard returns the current clipboard text', async () => {
+    await setClipboard('hello clawster clipboard test');
+    const result = await executeTool('read_clipboard', {});
+    expect(result.handled).toBe(true);
+    expect(result.response).toContain('hello clawster clipboard test');
+  }, 6000);
+
+  it('read_clipboard reports an empty clipboard', async () => {
+    await setClipboard('');
+    const result = await executeTool('read_clipboard', {});
+    expect(result.response).toMatch(/empty/i);
+  }, 6000);
+
+  it('summarize_clipboard gives stats + preview', async () => {
+    await setClipboard('Line one of notes\nLine two has more words here\nLine three');
+    const result = await executeTool('summarize_clipboard', {});
+    expect(result.response).toMatch(/word/i);
+    expect(result.response).toMatch(/Preview:/);
+  }, 6000);
+
+  it('summarize_clipboard detects a link', async () => {
+    await setClipboard('https://example.com/some/page');
+    const result = await executeTool('summarize_clipboard', {});
+    expect(result.response).toMatch(/link/i);
   }, 6000);
 });

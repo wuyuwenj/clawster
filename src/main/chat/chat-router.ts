@@ -30,6 +30,7 @@ const KNOWN_TOOLS = new Set([
   'take_screenshot', 'get_calendar_events', 'create_calendar_event', 'create_reminder',
   'play_music', 'send_notification', 'search_files', 'list_files', 'get_weather',
   'set_timer', 'create_timer', 'run_shell', 'system_control', 'send_message',
+  'read_clipboard', 'summarize_clipboard',
 ]);
 
 function isFalsePositiveTool(input: string, tool: string | null): boolean {
