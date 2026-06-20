@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ChatRouter } from '../src/main/chat/chat-router';
+import { ChatRouter, isFalsePositiveTool } from '../src/main/chat/chat-router';
 import type { LocalToolProvider } from '../src/main/chat/local-tool-provider';
 
 // Captures the (input, history) passed to classify so we can assert that
@@ -95,6 +95,33 @@ function makeToolModelReturning(toolCall: Record<string, unknown>) {
   };
   return fake as unknown as LocalToolProvider;
 }
+
+describe('isFalsePositiveTool conversational guard', () => {
+  it('treats bare greetings/acknowledgements as non-tools', () => {
+    expect(isFalsePositiveTool('hello', 'wave')).toBe(true);
+    expect(isFalsePositiveTool('thanks', 'send_message')).toBe(true);
+    expect(isFalsePositiveTool('thanks!', 'send_message')).toBe(true);
+    expect(isFalsePositiveTool('ok', 'open_app')).toBe(true);
+    expect(isFalsePositiveTool('good morning', 'set_mood')).toBe(true);
+    expect(isFalsePositiveTool('lol', 'play_music')).toBe(true);
+  });
+
+  it('does NOT block real commands that contain no filler', () => {
+    expect(isFalsePositiveTool('close spotify', 'close_app')).toBe(false);
+    expect(isFalsePositiveTool('remember I like jazz', 'remember_preference')).toBe(false);
+    expect(isFalsePositiveTool('play some jazz', 'play_music')).toBe(false);
+    expect(isFalsePositiveTool('turn up the volume', 'system_control')).toBe(false);
+  });
+
+  it('still drops unknown tools and keeps the set_mood heuristic', () => {
+    expect(isFalsePositiveTool('do something', 'made_up_tool')).toBe(true);
+    expect(isFalsePositiveTool('be happy', 'set_mood')).toBe(false); // mood keyword present
+  });
+
+  it('returns false when there is no tool', () => {
+    expect(isFalsePositiveTool('hello', null)).toBe(false);
+  });
+});
 
 describe('ChatRouter screen analysis', () => {
   it('analyzeScreen delegates to the vision provider', async () => {
