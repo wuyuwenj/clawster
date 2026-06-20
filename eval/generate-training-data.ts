@@ -684,6 +684,38 @@ const examples: Example[] = [
   { input: "run npm test", output: tool('run_shell', { command: 'npm test' }, 'curious') },
 
   // ============================================================
+  // TOOL RECALL BOOST (v8) — shore up newer tools the conversation-heavy
+  // training started under-firing (what_time→null, text→wave, run→open_app,
+  // focus→system_control). 22 examples.
+  // ============================================================
+  // what_time — plain time queries
+  { input: "time check", output: tool('what_time', {}, 'happy') },
+  { input: "got the time", output: tool('what_time', {}, 'happy') },
+  { input: "current time", output: tool('what_time', {}, 'happy') },
+  { input: "what's the time right now", output: tool('what_time', {}, 'happy') },
+  { input: "tell me the time", output: tool('what_time', {}, 'happy') },
+  { input: "clock", output: tool('what_time', {}, 'happy') },
+  // send_message — "text/message NAME ..." patterns
+  { input: "text mom hello", output: tool('send_message', { recipient: 'mom', message: 'hello' }, 'happy') },
+  { input: "text dad I'm home", output: tool('send_message', { recipient: 'dad', message: "I'm home" }, 'happy') },
+  { input: "message kate good luck", output: tool('send_message', { recipient: 'kate', message: 'good luck' }, 'happy') },
+  { input: "text the team standup in 5", output: tool('send_message', { recipient: 'the team', message: 'standup in 5' }, 'happy') },
+  { input: "send sam a quick hi", output: tool('send_message', { recipient: 'sam', message: 'hi' }, 'happy') },
+  // run_shell — run/execute a command
+  { input: "run df -h", output: tool('run_shell', { command: 'df -h' }, 'curious') },
+  { input: "run ls -la", output: tool('run_shell', { command: 'ls -la' }, 'curious') },
+  { input: "execute pwd", output: tool('run_shell', { command: 'pwd' }, 'curious') },
+  { input: "run top", output: tool('run_shell', { command: 'top' }, 'curious') },
+  { input: "run the command date", output: tool('run_shell', { command: 'date' }, 'curious') },
+  // block_apps (focus) vs system_control — "focus mode" → block_apps
+  { input: "turn on focus mode", output: tool('block_apps', {}, 'proud') },
+  { input: "focus mode on", output: tool('block_apps', {}, 'proud') },
+  { input: "enable focus mode", output: tool('block_apps', {}, 'proud') },
+  { input: "i need to focus", output: tool('block_apps', {}, 'proud') },
+  { input: "help me concentrate", output: tool('block_apps', {}, 'proud') },
+  { input: "focus time", output: tool('block_apps', {}, 'proud') },
+
+  // ============================================================
   // NATURAL CONVERSATION (P11) — inline personality responses (14 examples)
   // chat() now emits the response field, so these train the model to reply in
   // character instead of falling back to canned templates.
