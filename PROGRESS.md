@@ -54,7 +54,7 @@ Plan source: /plan-eng-review decisions D2-D19
 ## OpenClaw Capability Parity Features
 Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P1: Multi-turn memory — wire last 3 messages into classify()
-- [ ] P2: Shell command execution (run_shell + confirmation)
+- [x] P2: Shell command execution (run_shell + native confirmation dialog)
 - [ ] P3: System controls (volume/brightness/DND/battery/lock via osascript)
 - [ ] P4: iMessage integration (send_message + confirmation)
 - [ ] P5: Clipboard tools (read_clipboard, summarize_clipboard)
@@ -75,6 +75,10 @@ The following changes require one model retrain to take effect:
   ("how about downloads?" after "what's on my desktop?"); v4 model already
   conditions on history but doesn't fully exploit it (e.g. "now do safari" →
   open_url instead of open_app). Retrain will fix.
+- **run_shell (P2)** — 14 examples. v4 model has never seen run_shell, so it
+  hallucinates tool names (run_git_status, execute) which chat-router's
+  isFalsePositiveTool guard drops → no runtime breakage, but run_shell won't
+  fire until retrain.
 - Run: `cp eval/train-data/*.jsonl ../clawster/eval/train-data/ && retrain`
 
 ## Progress Log
@@ -96,3 +100,25 @@ The following changes require one model retrain to take effect:
 - **Live check (clawster-tool-v4-q4):** history flows to model; "what about
   tomorrow?" after calendar → get_calendar_events{tomorrow}; no regression on
   no-context cases. Full context exploitation pending next retrain.
+
+### 2026-06-20 — P2: Shell command execution (shipped)
+- **run_shell tool** in tool-executor.ts, gated behind a `setConfirmCallback`
+  approval gate. Safe default: when no callback is registered, it does NOT
+  execute. Output captured (15s timeout, 1MB buffer), truncated to 1500 chars.
+- **Native confirmation dialog** wired in main.ts via `dialog.showMessageBox`
+  (Run/Cancel, default Cancel) showing the exact command — cannot be bypassed,
+  nothing runs without an explicit click.
+- **Catastrophic denylist** (`CATASTROPHIC_PATTERNS`): refuses `rm -rf /`/`~`,
+  fork bombs, mkfs, `dd of=/dev/*`, shutdown/reboot/halt, disk overwrite/erase —
+  even with approval (never even asks). Targeted `rm -rf /tmp/foo` still allowed
+  but requires confirmation.
+- **Definitions:** added to TOOL_PROMPT + new `CONFIRM_TOOLS` export; added to
+  chat-router `KNOWN_TOOLS`.
+- **Eval/training:** 5 shell eval cases (114 total), 14 run_shell training
+  examples (446 total).
+- **Tests:** 6 new gate tests in e2e-tool-executor (no-callback → no exec,
+  decline → no exec, approve → exec+output, catastrophic refused, fork bomb
+  refused, empty asks). Suite: 71 passed (was 65). Build green.
+- **Live check:** v4 model never trained on run_shell → hallucinates tool names,
+  dropped by isFalsePositiveTool guard (no breakage). Executor safety gate
+  verified directly: echo runs, rm -rf / + fork bomb + shutdown refused.

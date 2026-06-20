@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { LocalToolProvider, ChatRouter, setNotifyCallback } from './chat';
+import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback } from './chat';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -327,6 +327,26 @@ function startMainApp() {
       text: `${title}: ${body}`,
       quickReplies: ['Thanks!', 'Not now'],
     });
+  });
+
+  // Confirmation gate for safety-critical tools (run_shell). Shows a native
+  // modal with the exact command; nothing runs unless the user clicks Run.
+  setConfirmCallback(async (command) => {
+    const parent = getPetWindow() || getAssistantWindow() || getChatbarWindow() || undefined;
+    const opts = {
+      type: 'warning' as const,
+      buttons: ['Run', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Clawster wants to run a command',
+      message: 'Run this shell command?',
+      detail: command,
+      noLink: true,
+    };
+    const { response } = parent && !parent.isDestroyed()
+      ? await dialog.showMessageBox(parent, opts)
+      : await dialog.showMessageBox(opts);
+    return response === 0;
   });
 
   // Initialize watchers
