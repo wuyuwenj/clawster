@@ -86,7 +86,7 @@ export class LocalToolProvider {
           ],
           stream: false,
           keep_alive: '10m',
-          options: { temperature: 0 },
+          options: { temperature: 0, num_predict: 40 },
         }),
         signal: AbortSignal.timeout(10000),
       });
