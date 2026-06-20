@@ -146,3 +146,27 @@ describe('run_shell confirmation gate', () => {
     expect(result.response).toMatch(/what command/i);
   });
 });
+
+// Only exercise read-only / no-op paths here — volume/brightness/lock have real
+// OS side effects and must never run in the test suite.
+describe('system_control (safe paths only)', () => {
+  it('battery returns a status string', async () => {
+    const result = await executeTool('system_control', { action: 'battery' });
+    expect(result.handled).toBe(true);
+    expect(typeof result.response).toBe('string');
+    expect(result.response).toMatch(/battery|couldn't/i);
+  }, 6000);
+
+  it('unknown action returns help without running anything', async () => {
+    const result = await executeTool('system_control', { action: 'florp_the_widget' });
+    expect(result.handled).toBe(true);
+    expect(result.response).toMatch(/volume|brightness|battery/i);
+  });
+
+  it('normalizes action casing (uppercase "BATTERY" → battery path)', async () => {
+    // Exercises the toLowerCase normalization on a read-only action.
+    const result = await executeTool('system_control', { action: 'BATTERY' });
+    expect(result.handled).toBe(true);
+    expect(result.response).toMatch(/battery|couldn't/i);
+  }, 6000);
+});

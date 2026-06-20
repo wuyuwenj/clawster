@@ -322,6 +322,68 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       }
     }
 
+    case 'system_control': {
+      const action = String(args.action || '').toLowerCase().replace(/[\s-]+/g, '_');
+      const rawValue = args.value ?? args.level ?? args.amount;
+      try {
+        switch (action) {
+          case 'volume_up':
+            await execAsync(`osascript -e 'set volume output volume (output volume of (get volume settings) + 12)'`);
+            return { handled: true, response: 'Volume up! 🔊' };
+          case 'volume_down':
+            await execAsync(`osascript -e 'set volume output volume (output volume of (get volume settings) - 12)'`);
+            return { handled: true, response: 'Volume down! 🔉' };
+          case 'mute':
+            await execAsync(`osascript -e 'set volume output muted true'`);
+            return { handled: true, response: 'Muted! 🔇' };
+          case 'unmute':
+            await execAsync(`osascript -e 'set volume output muted false'`);
+            return { handled: true, response: 'Sound back on! 🔊' };
+          case 'set_volume': {
+            const v = Math.max(0, Math.min(100, parseInt(String(rawValue ?? '50'), 10) || 50));
+            await execAsync(`osascript -e 'set volume output volume ${v}'`);
+            return { handled: true, response: `Volume set to ${v}%` };
+          }
+          case 'brightness_up':
+            await execAsync(`osascript -e 'tell application "System Events" to key code 144'`);
+            return { handled: true, response: 'Brightness up! ☀️' };
+          case 'brightness_down':
+            await execAsync(`osascript -e 'tell application "System Events" to key code 145'`);
+            return { handled: true, response: 'Brightness down! 🌙' };
+          case 'battery': {
+            const { stdout } = await execAsync(`pmset -g batt`, { timeout: 4000 });
+            const pct = stdout.match(/(\d+)%/);
+            const charging = /AC Power/.test(stdout) ? ', charging' : '';
+            return { handled: true, response: pct ? `Battery is at ${pct[1]}%${charging} 🔋` : "Couldn't read the battery level." };
+          }
+          case 'lock_screen':
+          case 'lock':
+            await execAsync(`osascript -e 'tell application "System Events" to keystroke "q" using {control down, command down}'`);
+            return { handled: true, response: 'Locking your screen! 🔒' };
+          case 'sleep':
+          case 'sleep_display':
+            await execAsync(`pmset displaysleepnow`);
+            return { handled: true, response: 'Sending the display to sleep! 😴' };
+          case 'dnd_on':
+          case 'dnd':
+          case 'do_not_disturb': {
+            // Best-effort: legacy NotificationCenter toggle (effective on older
+            // macOS). Harmless if no-op on newer Focus-based releases.
+            await execAsync(`defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean true && killall NotificationCenter`).catch(() => {});
+            return { handled: true, response: 'Do Not Disturb on — keeping it quiet for you! 🌙' };
+          }
+          case 'dnd_off': {
+            await execAsync(`defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter`).catch(() => {});
+            return { handled: true, response: 'Do Not Disturb off — notifications are back! 🔔' };
+          }
+          default:
+            return { handled: true, response: "I can do volume, brightness, battery, lock screen, sleep, and Do Not Disturb!" };
+        }
+      } catch {
+        return { handled: true, response: "Couldn't do that — I might need Accessibility permission in System Settings." };
+      }
+    }
+
     default:
       return { handled: false };
   }

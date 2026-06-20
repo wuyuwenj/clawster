@@ -530,6 +530,26 @@ const examples: Example[] = [
   { input: "ugh", output: chat("I feel that. *sympathetic snip*", "side-eye") },
 
   // ============================================================
+  // SYSTEM_CONTROL — volume / brightness / battery / lock / DND (16 examples)
+  // ============================================================
+  { input: "turn up the volume", output: tool('system_control', { action: 'volume_up' }, 'happy') },
+  { input: "louder please", output: tool('system_control', { action: 'volume_up' }, 'happy') },
+  { input: "turn it down", output: tool('system_control', { action: 'volume_down' }, 'happy') },
+  { input: "lower the volume", output: tool('system_control', { action: 'volume_down' }, 'happy') },
+  { input: "mute the sound", output: tool('system_control', { action: 'mute' }, 'happy') },
+  { input: "be quiet", output: tool('system_control', { action: 'mute' }, 'side-eye') },
+  { input: "unmute", output: tool('system_control', { action: 'unmute' }, 'happy') },
+  { input: "set volume to 50", output: tool('system_control', { action: 'set_volume', value: 50 }, 'happy') },
+  { input: "set the volume to 30 percent", output: tool('system_control', { action: 'set_volume', value: 30 }, 'happy') },
+  { input: "make the screen brighter", output: tool('system_control', { action: 'brightness_up' }, 'happy') },
+  { input: "dim the screen", output: tool('system_control', { action: 'brightness_down' }, 'happy') },
+  { input: "how much battery do I have", output: tool('system_control', { action: 'battery' }, 'curious') },
+  { input: "what's my battery level", output: tool('system_control', { action: 'battery' }, 'curious') },
+  { input: "lock my screen", output: tool('system_control', { action: 'lock_screen' }, 'happy') },
+  { input: "turn on do not disturb", output: tool('system_control', { action: 'dnd_on' }, 'happy') },
+  { input: "turn off do not disturb", output: tool('system_control', { action: 'dnd_off' }, 'happy') },
+
+  // ============================================================
   // RUN_SHELL — terminal/command execution (14 examples)
   // Explicit command/terminal phrasing only; gated by a confirmation dialog.
   // ============================================================

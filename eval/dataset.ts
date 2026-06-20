@@ -172,6 +172,15 @@ export const DATASET: TestCase[] = [
   { input: 'explain quantum computing', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'medium' },
 
   // ============================================================
+  // SYSTEM_CONTROL (volume/brightness/battery/lock/DND) — 5 cases
+  // ============================================================
+  { input: 'turn up the volume', expected_tool: 'system_control', expected_args: { action: 'volume_up' }, category: 'system', difficulty: 'easy' },
+  { input: 'mute the sound', expected_tool: 'system_control', expected_args: { action: 'mute' }, category: 'system', difficulty: 'easy' },
+  { input: 'how much battery do I have', expected_tool: 'system_control', expected_args: { action: 'battery' }, category: 'system', difficulty: 'medium' },
+  { input: 'lock my screen', expected_tool: 'system_control', expected_args: { action: 'lock_screen' }, category: 'system', difficulty: 'medium' },
+  { input: 'dim the screen', expected_tool: 'system_control', expected_args: { action: 'brightness_down' }, category: 'system', difficulty: 'hard' },
+
+  // ============================================================
   // RUN_SHELL (terminal/command execution) — 5 cases
   // ============================================================
   { input: 'run df -h', expected_tool: 'run_shell', expected_args: { command: 'df -h' }, category: 'shell', difficulty: 'easy' },
