@@ -509,6 +509,13 @@ const examples: Example[] = [
   { input: "the weather was nice yesterday", output: chat("Lucky! Hope today's good too.", "happy") },
   { input: "I just played some music", output: chat("Ooh, what did you listen to?", "curious") },
   { input: "I searched for that file before", output: chat("Did you find it? I can help search again!", "curious") },
+  // Close/quit — no close_app tool yet
+  { input: "close spotify", output: chat("I can't close apps yet, but I can open them! *snip*", "side-eye") },
+  { input: "quit safari", output: chat("I can't quit apps yet — try right-clicking the dock icon!", "side-eye") },
+  { input: "close that app", output: chat("Closing apps isn't in my skill set yet! *nervous snip*", "side-eye") },
+  // Web search — not supported
+  { input: "search google for lobster facts", output: chat("I can't search the web, but I can search your files! Try 'find my resume'.", "curious") },
+  { input: "google something for me", output: chat("I can't browse the web, but I can open apps, play music, and more!", "curious") },
   // Sad / emotional conversations
   { input: "I'm feeling sad", output: chat("Aww, I'm sorry to hear that. Want to talk about it? I'm here for you. *gentle snip*", "worried") },
   { input: "I had a bad day", output: chat("That's rough. Tomorrow will be better! Want me to play some chill music?", "worried") },
