@@ -51,11 +51,48 @@ Plan source: /plan-eng-review decisions D2-D19
 - [x] T18: Emotion engine (valence/arousal model, context-driven, conversation-aware)
 - [x] T19: Mood field in training data (404 examples with emotional tags)
 
+## OpenClaw Capability Parity Features
+Bringing Clawster to OpenClaw feature parity (top = highest priority).
+- [x] P1: Multi-turn memory — wire last 3 messages into classify()
+- [ ] P2: Shell command execution (run_shell + confirmation)
+- [ ] P3: System controls (volume/brightness/DND/battery/lock via osascript)
+- [ ] P4: iMessage integration (send_message + confirmation)
+- [ ] P5: Clipboard tools (read_clipboard, summarize_clipboard)
+- [ ] P6: Screen analysis (take_screenshot → cloud model)
+- [ ] P7: Focus mode (block_apps for N minutes)
+- [ ] P8: Personalization memory (~/.clawster/prefs.json → system prompt)
+- [ ] P9: Close/quit app (close_app via osascript)
+- [ ] P10: Time/date (what_time, day of week, countdowns)
+- [ ] P11: Natural conversation (inline personality responses)
+- [ ] P12: Contextual quick replies (dynamic buttons by tool/mood)
+
 ## Retrain Needed
 The following changes require one model retrain to take effect:
 - `list_files` tool (20 training examples)
 - All 14 mood states (29 examples)
 - Inline conversation responses with mood tags (77 examples)
+- **Multi-turn follow-ups (P1)** — 16 multi-turn examples teaching context resolution
+  ("how about downloads?" after "what's on my desktop?"); v4 model already
+  conditions on history but doesn't fully exploit it (e.g. "now do safari" →
+  open_url instead of open_app). Retrain will fix.
 - Run: `cp eval/train-data/*.jsonl ../clawster/eval/train-data/ && retrain`
 
 ## Progress Log
+
+### 2026-06-20 — P1: Multi-turn memory (shipped)
+- **Runtime wiring:** `ChatRouter.chat`/`chatStream` now pass conversation
+  `history` through to `LocalToolProvider.classify(input, history)` (previously
+  dropped as `_history`). Added `prepHistory()`: strips `[Screen Context: …]`
+  prefixes from prior turns, drops empties, keeps last 3.
+- **Eval harness:** `Provider` type + OpenAI/Anthropic/Local/Ollama adapters now
+  accept optional `history`; runner passes `tc.history`. `TestCase` gained an
+  optional `history` field; added 6 multi-turn cases (`multiturn` category, 109
+  total cases).
+- **Training data:** `Example` gained optional `context`; `toMLXChatFormat`
+  interleaves prior turns. Added 16 multi-turn examples → 432 total examples.
+- **Tests:** new `test/chat-router-history.test.ts` (5 cases) — passes history
+  through both chat paths, strips screen context, slices to 3, drops empties,
+  defaults to empty. Suite: 65 passed (was 60). Build green.
+- **Live check (clawster-tool-v4-q4):** history flows to model; "what about
+  tomorrow?" after calendar → get_calendar_events{tomorrow}; no regression on
+  no-context cases. Full context exploitation pending next retrain.
