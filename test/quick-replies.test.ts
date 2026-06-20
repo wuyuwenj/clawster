@@ -36,7 +36,7 @@ describe('getQuickReplies', () => {
 
 describe('ChatRouter includes contextual quick replies', () => {
   function routerReturning(toolCall: Record<string, unknown>) {
-    const fake = { classify: async () => toolCall, destroy() {} } as unknown as LocalToolProvider;
+    const fake = { classify: async () => toolCall, getModelName: () => 'test-model', destroy() {} } as unknown as LocalToolProvider;
     return new ChatRouter(fake);
   }
 

@@ -131,7 +131,7 @@ export class ChatRouter extends EventEmitter {
     const safety = checkSafety(rawInput);
     if (safety.blocked) {
       this.emotionEngine?.onConversationMood('worried');
-      logInteraction({ input: rawInput, tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
       return { type: 'message', text: safety.response! };
     }
 
@@ -144,13 +144,13 @@ export class ChatRouter extends EventEmitter {
 
     if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const screenResponse = await this.handleScreenshot(rawInput);
-      logInteraction({ input: rawInput, tool: 'take_screenshot', response: screenResponse.text, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: 'take_screenshot', response: screenResponse.text, mood: toolCall.mood, latencyMs, ts: Date.now() });
       return { ...screenResponse, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const result = await executeTool(toolCall.tool, toolCall.args);
-      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         return {
@@ -167,7 +167,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
-    logInteraction({ input: rawInput, tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
+    logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
     return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
   }
 
@@ -182,7 +182,7 @@ export class ChatRouter extends EventEmitter {
     if (safety.blocked) {
       this.emotionEngine?.onConversationMood('worried');
       handlers.onDelta?.(safety.response!, safety.response!);
-      logInteraction({ input: rawInput, tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
       return { type: 'message', text: safety.response! };
     }
 
@@ -199,13 +199,13 @@ export class ChatRouter extends EventEmitter {
       const screenResponse = await this.handleScreenshot(rawInput);
       const text = screenResponse.text || '';
       handlers.onDelta?.(text, text);
-      logInteraction({ input: rawInput, tool: 'take_screenshot', response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: 'take_screenshot', response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
       return { ...screenResponse, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const result = await executeTool(toolCall.tool, toolCall.args);
-      logInteraction({ input: rawInput, tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         const text = result.response || '';
@@ -225,7 +225,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
-    logInteraction({ input: rawInput, tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
+    logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
     handlers.onDelta?.(reply, reply);
     return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
   }
