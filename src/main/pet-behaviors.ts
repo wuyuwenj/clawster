@@ -41,7 +41,11 @@ const IDLE_BEHAVIORS: { type: IdleBehavior; weight: number }[] = [
 const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
 
 // Dependencies injected from main
-let getPetWindow: () => BrowserWindow | null = () => null;
+let _rawGetPetWindow: () => BrowserWindow | null = () => null;
+function getPetWindow(): BrowserWindow | null {
+  const win = _rawGetPetWindow();
+  return win && !win.isDestroyed() ? win : null;
+}
 let getStore: () => Store<StoreSchema> = null!;
 let getIsDev: () => boolean = () => false;
 let updatePetChatPositionFn: () => void = () => {};
@@ -54,7 +58,7 @@ export function initPetBehaviors(deps: {
   updatePetChatPosition: () => void;
   updateAssistantPosition: () => void;
 }): void {
-  getPetWindow = deps.getPetWindow;
+  _rawGetPetWindow = deps.getPetWindow;
   getStore = () => deps.store;
   getIsDev = () => deps.isDev;
   updatePetChatPositionFn = deps.updatePetChatPosition;
@@ -78,16 +82,22 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     petWindow.webContents.send('pet-moving', { moving: true });
 
     moveAnimation = setInterval(() => {
+      const win = getPetWindow();
+      if (!win) {
+        clearInterval(moveAnimation!);
+        moveAnimation = null;
+        resolve();
+        return;
+      }
+
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-
-      // Ease-out curve for natural movement
       const eased = 1 - Math.pow(1 - progress, 3);
 
       const currentX = Math.round(startX + (targetX - startX) * eased);
       const currentY = Math.round(startY + (targetY - startY) * eased);
 
-      getPetWindow()?.setPosition(currentX, currentY);
+      win.setPosition(currentX, currentY);
       updatePetChatPositionFn();
       updateAssistantPositionFn();
 
@@ -98,7 +108,7 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
         getPetWindow()?.webContents.send('pet-moving', { moving: false });
         resolve();
       }
-    }, 16); // ~60fps
+    }, 16);
   });
 }
 
