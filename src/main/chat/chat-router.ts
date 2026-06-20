@@ -34,9 +34,33 @@ const KNOWN_TOOLS = new Set([
   'remember_preference', 'recall_preferences', 'close_app',
 ]);
 
-function isFalsePositiveTool(input: string, tool: string | null): boolean {
+// Bare greetings / acknowledgements / fillers. When the WHOLE input is one of
+// these, any tool call is a false positive — a deterministic backstop for the
+// small model's tendency to over-trigger on conversational input (e.g.
+// "hello" → wave, "thanks" → send_message). Deliberately excludes words that
+// can be standalone commands (stop, wait, next, back, go, please).
+const CONVERSATIONAL_INPUTS = new Set([
+  'hi', 'hii', 'hello', 'helo', 'hey', 'heya', 'yo', 'hiya', 'sup', 'howdy',
+  'thanks', 'thank you', 'thx', 'ty', 'thank u', 'thankyou', 'tysm', 'thanks so much',
+  'ok', 'okay', 'k', 'kk', 'cool', 'cool cool', 'nice', 'sweet', 'great', 'awesome', 'gotcha', 'got it',
+  'lol', 'lmao', 'haha', 'hahaha', 'hehe', 'lol lol',
+  'yes', 'yep', 'yeah', 'yup', 'no', 'nope', 'nah', 'sure', 'maybe', 'idk',
+  'hmm', 'huh', 'oh', 'ah', 'wow', 'oof', 'ugh', 'meh', 'welp',
+  'bye', 'goodbye', 'good bye', 'goodnight', 'good night', 'night', 'cya', 'see ya', 'see you',
+  'good morning', 'morning', 'good afternoon', 'good evening', 'gm', 'gn',
+  'np', 'no worries', 'my bad', 'sorry', 'nevermind', 'never mind', 'forget it',
+  'you rock', 'love you', 'love it', 'amazing', 'perfect', 'yay', 'woohoo',
+]);
+
+function normalizeForReject(input: string): string {
+  return input.trim().toLowerCase().replace(/[!.?,;:'"~*]+/g, '').replace(/\s+/g, ' ').trim();
+}
+
+export function isFalsePositiveTool(input: string, tool: string | null): boolean {
   if (!tool) return false;
   if (!KNOWN_TOOLS.has(tool)) return true;
+  // Whole-input conversational filler → never a tool, regardless of which tool.
+  if (CONVERSATIONAL_INPUTS.has(normalizeForReject(input))) return true;
   if (tool !== 'set_mood') return false;
   if (MOOD_KEYWORDS.test(input)) return false;
   if (input.trim().length <= 2) return true;

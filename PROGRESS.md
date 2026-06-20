@@ -73,24 +73,30 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - ✅ **RETRAINED → clawster-tool-v6-q4** (2026-06-20) after P4+P5+P6. Promoted
   (default model now v6). Unlocks send_message/clipboard/screen-analysis. Open
   regression: holdout over-triggering — reject-strengthening retrain pending.
-- ⏳ **RETRAIN DUE (P7+P8+P9):** block_apps (P7, 12), remember/recall (P8, 13),
-  close_app (P9, 12, replaces 3 stale "can't close apps" reject examples). The
-  retrain will ALSO add reject/negative + music↔system_control disambiguation
-  examples to recover the v6 holdout regression (71.4% → target >90%).
+- ✅ **RETRAINED → clawster-tool-v7-q4** (2026-06-20) after P7+P8+P9 + 38
+  reject/disambiguation examples. Promoted (default now v7). Unlocks close_app +
+  block_apps + remember/recall. Training-only reject fix underperformed → added
+  a deterministic runtime CONVERSATIONAL_INPUTS guard in isFalsePositiveTool.
 
-## Benchmark Results (130-case standard dataset, fixed harness)
-| Model | Std tool | Std reject | msg | clip | shell | sys | shot | holdout tool |
-|-------|----------|-----------|-----|------|-------|-----|------|--------------|
-| clawster-tool-v5-q4 | 91.5% | 100% | 0% | 0% | 100% | 100% | 100% | 83.9% |
-| **clawster-tool-v6-q4** | **96.2%** | 80%* | 100% | 100% | 100% | 100% | 100% | 71.4% |
+## Benchmark Results (142-case standard dataset, fixed harness)
+| Model | Std tool | Std reject | close | focus | mem | holdout tool |
+|-------|----------|-----------|-------|-------|-----|--------------|
+| clawster-tool-v6-q4 | 85.9% | 60% | 0% | 0% | 0% | 71.4% |
+| **clawster-tool-v7-q4** | **93.7%** | 60%† | 100% | 100% | 50% | 73.2% |
 
-v6 (current default). Net vs v5: +4.7pp standard tool acc, unlocks
-send_message + clipboard (0→100%). *Standard reject 80% but ALL failures are
-set_mood false positives that `isFalsePositiveTool` drops at runtime → zero
-real reject impact. **Open regression:** holdout 83.9→71.4% (over-triggering:
-set_mood false positives [guard-caught] + music paraphrases + system_control
-stealing some music/app intents). Next: reject/disambiguation-strengthening
-retrain to recover holdout toward the >90% stop target.
+v7 (current default). Net vs v6: +7.8pp standard tool acc, unlocks close_app +
+block_apps + memory (0→100%/100%/50%). †Reject training-strengthening alone did
+NOT fix over-triggering (eval reject flat). **Runtime fix instead:** extended
+`isFalsePositiveTool` with a deterministic CONVERSATIONAL_INPUTS guard — any
+tool fired on a bare greeting/ack ("hello"→wave, "thanks"→send_message) is
+dropped to conversation. Verified end-to-end: conversational misfires dropped,
+real commands (close_app/block_apps) still fire.
+
+**Known model issues (for the final P10-P12 retrain):** (1) remember vs recall
+confusion ("remember I like jazz"→recall_preferences) → add contrastive
+examples; (2) eval reject/holdout still soft, but the runtime guard mitigates
+the user-facing impact. Eval uses toToolPrompt() ≠ runtime TOOL_PROMPT, so eval
+reject over-reports vs real behavior.
 
 ## Progress Log
 
