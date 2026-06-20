@@ -27,11 +27,11 @@ function prepHistory(
 const MOOD_KEYWORDS = /\b(mood|sleep|happy|sad|spin|mad|angry|curious|excited|proud|huff|peek|side.eye|tap|scoot|idle|dance|wake|cheer|grumpy|tired|bored|nap|doze|wave|snip|chill|relax|calm)\b/i;
 
 const KNOWN_TOOLS = new Set([
-  'set_mood', 'move_to', 'move_to_cursor', 'snip', 'wave', 'open_app', 'open_url',
+  'set_mood', 'move_to', 'move_to_cursor', 'snip', 'wave', 'open_app', 'close_app', 'open_url',
   'take_screenshot', 'get_calendar_events', 'create_calendar_event', 'create_reminder',
   'play_music', 'send_notification', 'search_files', 'list_files', 'get_weather',
-  'set_timer', 'create_timer', 'run_shell', 'system_control', 'send_message',
-  'read_clipboard', 'summarize_clipboard', 'block_apps',
+  'set_timer', 'create_timer', 'what_time', 'run_shell', 'system_control', 'send_message',
+  'read_clipboard', 'summarize_clipboard', 'block_apps', 'remember_preference', 'recall_preferences',
   'remember_preference', 'recall_preferences', 'close_app', 'what_time',
 ]);
 
