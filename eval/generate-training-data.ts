@@ -583,6 +583,18 @@ const examples: Example[] = [
   { input: "what are my preferences", output: tool('recall_preferences', {}, 'curious') },
   { input: "tell me what you remember", output: tool('recall_preferences', {}, 'curious') },
   { input: "do you remember my likes", output: tool('recall_preferences', {}, 'curious') },
+  // Contrastive: "remember <new fact>" is a WRITE (remember_preference), NOT a
+  // recall. v7 confused these — extra write examples disambiguate.
+  { input: "remember I love hiking", output: tool('remember_preference', { preference: 'loves hiking' }, 'happy') },
+  { input: "remember my birthday is in May", output: tool('remember_preference', { preference: 'birthday is in May' }, 'happy') },
+  { input: "remember I hate cilantro", output: tool('remember_preference', { preference: 'hates cilantro' }, 'happy') },
+  { input: "please remember I use vim", output: tool('remember_preference', { preference: 'uses vim' }, 'happy') },
+  { input: "remember I go to bed early", output: tool('remember_preference', { preference: 'goes to bed early' }, 'happy') },
+  { input: "save that I'm left handed", output: tool('remember_preference', { preference: 'is left handed' }, 'happy') },
+  { input: "remember I drink tea not coffee", output: tool('remember_preference', { preference: 'drinks tea not coffee' }, 'happy') },
+  { input: "make a note that I live in Boston", output: tool('remember_preference', { preference: 'lives in Boston' }, 'happy') },
+  { input: "remember my sister is named Kate", output: tool('remember_preference', { preference: 'sister is named Kate' }, 'happy') },
+  { input: "jot down that I'm learning spanish", output: tool('remember_preference', { preference: 'is learning spanish' }, 'happy') },
 
   // ============================================================
   // BLOCK_APPS — focus mode (12 examples)
