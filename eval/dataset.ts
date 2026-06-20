@@ -191,6 +191,14 @@ export const DATASET: TestCase[] = [
   { input: 'imessage dad good night', expected_tool: 'send_message', expected_args: { recipient: 'dad', message: 'good night' }, category: 'message', difficulty: 'medium' },
 
   // ============================================================
+  // PERSONALIZATION (remember/recall) — 4 cases
+  // ============================================================
+  { input: 'remember I like jazz', expected_tool: 'remember_preference', expected_args: { preference: 'likes jazz' }, category: 'memory', difficulty: 'medium' },
+  { input: "remember that I'm vegetarian", expected_tool: 'remember_preference', expected_args: { preference: 'is vegetarian' }, category: 'memory', difficulty: 'hard' },
+  { input: 'what do you remember about me', expected_tool: 'recall_preferences', expected_args: {}, category: 'memory', difficulty: 'medium' },
+  { input: 'what do you know about me', expected_tool: 'recall_preferences', expected_args: {}, category: 'memory', difficulty: 'hard' },
+
+  // ============================================================
   // BLOCK_APPS (focus mode) — 4 cases
   // ============================================================
   { input: 'turn on focus mode', expected_tool: 'block_apps', expected_args: {}, category: 'focus', difficulty: 'easy' },

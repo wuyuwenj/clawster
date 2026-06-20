@@ -99,6 +99,18 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'remember_preference',
+    description: 'Remember a fact or preference about the user',
+    parameters: {
+      preference: { type: 'string', description: 'The fact to remember, e.g. "likes jazz"', required: true },
+    },
+  },
+  {
+    name: 'recall_preferences',
+    description: 'Recall what the user has asked you to remember',
+    parameters: {},
+  },
+  {
     name: 'take_screenshot',
     description: 'Capture the current screen',
     parameters: {},

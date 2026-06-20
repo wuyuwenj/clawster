@@ -539,6 +539,23 @@ const examples: Example[] = [
   { input: "ugh", output: chat("I feel that. *sympathetic snip*", "side-eye") },
 
   // ============================================================
+  // PERSONALIZATION — remember_preference / recall_preferences (13 examples)
+  // ============================================================
+  { input: "remember I like jazz", output: tool('remember_preference', { preference: 'likes jazz' }, 'happy') },
+  { input: "remember that I'm vegetarian", output: tool('remember_preference', { preference: 'is vegetarian' }, 'happy') },
+  { input: "don't forget I prefer dark mode", output: tool('remember_preference', { preference: 'prefers dark mode' }, 'happy') },
+  { input: "keep in mind I work best in the morning", output: tool('remember_preference', { preference: 'works best in the morning' }, 'happy') },
+  { input: "remember my favorite color is blue", output: tool('remember_preference', { preference: 'favorite color is blue' }, 'happy') },
+  { input: "note that I'm allergic to peanuts", output: tool('remember_preference', { preference: 'is allergic to peanuts' }, 'worried') },
+  { input: "remember I take my coffee black", output: tool('remember_preference', { preference: 'takes coffee black' }, 'happy') },
+  { input: "remember that my dog's name is Rex", output: tool('remember_preference', { preference: "dog's name is Rex" }, 'happy') },
+  { input: "what do you remember about me", output: tool('recall_preferences', {}, 'curious') },
+  { input: "what do you know about me", output: tool('recall_preferences', {}, 'curious') },
+  { input: "what are my preferences", output: tool('recall_preferences', {}, 'curious') },
+  { input: "tell me what you remember", output: tool('recall_preferences', {}, 'curious') },
+  { input: "do you remember my likes", output: tool('recall_preferences', {}, 'curious') },
+
+  // ============================================================
   // BLOCK_APPS — focus mode (12 examples)
   // ============================================================
   { input: "turn on focus mode", output: tool('block_apps', {}, 'proud') },
