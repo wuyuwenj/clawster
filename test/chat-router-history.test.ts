@@ -123,6 +123,29 @@ describe('isFalsePositiveTool conversational guard', () => {
   });
 });
 
+describe('ChatRouter inline personality responses (P11)', () => {
+  it('returns the model-generated response when present', async () => {
+    const fake = {
+      classify: async () => ({ tool: null, args: {}, response: 'Hehe, you crack me up! *snip*', mood: 'happy' }),
+      destroy() {},
+    } as unknown as LocalToolProvider;
+    const router = new ChatRouter(fake);
+    const res = await router.chat('you are funny');
+    expect(res.text).toBe('Hehe, you crack me up! *snip*');
+  });
+
+  it('falls back to a template when the model gives no response', async () => {
+    const fake = {
+      classify: async () => ({ tool: null, args: {}, mood: 'happy' }),
+      destroy() {},
+    } as unknown as LocalToolProvider;
+    const router = new ChatRouter(fake);
+    const res = await router.chat('hello there');
+    expect(typeof res.text).toBe('string');
+    expect((res.text || '').length).toBeGreaterThan(0);
+  });
+});
+
 describe('ChatRouter screen analysis', () => {
   it('analyzeScreen delegates to the vision provider', async () => {
     const router = new ChatRouter(makeToolModelReturning({ tool: null, args: {} }));

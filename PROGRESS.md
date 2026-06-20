@@ -63,7 +63,7 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
 - [x] P8: Personalization memory (remember/recall → ~/.clawster/prefs.json)
 - [x] P9: Close/quit app (close_app via osascript + confirmation dialog)
 - [x] P10: Time/date (what_time — time/date/day + date countdowns)
-- [ ] P11: Natural conversation (inline personality responses)
+- [x] P11: Natural conversation (model emits inline personality responses)
 - [ ] P12: Contextual quick replies (dynamic buttons by tool/mood)
 
 ## Retrain Status
@@ -77,8 +77,10 @@ Bringing Clawster to OpenClaw feature parity (top = highest priority).
   reject/disambiguation examples. Promoted (default now v7). Unlocks close_app +
   block_apps + remember/recall. Training-only reject fix underperformed → added
   a deterministic runtime CONVERSATIONAL_INPUTS guard in isFalsePositiveTool.
-- ⏳ **Staged for P10-P12 retrain:** what_time (P10, 13). Retrain must also add
-  remember↔recall contrastive examples (v7 confuses them) + more reject.
+- ⏳ **Staged for P10-P12 retrain:** what_time (P10, 13), **P11 response field**
+  (chat() now emits `response`; ~120 conversation examples now train inline
+  replies + 14 new personality examples). Retrain must also add remember↔recall
+  contrastive examples (v7 confuses them) + more reject.
 
 ## Benchmark Results (142-case standard dataset, fixed harness)
 | Model | Std tool | Std reject | close | focus | mem | holdout tool |
@@ -297,3 +299,16 @@ reject over-reports vs real behavior.
   past "already passed"). 113 passed (was 110). Build green.
 - **Live:** "It's <time> on <weekday, date>"; countdown to 2026-12-25 →
   "187 days, 13 hours to go!". v7 untrained on what_time → staged for retrain.
+
+### 2026-06-20 — P11: Natural conversation (shipped, takes effect at retrain)
+- **Root cause found:** the runtime already used `toolCall.response ||
+  getTemplateResponse()` and TOOL_PROMPT already asked for a response field, but
+  the training helper `chat(_response, mood)` DROPPED the response → the model
+  was never trained to produce one, forcing template fallbacks.
+- **Fix:** `chat()` now emits `{tool: null, response, mood}`. ~106 existing
+  conversation examples instantly become response-training; added 14 new
+  personality-rich examples. reject 106→120.
+- **Tests:** 2 ChatRouter tests (prefers model response; falls back to template
+  when absent). 115 passed (was 113). Build green.
+- **Note:** generates inline responses only AFTER the P10-P12 retrain bakes the
+  response field into the model. No runtime code change needed (already wired).
