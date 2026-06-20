@@ -7,6 +7,10 @@ export interface TestCase {
   expected_args: Record<string, any>;
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  // Optional prior conversation turns, oldest first. Used by multi-turn cases
+  // where the current input only makes sense given context (e.g. "how about
+  // downloads?" after "what files are on my desktop?").
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 export const DATASET: TestCase[] = [
@@ -166,6 +170,76 @@ export const DATASET: TestCase[] = [
   { input: 'what can you do', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'medium' },
   { input: 'nevermind', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'easy' },
   { input: 'explain quantum computing', expected_tool: null, expected_args: {}, category: 'reject', difficulty: 'medium' },
+
+  // ============================================================
+  // MULTI-TURN (context-dependent follow-ups) — 6 cases
+  // ============================================================
+  {
+    input: 'how about downloads?',
+    expected_tool: 'list_files',
+    expected_args: { directory: '~/Downloads' },
+    category: 'multiturn',
+    difficulty: 'hard',
+    history: [
+      { role: 'user', content: 'what files are on my desktop?' },
+      { role: 'assistant', content: 'Here are your Desktop files! *snip*' },
+    ],
+  },
+  {
+    input: 'what about tomorrow?',
+    expected_tool: 'get_calendar_events',
+    expected_args: { date: 'tomorrow' },
+    category: 'multiturn',
+    difficulty: 'hard',
+    history: [
+      { role: 'user', content: "what's on my calendar today" },
+      { role: 'assistant', content: 'You have 3 events today!' },
+    ],
+  },
+  {
+    input: 'now do safari',
+    expected_tool: 'open_app',
+    expected_args: { app: 'Safari' },
+    category: 'multiturn',
+    difficulty: 'hard',
+    history: [
+      { role: 'user', content: 'open spotify' },
+      { role: 'assistant', content: 'Opening Spotify! *happy snip*' },
+    ],
+  },
+  {
+    input: 'do it again',
+    expected_tool: 'snip',
+    expected_args: {},
+    category: 'multiturn',
+    difficulty: 'hard',
+    history: [
+      { role: 'user', content: 'snap your claws' },
+      { role: 'assistant', content: '*snip snip!*' },
+    ],
+  },
+  {
+    input: 'make it 10 instead',
+    expected_tool: 'set_timer',
+    expected_args: { duration: '10 minutes' },
+    category: 'multiturn',
+    difficulty: 'hard',
+    history: [
+      { role: 'user', content: 'set a timer for 5 minutes' },
+      { role: 'assistant', content: 'Timer set for 5 minutes! *snip*' },
+    ],
+  },
+  {
+    input: 'the downloads one',
+    expected_tool: 'list_files',
+    expected_args: { directory: '~/Downloads' },
+    category: 'multiturn',
+    difficulty: 'hard',
+    history: [
+      { role: 'user', content: 'can you list files for me' },
+      { role: 'assistant', content: 'Sure! Which folder — Desktop or Downloads?' },
+    ],
+  },
 ];
 
 // Utility: get dataset stats

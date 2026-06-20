@@ -14,7 +14,12 @@ export interface ProviderResult {
   raw?: string;
 }
 
-export type Provider = (input: string) => Promise<ProviderResult>;
+export interface HistoryTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export type Provider = (input: string, history?: HistoryTurn[]) => Promise<ProviderResult>;
 
 // --- OpenAI provider (works for GPT-4o, GPT-4o-mini, fine-tuned models) ---
 // OpenAI auto-caches identical prefixes (system + tools) for prompts >1024 tokens.
@@ -35,7 +40,7 @@ export function createOpenAIProvider(options: {
   let cachedTokens = 0;
   let totalInputTokens = 0;
 
-  return async (input: string): Promise<ProviderResult> => {
+  return async (input: string, history: HistoryTurn[] = []): Promise<ProviderResult> => {
     const start = performance.now();
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -46,7 +51,7 @@ export function createOpenAIProvider(options: {
       },
       body: JSON.stringify({
         model,
-        messages: [systemMessage, { role: 'user', content: input }],
+        messages: [systemMessage, ...history, { role: 'user', content: input }],
         tools,
         tool_choice: 'auto',
         temperature: 0,
@@ -117,7 +122,7 @@ export function createAnthropicProvider(options: {
   let cachedInputTokens = 0;
   let totalInputTokens = 0;
 
-  return async (input: string): Promise<ProviderResult> => {
+  return async (input: string, history: HistoryTurn[] = []): Promise<ProviderResult> => {
     const start = performance.now();
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -131,7 +136,7 @@ export function createAnthropicProvider(options: {
         model,
         max_tokens: 256,
         system: systemMessage,
-        messages: [{ role: 'user', content: input }],
+        messages: [...history, { role: 'user', content: input }],
         tools,
         tool_choice: { type: 'auto' },
         temperature: 0,
@@ -175,7 +180,7 @@ export function createLocalProvider(options: {
   const { baseUrl, model = 'default' } = options;
   const systemPrompt = toToolPrompt();
 
-  return async (input: string): Promise<ProviderResult> => {
+  return async (input: string, history: HistoryTurn[] = []): Promise<ProviderResult> => {
     const start = performance.now();
 
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
@@ -185,6 +190,7 @@ export function createLocalProvider(options: {
         model,
         messages: [
           { role: 'system', content: systemPrompt },
+          ...history,
           { role: 'user', content: input },
         ],
         temperature: 0,
@@ -216,7 +222,7 @@ export function createOllamaProvider(options: {
   const { model, baseUrl = 'http://localhost:11434' } = options;
   const systemPrompt = toToolPrompt();
 
-  return async (input: string): Promise<ProviderResult> => {
+  return async (input: string, history: HistoryTurn[] = []): Promise<ProviderResult> => {
     const start = performance.now();
 
     const response = await fetch(`${baseUrl}/api/chat`, {
@@ -226,6 +232,7 @@ export function createOllamaProvider(options: {
         model,
         messages: [
           { role: 'system', content: systemPrompt },
+          ...history,
           { role: 'user', content: input },
         ],
         stream: false,

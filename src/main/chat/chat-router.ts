@@ -11,6 +11,18 @@ function stripScreenContext(message: string): string {
   return message.replace(/^\[Screen Context:.*?\]\s*/s, '');
 }
 
+// Prepare prior turns for the classifier: strip screen-context prefixes, drop
+// empties, and keep only the last few messages so "how about downloads?" can
+// resolve against "what files are on my desktop?".
+function prepHistory(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  return history
+    .map(m => ({ role: m.role, content: stripScreenContext(m.content || '').trim() }))
+    .filter(m => m.content.length > 0)
+    .slice(-3);
+}
+
 const MOOD_KEYWORDS = /\b(mood|sleep|happy|sad|spin|mad|angry|curious|excited|proud|huff|peek|side.eye|tap|scoot|idle|dance|wake|cheer|grumpy|tired|bored|nap|doze|wave|snip|chill|relax|calm)\b/i;
 
 const KNOWN_TOOLS = new Set([
@@ -52,7 +64,7 @@ export class ChatRouter extends EventEmitter {
 
   async chat(
     message: string,
-    _history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = []
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
 
@@ -64,7 +76,7 @@ export class ChatRouter extends EventEmitter {
     }
 
     const start = Date.now();
-    const toolCall = await this.toolModel.classify(rawInput);
+    const toolCall = await this.toolModel.classify(rawInput, prepHistory(history));
     const latencyMs = Date.now() - start;
 
     this.emotionEngine?.onInteraction();
@@ -94,7 +106,7 @@ export class ChatRouter extends EventEmitter {
 
   async chatStream(
     message: string,
-    _history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
     handlers: ChatStreamHandlers = {}
   ): Promise<ChatResponse> {
     const rawInput = stripScreenContext(message);
@@ -111,7 +123,7 @@ export class ChatRouter extends EventEmitter {
 
     this.emotionEngine?.onInteraction();
 
-    const toolCall = await this.toolModel.classify(rawInput);
+    const toolCall = await this.toolModel.classify(rawInput, prepHistory(history));
     const latencyMs = Date.now() - start;
 
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);

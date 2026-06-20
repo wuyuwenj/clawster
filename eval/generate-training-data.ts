@@ -9,6 +9,9 @@ const SYSTEM_PROMPT = 'You are Clawster, a cute desktop pet lobster. Respond wit
 interface Example {
   input: string;
   output: string;
+  // Optional prior conversation turns (oldest first) for multi-turn examples
+  // that teach the model to resolve context-dependent follow-ups.
+  context?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 function tool(name: string, args: Record<string, any> = {}, mood: string = 'happy'): string {
@@ -525,12 +528,146 @@ const examples: Example[] = [
   { input: "I'm angry", output: chat("Let it out! Want to vent? I'm all claws... er, ears.", "worried") },
   { input: "I hate mondays", output: chat("Mondays are rough. But hey, at least you've got a lobster on your desktop!", "side-eye") },
   { input: "ugh", output: chat("I feel that. *sympathetic snip*", "side-eye") },
+
+  // ============================================================
+  // MULTI-TURN — context-dependent follow-ups (16 examples)
+  // The model must use prior turns to resolve the current request.
+  // ============================================================
+  {
+    input: "how about downloads?",
+    output: tool('list_files', { directory: '~/Downloads' }, 'curious'),
+    context: [
+      { role: 'user', content: 'what files are on my desktop?' },
+      { role: 'assistant', content: tool('list_files', { directory: '~/Desktop' }, 'curious') },
+    ],
+  },
+  {
+    input: "and documents?",
+    output: tool('list_files', { directory: '~/Documents' }, 'curious'),
+    context: [
+      { role: 'user', content: 'list my downloads' },
+      { role: 'assistant', content: tool('list_files', { directory: '~/Downloads' }, 'curious') },
+    ],
+  },
+  {
+    input: "what about the desktop",
+    output: tool('list_files', { directory: '~/Desktop' }, 'curious'),
+    context: [
+      { role: 'user', content: 'show me whats in downloads' },
+      { role: 'assistant', content: tool('list_files', { directory: '~/Downloads' }, 'curious') },
+    ],
+  },
+  {
+    input: "what about tomorrow?",
+    output: tool('get_calendar_events', { date: 'tomorrow' }, 'curious'),
+    context: [
+      { role: 'user', content: "what's on my calendar today" },
+      { role: 'assistant', content: tool('get_calendar_events', { date: 'today' }, 'curious') },
+    ],
+  },
+  {
+    input: "and this week?",
+    output: tool('get_calendar_events', { date: 'this week' }, 'curious'),
+    context: [
+      { role: 'user', content: 'any meetings tomorrow' },
+      { role: 'assistant', content: tool('get_calendar_events', { date: 'tomorrow' }, 'curious') },
+    ],
+  },
+  {
+    input: "now open safari",
+    output: tool('open_app', { app: 'Safari' }, 'happy'),
+    context: [
+      { role: 'user', content: 'open spotify' },
+      { role: 'assistant', content: tool('open_app', { app: 'Spotify' }, 'happy') },
+    ],
+  },
+  {
+    input: "do terminal too",
+    output: tool('open_app', { app: 'Terminal' }, 'happy'),
+    context: [
+      { role: 'user', content: 'launch finder' },
+      { role: 'assistant', content: tool('open_app', { app: 'Finder' }, 'happy') },
+    ],
+  },
+  {
+    input: "do it again",
+    output: tool('snip', {}, 'excited'),
+    context: [
+      { role: 'user', content: 'snap your claws' },
+      { role: 'assistant', content: tool('snip', {}, 'excited') },
+    ],
+  },
+  {
+    input: "again!",
+    output: tool('wave', {}, 'happy'),
+    context: [
+      { role: 'user', content: 'wave at me' },
+      { role: 'assistant', content: tool('wave', {}, 'happy') },
+    ],
+  },
+  {
+    input: "make it 10 instead",
+    output: tool('set_timer', { duration: '10 minutes' }, 'happy'),
+    context: [
+      { role: 'user', content: 'set a timer for 5 minutes' },
+      { role: 'assistant', content: tool('set_timer', { duration: '5 minutes' }, 'happy') },
+    ],
+  },
+  {
+    input: "change it to 20 minutes",
+    output: tool('set_timer', { duration: '20 minutes' }, 'happy'),
+    context: [
+      { role: 'user', content: 'timer for 15 min' },
+      { role: 'assistant', content: tool('set_timer', { duration: '15 minutes' }, 'happy') },
+    ],
+  },
+  {
+    input: "play something else",
+    output: tool('play_music', { action: 'next' }, 'happy'),
+    context: [
+      { role: 'user', content: 'play some jazz' },
+      { role: 'assistant', content: tool('play_music', { query: 'jazz' }, 'happy') },
+    ],
+  },
+  {
+    input: "what about london?",
+    output: tool('get_weather', { location: 'London' }, 'curious'),
+    context: [
+      { role: 'user', content: "what's the weather in tokyo" },
+      { role: 'assistant', content: tool('get_weather', { location: 'Tokyo' }, 'curious') },
+    ],
+  },
+  {
+    input: "the downloads one",
+    output: tool('list_files', { directory: '~/Downloads' }, 'happy'),
+    context: [
+      { role: 'user', content: 'can you list files for me' },
+      { role: 'assistant', content: chat('Sure! Which folder — Desktop or Downloads?', 'curious') },
+    ],
+  },
+  {
+    input: "go there instead",
+    output: tool('move_to_cursor', {}, 'happy'),
+    context: [
+      { role: 'user', content: 'come to the top left' },
+      { role: 'assistant', content: tool('move_to', { x: 0, y: 0 }, 'happy') },
+    ],
+  },
+  {
+    input: "yes do that",
+    output: tool('take_screenshot', {}, 'curious'),
+    context: [
+      { role: 'user', content: 'can you see my screen' },
+      { role: 'assistant', content: chat('I can take a screenshot to look! Want me to?', 'curious') },
+    ],
+  },
 ];
 
 // Convert to MLX chat format
 function toMLXChatFormat(ex: Example): string {
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
+    ...(ex.context || []),
     { role: 'user', content: ex.input },
     { role: 'assistant', content: ex.output },
   ];

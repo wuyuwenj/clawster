@@ -98,7 +98,7 @@ export async function evaluate(
       process.stdout.write(`\r  [${i + 1}/${testCases.length}] ${tc.input.slice(0, 50).padEnd(50)}`);
 
       try {
-        const result = await provider(tc.input);
+        const result = await provider(tc.input, tc.history);
         const toolCorrect = result.toolCall.tool === tc.expected_tool;
         const argsScore = toolCorrect && tc.expected_tool !== null
           ? scoreArgs(tc.expected_args, result.toolCall.args)
