@@ -1,8 +1,7 @@
-import { systemPreferences, shell, BrowserWindow, ipcMain } from 'electron';
+import { systemPreferences, shell } from 'electron';
 
 export type PermissionType = 'accessibility' | 'screen-recording' | 'microphone';
-
-const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+export type PermissionStatus = 'granted' | 'needs-permission' | 'restricted' | 'waiting';
 
 const SETTINGS_URLS: Record<PermissionType, string> = {
   'accessibility': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
@@ -10,85 +9,54 @@ const SETTINGS_URLS: Record<PermissionType, string> = {
   'microphone': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone',
 };
 
-const PERMISSION_INFO: Record<PermissionType, {
+export const PERMISSION_INFO: Record<PermissionType, {
   title: string;
-  emoji: string;
   why: string;
+  reassurance: string;
   unlocks: string[];
-  steps: string[];
+  instructions: string;
   needsRestart: boolean;
 }> = {
   'accessibility': {
     title: 'Accessibility',
-    emoji: '🦞',
-    why: 'Clawster needs Accessibility permission to control apps on your Mac.',
+    why: 'Clawster needs Accessibility access to close apps, hide distracting apps, and adjust brightness.',
+    reassurance: 'It does not read your screen contents.',
     unlocks: [
-      'Close & quit apps ("close Spotify")',
+      'Close & quit apps',
       'Focus mode — hide distracting apps',
       'Brightness control',
       'See which app you\'re using',
     ],
-    steps: [
-      'Click <b>Open Settings</b> below',
-      'Find <b>Clawster</b> in the list',
-      'Toggle it <b>ON</b>',
-    ],
+    instructions: 'Open System Settings → Privacy & Security → Accessibility. Turn on the switch next to Clawster.',
     needsRestart: false,
   },
   'screen-recording': {
     title: 'Screen Recording',
-    emoji: '📸',
-    why: 'Clawster needs Screen Recording permission to see what\'s on your screen.',
+    why: 'Clawster needs Screen Recording to see what\'s on your screen and help you with it.',
+    reassurance: 'It does not record or save your screen.',
     unlocks: [
-      'Screenshot analysis ("what\'s on my screen?")',
+      'Screenshot analysis',
       'Screen context awareness',
     ],
-    steps: [
-      'Click <b>Open Settings</b> below',
-      'Find <b>Clawster</b> in the list',
-      'Toggle it <b>ON</b>',
-      'You may need to <b>restart Clawster</b> after',
-    ],
+    instructions: 'Open System Settings → Privacy & Security → Screen Recording. Turn on the switch next to Clawster.',
     needsRestart: true,
   },
   'microphone': {
     title: 'Microphone',
-    emoji: '🎤',
     why: 'Clawster needs microphone access for voice input.',
+    reassurance: 'Audio is processed locally and never stored.',
     unlocks: ['Talk to your pet with your voice'],
-    steps: ['Click <b>Allow</b> when the system prompt appears'],
+    instructions: 'Click Allow when the system prompt appears.',
     needsRestart: false,
   },
 };
 
-// State: decline cooldowns and dialog mutex
-const declineTimestamps: Record<string, number> = {};
-let activeDialog: BrowserWindow | null = null;
-
-// Store reference for cooldown persistence
+// Polling state
+const activePollers: Map<PermissionType, ReturnType<typeof setInterval>> = new Map();
 let storeRef: any = null;
 
 export function setPermissionStore(store: any): void {
   storeRef = store;
-  try {
-    const saved = store.get('permissionDeclines') as Record<string, number> | undefined;
-    if (saved && typeof saved === 'object') {
-      Object.assign(declineTimestamps, saved);
-    }
-  } catch { /* fresh install */ }
-}
-
-function saveDecline(type: PermissionType): void {
-  declineTimestamps[type] = Date.now();
-  try {
-    storeRef?.set('permissionDeclines', { ...declineTimestamps });
-  } catch { /* non-critical */ }
-}
-
-function isInCooldown(type: PermissionType): boolean {
-  const ts = declineTimestamps[type];
-  if (!ts) return false;
-  return Date.now() - ts < COOLDOWN_MS;
 }
 
 export function checkPermission(type: PermissionType): boolean {
@@ -106,6 +74,30 @@ export function checkPermission(type: PermissionType): boolean {
   }
 }
 
+export function getPermissionStatus(type: PermissionType): PermissionStatus {
+  try {
+    if (type === 'accessibility') {
+      return systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'needs-permission';
+    }
+    const status = systemPreferences.getMediaAccessStatus(
+      type === 'screen-recording' ? 'screen' : type
+    );
+    if (status === 'granted') return 'granted';
+    if (status === 'restricted') return 'restricted';
+    return 'needs-permission';
+  } catch {
+    return 'granted';
+  }
+}
+
+export function getAllPermissionStatuses(): Record<PermissionType, PermissionStatus> {
+  return {
+    'accessibility': getPermissionStatus('accessibility'),
+    'screen-recording': getPermissionStatus('screen-recording'),
+    'microphone': getPermissionStatus('microphone'),
+  };
+}
+
 export async function requestPermission(type: PermissionType): Promise<boolean> {
   if (checkPermission(type)) return true;
 
@@ -117,300 +109,40 @@ export async function requestPermission(type: PermissionType): Promise<boolean> 
     }
   }
 
-  if (isInCooldown(type)) {
-    console.log(`[Permission] ${type} in cooldown, skipping prompt`);
-    return false;
-  }
-
-  // Only one dialog at a time
-  if (activeDialog && !activeDialog.isDestroyed()) {
-    console.log(`[Permission] Dialog already open, skipping`);
-    return false;
-  }
-
-  // In test environment, skip the dialog window
-  if (process.env.NODE_ENV === 'test') {
-    console.log(`[Permission] Test env, skipping dialog for ${type}`);
-    return false;
-  }
-
-  return showPermissionWindow(type);
+  // Accessibility and Screen Recording: open the exact System Settings pane
+  shell.openExternal(SETTINGS_URLS[type]);
+  return false;
 }
 
-function buildDialogHTML(type: PermissionType): string {
-  const info = PERMISSION_INFO[type];
-  const unlocksList = info.unlocks.map(u => `<li>${u}</li>`).join('');
-  const stepsList = info.steps.map((s, i) => `<li><span class="step-num">${i + 1}</span>${s}</li>`).join('');
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0f0f0f;
-    color: #e5e5e5;
-    padding: 28px 32px 36px;
-    -webkit-app-region: drag;
-    user-select: none;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  body::-webkit-scrollbar { width: 6px; }
-  body::-webkit-scrollbar-track { background: transparent; }
-  body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .emoji { font-size: 36px; }
-  h1 {
-    font-size: 18px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    color: #fff;
-  }
-  .subtitle {
-    font-size: 13px;
-    color: #a3a3a3;
-    margin-bottom: 20px;
-    line-height: 1.5;
-  }
-  .section-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #737373;
-    margin-bottom: 8px;
-    font-weight: 600;
-  }
-  .unlocks {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 18px;
-  }
-  .unlocks li {
-    list-style: none;
-    font-size: 13px;
-    padding: 4px 0;
-    color: #d4d4d4;
-  }
-  .unlocks li::before {
-    content: "✓ ";
-    color: #008080;
-    font-weight: bold;
-  }
-  .steps {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 20px;
-  }
-  .steps li {
-    list-style: none;
-    font-size: 13px;
-    padding: 6px 0;
-    color: #d4d4d4;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .step-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #FF8C69;
-    color: #0f0f0f;
-    font-size: 12px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .status {
-    text-align: center;
-    font-size: 13px;
-    color: #737373;
-    margin-bottom: 16px;
-    min-height: 20px;
-  }
-  .status.granted {
-    color: #008080;
-    font-weight: 600;
-  }
-  .buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 8px;
-    -webkit-app-region: no-drag;
-  }
-  button {
-    flex: 1;
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-  button:hover { opacity: 0.85; }
-  .btn-primary {
-    background: #FF8C69;
-    color: #0f0f0f;
-  }
-  .btn-secondary {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.05);
-    color: #a3a3a3;
-  }
-</style>
-</head>
-<body>
-  <div class="header">
-    <span class="emoji">${info.emoji}</span>
-    <h1>${info.title} Permission</h1>
-  </div>
-  <p class="subtitle">${info.why}</p>
-
-  <div class="section-label">This unlocks</div>
-  <ul class="unlocks">${unlocksList}</ul>
-
-  <div class="section-label">How to enable</div>
-  <ol class="steps">${stepsList}</ol>
-
-  <div class="status" id="status">Waiting for permission...</div>
-
-  <div class="buttons">
-    <button class="btn-primary" id="openSettings">Open Settings</button>
-    <button class="btn-secondary" id="maybeLater">Maybe Later</button>
-  </div>
-
-  <script>
-    const { ipcRenderer } = require('electron');
-    document.getElementById('openSettings').addEventListener('click', () => {
-      ipcRenderer.send('permission-open-settings');
-    });
-    document.getElementById('maybeLater').addEventListener('click', () => {
-      ipcRenderer.send('permission-declined');
-    });
-    ipcRenderer.on('permission-granted', () => {
-      document.getElementById('status').textContent = 'Permission granted! ✅';
-      document.getElementById('status').className = 'status granted';
-      setTimeout(() => ipcRenderer.send('permission-granted-ack'), 800);
-    });
-  </script>
-</body>
-</html>`;
+export function openPermissionSettings(type: PermissionType): void {
+  shell.openExternal(SETTINGS_URLS[type]);
 }
 
-function showPermissionWindow(type: PermissionType): Promise<boolean> {
-  return new Promise((resolve) => {
-    const height = PERMISSION_INFO[type].steps.length > 3 ? 660 : 600;
-    const win = new BrowserWindow({
-      width: 400,
-      height,
-      resizable: true,
-      minimizable: false,
-      maximizable: false,
-      alwaysOnTop: true,
-      frame: false,
-      transparent: false,
-      backgroundColor: '#1a1a2e',
-      titleBarStyle: 'hidden',
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-      },
-    });
-
-    activeDialog = win;
-
-    const html = buildDialogHTML(type);
-    win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-
-    let granted = false;
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-    // Poll for permission every second
-    pollTimer = setInterval(() => {
-      if (checkPermission(type)) {
-        granted = true;
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = null;
-        if (!win.isDestroyed()) {
-          win.webContents.send('permission-granted');
-        }
-      }
-    }, 1000);
-
-    const cleanup = () => {
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = null;
-      ipcMain.removeAllListeners('permission-open-settings');
-      ipcMain.removeAllListeners('permission-declined');
-      ipcMain.removeAllListeners('permission-granted-ack');
-      activeDialog = null;
-    };
-
-    ipcMain.once('permission-open-settings', () => {
-      shell.openExternal(SETTINGS_URLS[type]);
-    });
-
-    ipcMain.once('permission-declined', () => {
-      saveDecline(type);
-      try { require('./analytics').trackPermissionRequested({ permission: type, granted: false }); } catch {}
-      cleanup();
-      if (!win.isDestroyed()) win.close();
-      resolve(false);
-    });
-
-    ipcMain.once('permission-granted-ack', () => {
+export function startPolling(type: PermissionType, onGranted: () => void): void {
+  stopPolling(type);
+  const timer = setInterval(() => {
+    if (checkPermission(type)) {
+      stopPolling(type);
+      console.log(`[Permission] ${type} granted (detected by poll)`);
       try { require('./analytics').trackPermissionRequested({ permission: type, granted: true }); } catch {}
-      cleanup();
-      if (!win.isDestroyed()) win.close();
-      if (PERMISSION_INFO[type].needsRestart) {
-        const { dialog: dlg } = require('electron');
-        dlg.showMessageBox({
-          type: 'info',
-          title: 'Restart Required',
-          message: `${PERMISSION_INFO[type].title} permission granted! Please restart Clawster for it to take effect.`,
-          buttons: ['Restart Now', 'Later'],
-          defaultId: 0,
-        }).then((r: { response: number }) => {
-          if (r.response === 0) {
-            const { app: electronApp } = require('electron');
-            electronApp.relaunch();
-            electronApp.quit();
-          }
-        });
-      }
-      resolve(true);
-    });
+      onGranted();
+    }
+  }, 1500);
+  activePollers.set(type, timer);
+}
 
-    // Timeout after 60 seconds
-    setTimeout(() => {
-      if (!granted) {
-        cleanup();
-        if (!win.isDestroyed()) win.close();
-        resolve(checkPermission(type));
-      }
-    }, 60000);
+export function stopPolling(type: PermissionType): void {
+  const timer = activePollers.get(type);
+  if (timer) {
+    clearInterval(timer);
+    activePollers.delete(type);
+  }
+}
 
-    win.on('closed', () => {
-      cleanup();
-      if (!granted) resolve(false);
-    });
-  });
+export function stopAllPolling(): void {
+  for (const [type] of activePollers) {
+    stopPolling(type);
+  }
 }
 
 export function getRequiredPermission(tool: string, args?: Record<string, unknown>): PermissionType | null {
@@ -420,7 +152,6 @@ export function getRequiredPermission(tool: string, args?: Record<string, unknow
       return 'accessibility';
     case 'system_control': {
       const action = String(args?.action || '').toLowerCase().replace(/[\s-]+/g, '_');
-      // Battery and volume are read-only/safe — no accessibility needed
       if (['battery', 'volume_up', 'volume_down', 'mute', 'unmute', 'set_volume'].includes(action)) return null;
       return 'accessibility';
     }
@@ -439,23 +170,4 @@ export function getDegradedMessage(type: PermissionType): string {
 
 export function needsRestart(type: PermissionType): boolean {
   return PERMISSION_INFO[type].needsRestart;
-}
-
-export function checkCodeSigning(): { signed: boolean; warning?: string } {
-  try {
-    const { app } = require('electron');
-    if (!app.isPackaged) return { signed: true };
-    // In production, if the app isn't properly signed, TCC may silently
-    // refuse to add it to the permission list
-    const identity = process.env.CODE_SIGN_IDENTITY || '';
-    if (app.isPackaged && !identity) {
-      return {
-        signed: false,
-        warning: 'Clawster may not appear in System Settings because it isn\'t code-signed. Contact the developer.',
-      };
-    }
-    return { signed: true };
-  } catch {
-    return { signed: true };
-  }
 }

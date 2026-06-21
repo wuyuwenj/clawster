@@ -65,6 +65,19 @@ contextBridge.exposeInMainWorld('clawster', {
   clearChatHistory: () => ipcRenderer.invoke('clear-chat-history'),
   notifyChatSync: () => ipcRenderer.send('chat-sync'),
 
+  // Permissions (inline panel APIs)
+  getPermissionStatuses: () => ipcRenderer.invoke('get-permission-statuses'),
+  requestPermission: (type: string) => ipcRenderer.invoke('request-permission', type),
+  openPermissionSettings: (type: string) => ipcRenderer.invoke('open-permission-settings', type),
+  startPermissionPolling: (type: string) => ipcRenderer.invoke('start-permission-polling', type),
+  stopPermissionPolling: (type: string) => ipcRenderer.invoke('stop-permission-polling', type),
+  onPermissionStatusChanged: (callback: (data: { type: string; status: string; needsRestart: boolean }) => void) => {
+    return onIpc('permission-status-changed', callback);
+  },
+  onPermissionStatusesUpdated: (callback: (statuses: Record<string, string>) => void) => {
+    return onIpc('permission-statuses-updated', callback);
+  },
+
   // Screen capture
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
   captureScreenWithContext: () => ipcRenderer.invoke('capture-screen-with-context'),
