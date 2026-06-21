@@ -95,10 +95,17 @@ export const Assistant: React.FC = () => {
 
   // Initialize
   useEffect(() => {
-    window.clawster.getSettings().then((s) => {
-      setSettings(s as Record<string, unknown>);
-    });
+    const refreshSettings = () => {
+      window.clawster.getSettings().then((s) => {
+        setSettings(s as Record<string, unknown>);
+      });
+    };
+    refreshSettings();
+    window.addEventListener('focus', refreshSettings);
+    return () => window.removeEventListener('focus', refreshSettings);
+  }, []);
 
+  useEffect(() => {
     window.clawster.getChatHistory().then((history) => {
       if (Array.isArray(history) && history.length > 0) {
         setMessages(history as Message[]);
