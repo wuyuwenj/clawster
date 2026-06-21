@@ -888,7 +888,39 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 5: Developer */}
+          {/* Group 5: Privacy & Analytics */}
+          <div className="pt-4 border-t border-white/5">
+            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+              Privacy
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center justify-between cursor-pointer group">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-neutral-300">
+                    Usage analytics
+                  </span>
+                  <span className="text-[11px] text-neutral-500 mt-0.5">
+                    Help improve Clawster with anonymous usage data
+                  </span>
+                </div>
+                <div className="relative shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={(settings.analytics as { enabled: boolean })?.enabled ?? true}
+                    onChange={(e) => updateSetting('analytics.enabled', e.target.checked)}
+                  />
+                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                  <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                </div>
+              </label>
+              <p className="text-[11px] text-neutral-600 leading-relaxed px-1">
+                We only track which features you use and how fast they respond — never your messages, clipboard, or file names. You can turn this off anytime.
+              </p>
+            </div>
+          </div>
+
+          {/* Group 6: Developer */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Developer

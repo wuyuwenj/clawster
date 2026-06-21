@@ -894,6 +894,7 @@ function setupIPC() {
   // Execute pet action directly
   ipcMain.handle('execute-pet-action', async (_event, action: PetAction) => {
     await executePetAction(action);
+    if (action.type === 'set_mood') trackPetInteraction('mood_change');
   });
 
   // Move pet to position
@@ -1009,6 +1010,7 @@ function setupIPC() {
   // Onboarding handlers
   ipcMain.handle('onboarding-skip', () => {
     store.set('onboarding.skipped', true);
+    logEvent('onboarding_skipped');
     closeOnboardingAndStartApp();
     return true;
   });
