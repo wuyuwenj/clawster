@@ -152,13 +152,16 @@ function buildDialogHTML(type: PermissionType): string {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: #0f0f0f;
     color: #e5e5e5;
-    padding: 28px 32px;
+    padding: 28px 32px 36px;
     -webkit-app-region: drag;
     user-select: none;
-    height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
   }
+  body::-webkit-scrollbar { width: 6px; }
+  body::-webkit-scrollbar-track { background: transparent; }
+  body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
   .header {
     display: flex;
     align-items: center;
@@ -247,7 +250,7 @@ function buildDialogHTML(type: PermissionType): string {
   .buttons {
     display: flex;
     gap: 10px;
-    margin-top: auto;
+    margin-top: 8px;
     -webkit-app-region: no-drag;
   }
   button {
@@ -312,10 +315,11 @@ function buildDialogHTML(type: PermissionType): string {
 
 function showPermissionWindow(type: PermissionType): Promise<boolean> {
   return new Promise((resolve) => {
+    const height = PERMISSION_INFO[type].steps.length > 3 ? 660 : 600;
     const win = new BrowserWindow({
       width: 400,
-      height: 480,
-      resizable: false,
+      height,
+      resizable: true,
       minimizable: false,
       maximizable: false,
       alwaysOnTop: true,
