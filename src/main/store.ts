@@ -55,7 +55,7 @@ interface StoreSchema {
 
 const defaults: StoreSchema = {
   clawbot: {
-    url: 'https://clawster-proxy.workers.dev',
+    url: 'https://clawster-proxy.clawster-app.workers.dev',
   },
   watch: {
     activeApp: true,

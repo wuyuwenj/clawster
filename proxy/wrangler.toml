@@ -9,4 +9,4 @@ MONTHLY_BUDGET_LIMIT = "10000"
 
 [[kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "placeholder-rate-limits-id"
+id = "e017fcaee459428e843150712b81b648"
