@@ -272,6 +272,14 @@ function resetIdleTimer() {
 function startMainApp() {
   logEvent('app_launched', { version: app.getVersion() });
 
+  // Re-verify all permissions on launch (handles OS updates, Sequoia monthly re-confirm)
+  const launchStatuses = getAllPermissionStatuses();
+  console.log('[Permissions] Launch check:', launchStatuses);
+  if (launchStatuses['accessibility'] !== 'granted') {
+    store.set('watch.activeApp', false);
+    store.set('watch.sendWindowTitles', false);
+  }
+
   // Register global hotkeys
   registerHotkeys();
 
