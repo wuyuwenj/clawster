@@ -156,6 +156,34 @@ export default {
       });
     }
 
+    if (url.pathname === '/v1/embeddings') {
+      if (request.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+          status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+      const body = await request.text();
+      const auth = await verifyHmac(request, body, env);
+      if (!auth.valid) {
+        return new Response(JSON.stringify({ error: auth.error }), {
+          status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({ ...JSON.parse(body), model: 'text-embedding-3-small' }),
+      });
+      const embeddingData = await embeddingResponse.text();
+      return new Response(embeddingData, {
+        status: embeddingResponse.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      });
+    }
+
     if (url.pathname !== '/v1/chat/completions') {
       return new Response(JSON.stringify({ error: 'Not found' }), {
         status: 404,
