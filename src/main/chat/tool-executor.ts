@@ -40,6 +40,18 @@ function isCatastrophic(command: string): boolean {
   return CATASTROPHIC_PATTERNS.some(re => re.test(command));
 }
 
+function isAutomationDenied(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /not allowed to send Apple events|assistive access|not allowed assisting/i.test(msg);
+}
+
+function automationDeniedResponse(tool: string): ToolResult {
+  return {
+    handled: true,
+    response: `I need Automation permission to ${tool.replace(/_/g, ' ')}! macOS should prompt you next time — click "OK" to allow it. If it doesn't, check System Settings → Privacy → Automation.`,
+  };
+}
+
 function notify(title: string, body: string): void {
   try {
     const n = new Notification({ title, body });
@@ -379,7 +391,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       try {
         await execAsync(`osascript -e 'tell application "Reminders" to make new reminder with properties {name:"${text.replace(/"/g, '\\"')}"}'`);
         return { handled: true, response: `Reminder created: "${text}"` };
-      } catch {
+      } catch (err) {
+        if (isAutomationDenied(err)) return automationDeniedResponse('create_reminder');
         return { handled: true, response: `I'll remind you about "${text}" — but I couldn't add it to Reminders.app.` };
       }
     }
@@ -403,7 +416,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         if (!events) return { handled: true, response: "No upcoming events found." };
         const lines = events.split('\n').filter(Boolean).slice(0, 8);
         return { handled: true, response: `Upcoming events:\n${lines.map(l => `- ${l}`).join('\n')}` };
-      } catch {
+      } catch (err) {
+        if (isAutomationDenied(err)) return automationDeniedResponse('get_calendar_events');
         return { handled: true, response: "Couldn't access Calendar. Make sure Calendar.app has permission." };
       }
     }
@@ -421,7 +435,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
           end tell`;
         await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 5000 });
         return { handled: true, response: `Event created: "${title}" at ${start}` };
-      } catch {
+      } catch (err) {
+        if (isAutomationDenied(err)) return automationDeniedResponse('create_calendar_event');
         return { handled: true, response: `Couldn't create the event. Calendar.app may need permission, or the time format wasn't recognized.` };
       }
     }
@@ -448,7 +463,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         }
         await execAsync(`osascript -e 'tell application "Music" to play'`);
         return { handled: true, response: 'Playing music!' };
-      } catch {
+      } catch (err) {
+        if (isAutomationDenied(err)) return automationDeniedResponse('play_music');
         return { handled: true, response: "Couldn't control Music app." };
       }
     }
@@ -510,7 +526,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
           default:
             return { handled: true, response: "I can do volume, brightness, battery, lock screen, sleep, and Do Not Disturb!" };
         }
-      } catch {
+      } catch (err) {
+        if (isAutomationDenied(err)) return automationDeniedResponse('system_control');
         return { handled: true, response: "Couldn't do that — I might need Accessibility permission in System Settings." };
       }
     }
@@ -543,7 +560,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
           response: `Closed ${app}! 👋`,
           confirmation: { kind: 'close_app', detail: app, executed: true },
         };
-      } catch {
+      } catch (err) {
+        if (isAutomationDenied(err)) return automationDeniedResponse('close_app');
         return {
           handled: true,
           response: `Couldn't close ${app} — it may not be running.`,
