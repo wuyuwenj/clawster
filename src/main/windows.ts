@@ -711,7 +711,11 @@ export function createOnboardingWindow(): Promise<void> {
 
     if (isDev) {
       onboardingWindow.loadURL(`http://localhost:${DEV_PORT}/onboarding.html`);
-      onboardingWindow.webContents.openDevTools({ mode: 'detach' });
+      // Skip the detached devtools window during automated tests (CLAWSTER_DATA_DIR set),
+      // where an extra window would interfere with window lookups.
+      if (!process.env.CLAWSTER_DATA_DIR) {
+        onboardingWindow.webContents.openDevTools({ mode: 'detach' });
+      }
     } else {
       onboardingWindow.loadFile(path.join(__dirname, '../renderer/onboarding.html'));
     }

@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { clawsterDataDir } from '../paths';
 
 // Persistent personalization memory. Stores short user facts/preferences the
 // user explicitly asked Clawster to remember (e.g. "likes jazz"). Loaded into
 // the cloud system prompt and surfaced via the recall_preferences tool.
-let prefsPath = path.join(os.homedir(), '.clawster', 'prefs.json');
+let prefsPath = path.join(clawsterDataDir(), 'prefs.json');
 
 // Test seam: point persistence at a temp file so tests never touch real prefs.
 export function setPreferencesPath(p: string): void {
