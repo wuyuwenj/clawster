@@ -111,14 +111,10 @@ describe('getDegradedMessage', () => {
   });
 });
 
-describe('cooldown logic', () => {
-  it('setPermissionStore loads persisted declines', async () => {
+describe('setPermissionStore', () => {
+  it('accepts a store reference without crashing', async () => {
     const { setPermissionStore } = await import('../src/main/permission-helper');
-    const mockStore = {
-      get: vi.fn(() => ({ accessibility: Date.now() })),
-      set: vi.fn(),
-    };
-    setPermissionStore(mockStore);
-    expect(mockStore.get).toHaveBeenCalledWith('permissionDeclines');
+    const mockStore = { get: vi.fn(), set: vi.fn() };
+    expect(() => setPermissionStore(mockStore)).not.toThrow();
   });
 });

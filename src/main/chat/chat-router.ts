@@ -8,7 +8,7 @@ import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
 import { formatContextForPrompt } from './memory';
 import type { MemoryManager } from './memory';
-import { checkPermission, requestPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
+import { checkPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
 import { trackToolExecuted, trackSafetyBlocked } from '../analytics';
 import type { EmotionEngine } from '../emotion-engine';
 
@@ -165,12 +165,9 @@ export class ChatRouter extends EventEmitter {
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const requiredPerm = getRequiredPermission(toolCall.tool, toolCall.args);
       if (requiredPerm && !checkPermission(requiredPerm)) {
-        const granted = await requestPermission(requiredPerm);
-        if (!granted) {
-          const msg = getDegradedMessage(requiredPerm);
-          logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, response: msg, mood: toolCall.mood, latencyMs, ts: Date.now() });
-          return { type: 'message', text: msg, quickReplies: ['Open Settings', 'Maybe later'] };
-        }
+        const msg = getDegradedMessage(requiredPerm);
+        logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, response: msg, mood: toolCall.mood, latencyMs, ts: Date.now() });
+        return { type: 'message', text: msg, quickReplies: ['Open Settings', 'Maybe later'] };
       }
     }
 
@@ -248,13 +245,10 @@ export class ChatRouter extends EventEmitter {
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const requiredPerm = getRequiredPermission(toolCall.tool, toolCall.args);
       if (requiredPerm && !checkPermission(requiredPerm)) {
-        const granted = await requestPermission(requiredPerm);
-        if (!granted) {
-          const msg = getDegradedMessage(requiredPerm);
-          handlers.onDelta?.(msg, msg);
-          logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, response: msg, mood: toolCall.mood, latencyMs, ts: Date.now() });
-          return { type: 'message', text: msg, quickReplies: ['Open Settings', 'Maybe later'] };
-        }
+        const msg = getDegradedMessage(requiredPerm);
+        handlers.onDelta?.(msg, msg);
+        logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, response: msg, mood: toolCall.mood, latencyMs, ts: Date.now() });
+        return { type: 'message', text: msg, quickReplies: ['Open Settings', 'Maybe later'] };
       }
     }
 

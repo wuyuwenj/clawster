@@ -22,7 +22,8 @@ import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
 import { MemoryManager } from './chat/memory';
-import { requestPermission, setPermissionStore } from './permission-helper';
+import { requestPermission, setPermissionStore, getAllPermissionStatuses, openPermissionSettings, startPolling, stopPolling, checkPermission, needsRestart } from './permission-helper';
+import type { PermissionType } from './permission-helper';
 import { initAnalytics, shutdownAnalytics, trackPetInteraction } from './analytics';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
@@ -657,14 +658,57 @@ function setupIPC() {
     return getScreenCapturePermissionStatus();
   });
 
-  // Check accessibility permission
+  // Check accessibility permission (legacy)
   ipcMain.handle('check-accessibility-permission', (_event, prompt: boolean = false) => {
-    if (process.platform !== 'darwin') {
-      return true;
+    if (process.platform !== 'darwin') return true;
+    return systemPreferences.isTrustedAccessibilityClient(false);
+  });
+
+  // Permission system — inline panel APIs
+  ipcMain.handle('get-permission-statuses', () => {
+    return getAllPermissionStatuses();
+  });
+
+  ipcMain.handle('request-permission', async (_event, type: PermissionType) => {
+    const granted = await requestPermission(type);
+    return { granted, needsRestart: needsRestart(type) };
+  });
+
+  ipcMain.handle('open-permission-settings', (_event, type: PermissionType) => {
+    openPermissionSettings(type);
+  });
+
+  ipcMain.handle('start-permission-polling', (_event, type: PermissionType) => {
+    startPolling(type, () => {
+      // Notify all windows when permission is granted
+      const { BrowserWindow: BW } = require('electron');
+      for (const win of BW.getAllWindows()) {
+        if (!win.isDestroyed()) {
+          win.webContents.send('permission-status-changed', {
+            type,
+            status: 'granted',
+            needsRestart: needsRestart(type),
+          });
+        }
+      }
+      // Restart watchers if accessibility was just granted
+      if (type === 'accessibility') watchers?.restart();
+    });
+  });
+
+  ipcMain.handle('stop-permission-polling', (_event, type: PermissionType) => {
+    stopPolling(type);
+  });
+
+  // Re-check permissions on window focus
+  app.on('browser-window-focus', () => {
+    const statuses = getAllPermissionStatuses();
+    const { BrowserWindow: BW } = require('electron');
+    for (const win of BW.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('permission-statuses-updated', statuses);
+      }
     }
-    const result = systemPreferences.isTrustedAccessibilityClient(prompt);
-    console.log(`[Accessibility] isTrustedAccessibilityClient(${prompt}) = ${result}`);
-    return result;
   });
 
   // Screen capture

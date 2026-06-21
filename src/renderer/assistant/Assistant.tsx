@@ -38,6 +38,9 @@ export const Assistant: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [permStatuses, setPermStatuses] = useState<Record<string, string>>({});
+  const [expandedPerm, setExpandedPerm] = useState<string | null>(null);
+  const [permWaiting, setPermWaiting] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
@@ -99,10 +102,27 @@ export const Assistant: React.FC = () => {
       window.clawster.getSettings().then((s) => {
         setSettings(s as Record<string, unknown>);
       });
+      window.clawster.getPermissionStatuses().then((s: Record<string, string>) => {
+        setPermStatuses(s);
+      });
     };
     refreshSettings();
     window.addEventListener('focus', refreshSettings);
-    return () => window.removeEventListener('focus', refreshSettings);
+
+    const cleanupChanged = window.clawster.onPermissionStatusChanged((data: { type: string; status: string }) => {
+      setPermStatuses(prev => ({ ...prev, [data.type]: data.status }));
+      setPermWaiting(null);
+      setExpandedPerm(null);
+    });
+    const cleanupUpdated = window.clawster.onPermissionStatusesUpdated((statuses: Record<string, string>) => {
+      setPermStatuses(statuses);
+    });
+
+    return () => {
+      window.removeEventListener('focus', refreshSettings);
+      cleanupChanged();
+      cleanupUpdated();
+    };
   }, []);
 
   useEffect(() => {
@@ -780,42 +800,111 @@ export const Assistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 2: Watching */}
+          {/* Group 2: Watching (permission-gated) */}
           <div className="pt-4 border-t border-white/5">
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Watching
             </h3>
             <div className="space-y-4">
-              <label className="flex items-center justify-between cursor-pointer group">
-                <span className="text-sm font-medium text-neutral-300">
-                  Watch active app changes
-                </span>
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={(settings.watch as { activeApp: boolean })?.activeApp ?? true}
-                    onChange={(e) => updateSetting('watch.activeApp', e.target.checked)}
-                  />
-                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
-                  <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+              {/* Watch active app — requires Accessibility */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-300">
+                      Watch active app changes
+                    </span>
+                    {permStatuses['accessibility'] === 'granted' ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#008080]" title="Accessibility granted" />
+                    ) : permWaiting === 'accessibility' ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 animate-pulse">Waiting...</span>
+                    ) : permStatuses['accessibility'] === 'restricted' ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500">Managed</span>
+                    ) : (settings.watch as { activeApp?: boolean })?.activeApp ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/50 text-amber-400 border border-amber-700/30">Needs permission</span>
+                    ) : null}
+                  </div>
+                  <label className="relative cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={(settings.watch as { activeApp: boolean })?.activeApp ?? false}
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        updateSetting('watch.activeApp', checked);
+                        if (checked && permStatuses['accessibility'] !== 'granted') {
+                          if (permStatuses['accessibility'] === 'restricted') return;
+                          setExpandedPerm('accessibility');
+                        }
+                      }}
+                    />
+                    <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                    <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                  </label>
                 </div>
-              </label>
-              <label className="flex items-center justify-between cursor-pointer group">
+
+                {/* Inline permission panel for Accessibility */}
+                {expandedPerm === 'accessibility' && permStatuses['accessibility'] !== 'granted' && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-950/20 border border-amber-800/20 space-y-2.5 transition-all">
+                    <p className="text-[13px] text-neutral-300 leading-relaxed">
+                      Clawster needs Accessibility access to close apps, hide distracting apps, and adjust brightness.{' '}
+                      <span className="text-neutral-500">It does not read your screen contents.</span>
+                    </p>
+                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                      Open System Settings → Privacy & Security → Accessibility. Turn on the switch next to Clawster.
+                    </p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        className="px-3 py-1.5 rounded-md bg-[#FF8C69] text-[#0f0f0f] text-xs font-semibold hover:opacity-85 transition-opacity"
+                        onClick={async () => {
+                          setPermWaiting('accessibility');
+                          await window.clawster.openPermissionSettings('accessibility');
+                          await window.clawster.startPermissionPolling('accessibility');
+                        }}
+                      >
+                        Open Settings
+                      </button>
+                      <button
+                        className="px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+                        onClick={() => {
+                          setExpandedPerm(null);
+                          window.clawster.stopPermissionPolling('accessibility');
+                        }}
+                      >
+                        Not now
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {permStatuses['accessibility'] === 'restricted' && expandedPerm === 'accessibility' && (
+                  <div className="mt-3 p-3 rounded-lg bg-neutral-900 border border-white/5">
+                    <p className="text-[12px] text-neutral-500">This permission is managed by your organization.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Include window titles */}
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-neutral-300">
                   Include window titles
                 </span>
-                <div className="relative">
+                <label className="relative cursor-pointer">
                   <input
                     type="checkbox"
                     className="sr-only peer"
                     checked={(settings.watch as { sendWindowTitles: boolean })?.sendWindowTitles ?? false}
-                    onChange={(e) => updateSetting('watch.sendWindowTitles', e.target.checked)}
+                    onChange={async (e) => {
+                      const checked = e.target.checked;
+                      updateSetting('watch.sendWindowTitles', checked);
+                      if (checked && permStatuses['accessibility'] !== 'granted') {
+                        setExpandedPerm('accessibility');
+                      }
+                    }}
                   />
                   <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
                   <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
-                </div>
-              </label>
+                </label>
+              </div>
             </div>
           </div>
 
