@@ -22,6 +22,7 @@ import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
 import { MemoryManager } from './chat/memory';
+import { requestPermission } from './permission-helper';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -690,6 +691,14 @@ function setupIPC() {
   // Send message to ClawBot (with optional screen context)
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
     if (!chatProvider) return { error: 'ChatProvider not initialized' };
+
+    // Intercept "Open Settings" quick reply — open the right System Settings pane
+    if (message.trim().toLowerCase() === 'open settings') {
+      await requestPermission('accessibility');
+      const reply = { type: 'message' as const, text: 'I opened System Settings for you — toggle Clawster ON and try again!', quickReplies: ['Thanks!'] };
+      maybeShowPetResponse(reply.text, reply.quickReplies);
+      return reply;
+    }
 
     logEvent('chat_sent', { includeScreen: !!includeScreen });
     resetInteractionTimer();

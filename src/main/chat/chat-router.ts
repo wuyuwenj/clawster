@@ -8,6 +8,7 @@ import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
 import { formatContextForPrompt } from './memory';
 import type { MemoryManager } from './memory';
+import { checkPermission, requestPermission, getRequiredPermission } from '../permission-helper';
 import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
@@ -158,6 +159,19 @@ export class ChatRouter extends EventEmitter {
     this.emotionEngine?.onInteraction();
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
 
+    // Check macOS permissions before executing tools that need them
+    if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
+      const requiredPerm = getRequiredPermission(toolCall.tool);
+      if (requiredPerm && !checkPermission(requiredPerm)) {
+        const granted = await requestPermission(requiredPerm);
+        if (!granted) {
+          const msg = `I need ${requiredPerm.replace('-', ' ')} permission to do that! Check System Settings if you change your mind.`;
+          logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, response: msg, mood: toolCall.mood, latencyMs, ts: Date.now() });
+          return { type: 'message', text: msg, quickReplies: ['Open Settings', 'Maybe later'] };
+        }
+      }
+    }
+
     if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const screenResponse = await this.handleScreenshot(rawInput);
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: 'take_screenshot', response: screenResponse.text, mood: toolCall.mood, latencyMs, ts: Date.now() });
@@ -224,6 +238,20 @@ export class ChatRouter extends EventEmitter {
     const latencyMs = Date.now() - start;
 
     if (toolCall.mood) this.emotionEngine?.onConversationMood(toolCall.mood);
+
+    // Check macOS permissions before executing tools that need them
+    if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
+      const requiredPerm = getRequiredPermission(toolCall.tool);
+      if (requiredPerm && !checkPermission(requiredPerm)) {
+        const granted = await requestPermission(requiredPerm);
+        if (!granted) {
+          const msg = `I need ${requiredPerm.replace('-', ' ')} permission to do that! Check System Settings if you change your mind.`;
+          handlers.onDelta?.(msg, msg);
+          logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, response: msg, mood: toolCall.mood, latencyMs, ts: Date.now() });
+          return { type: 'message', text: msg, quickReplies: ['Open Settings', 'Maybe later'] };
+        }
+      }
+    }
 
     if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const screenResponse = await this.handleScreenshot(rawInput);
