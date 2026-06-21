@@ -23,6 +23,7 @@ import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
 import { MemoryManager } from './chat/memory';
 import { requestPermission, setPermissionStore } from './permission-helper';
+import { initAnalytics, shutdownAnalytics, trackPetInteraction } from './analytics';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -324,6 +325,14 @@ function startMainApp() {
   const proxyUrl = store.get('clawbot').url;
   chatProvider.setVisionProvider(createProxyVision(proxyUrl, deviceId));
   chatProvider.setScreenCapturer(() => captureScreen());
+
+  // Initialize analytics
+  initAnalytics({
+    apiKey: process.env.POSTHOG_API_KEY || '',
+    deviceId,
+    analyticsEnabled: store.get('analytics').enabled,
+    modelName: 'clawster-tool-v8-q4',
+  });
 
   // Initialize memory layer (LanceDB — facts + emotional memories)
   const memory = new MemoryManager({
@@ -922,6 +931,7 @@ function setupIPC() {
 
   ipcMain.on('pet-drag', (_event, deltaX: number, deltaY: number) => {
     logEvent('pet_dragged');
+    trackPetInteraction('drag');
     const petWindow = getPetWindow();
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
@@ -980,6 +990,7 @@ function setupIPC() {
   // Pet was clicked
   ipcMain.on('pet-clicked', () => {
     logEvent('pet_clicked');
+    trackPetInteraction('click');
     resetInteractionTimer();
   });
 
@@ -1303,6 +1314,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  shutdownAnalytics();
   globalShortcut.unregisterAll();
   const speechProcess = getSpeechProcess();
   if (speechProcess) {
