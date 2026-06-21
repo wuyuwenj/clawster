@@ -53,7 +53,14 @@ export class Watchers {
       if (!checkPermission('accessibility')) {
         const granted = await requestPermission('accessibility');
         if (!granted) {
-          console.log('[Watchers] Accessibility permission not granted, skipping app watcher');
+          console.log('[Watchers] Accessibility permission not granted, disabling watcher');
+          this.store.set('watch.activeApp', false);
+          this.store.set('watch.sendWindowTitles', false);
+          // Notify open windows so settings UI reflects the change
+          const { BrowserWindow } = require('electron');
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) win.webContents.send('settings-changed', this.store.store);
+          }
           return;
         }
         console.log('[Watchers] Accessibility permission granted, starting app watcher');
