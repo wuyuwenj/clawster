@@ -6,7 +6,7 @@ import { getTemplateResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
 import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
-import { extractMemoryBlock, formatContextForPrompt } from './memory';
+import { formatContextForPrompt } from './memory';
 import type { MemoryManager } from './memory';
 import type { EmotionEngine } from '../emotion-engine';
 
@@ -99,6 +99,7 @@ export class ChatRouter extends EventEmitter {
     this.visionProvider = provider;
   }
 
+
   // Captures the current screen as a data URL (wired to main's captureScreen).
   setScreenCapturer(fn: (() => Promise<string | null>) | null): void {
     this.screenCapturer = fn;
@@ -146,9 +147,8 @@ export class ChatRouter extends EventEmitter {
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
       const ctxStr = formatContextForPrompt(memCtx);
-      if (ctxStr && this.visionProvider) {
-        (this.visionProvider as any).setMemoryContext?.(ctxStr);
-      }
+      // Memory context available for cloud prompt injection when cloud path is active
+      void ctxStr;
     }
 
     const start = Date.now();
@@ -212,9 +212,8 @@ export class ChatRouter extends EventEmitter {
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
       const ctxStr = formatContextForPrompt(memCtx);
-      if (ctxStr && this.visionProvider) {
-        (this.visionProvider as any).setMemoryContext?.(ctxStr);
-      }
+      // Memory context available for cloud prompt injection when cloud path is active
+      void ctxStr;
     }
 
     const start = Date.now();
