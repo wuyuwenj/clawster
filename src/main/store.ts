@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import { clawsterDataDir, isTestDataDir } from './paths';
 
 interface ChatMessage {
   id: string;
@@ -106,6 +107,9 @@ export function createStore(): Store<StoreSchema> {
   return new Store<StoreSchema>({
     defaults,
     name: 'clawster-config',
+    // In test runs (CLAWSTER_DATA_DIR set) keep the config alongside the rest of
+    // the isolated data so a fresh directory means a fresh, un-onboarded user.
+    ...(isTestDataDir() ? { cwd: clawsterDataDir() } : {}),
   });
 }
 

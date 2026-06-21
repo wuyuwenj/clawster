@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { clawsterDataDir } from '../paths';
 
-const LOG_DIR = path.join(os.homedir(), '.clawster', 'interactions');
+const LOG_DIR = path.join(clawsterDataDir(), 'interactions');
 const MAX_LOG_SIZE = 10 * 1024 * 1024;
 
 let logPath: string | null = null;
