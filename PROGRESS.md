@@ -148,6 +148,25 @@ further when GPU is available.
   fix underperformed → added the deterministic CONVERSATIONAL_INPUTS runtime
   guard (drops "hello"→wave, "thanks"→send_message).
 
+## Memory Layer
+
+- [x] Step 1: LanceDB validated in Node (1536-dim vectors, facts CRUD, Arrow Vector→Array.from fix)
+- [x] Step 2: Types + DB wrapper (memory/types.ts, memory/memory-db.ts)
+- [x] Step 3: Embeddings client (memory/embeddings.ts — cosine similarity, proxy /v1/embeddings)
+- [x] Step 4: Proxy /v1/embeddings endpoint (proxy/src/index.ts)
+- [x] Step 5: Memory retriever (memory/memory-retriever.ts — facts + vector search + recency fallback)
+- [x] Step 6: Memory extractor (memory/memory-extractor.ts — parse ```memory blocks, strip from response)
+- [x] Step 7: MemoryManager orchestrator (memory/index.ts — retrieve, extract, embed, store, migrate)
+- [x] Step 8: System prompt updated with memory extraction instructions
+- [x] Step 9: CloudChatProvider.buildSystemPrompt() accepts MemoryContext
+- [x] Step 10: ChatRouter wired — retrieve before classify, background process after response
+- [x] Step 11: prefs.json → facts table migration (on init, renames to .migrated)
+- [x] Step 12: Pruning (max 500 memories) + decay (older memories score lower)
+- [x] Step 13: Initialized in main.ts — [Memory] LanceDB initialized at ~/.clawster/memory/
+
+Tests: 164 total (43 new memory tests: extractor, DB, embeddings, manager)
+All passing. Build clean. App launches with memory layer active.
+
 ## Progress Log
 
 ### 2026-06-20 — P1: Multi-turn memory (shipped)
