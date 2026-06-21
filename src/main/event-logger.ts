@@ -40,6 +40,12 @@ export function logEvent(event: string, data?: Record<string, unknown>): void {
   } catch {
     // never crash the app for logging
   }
+
+  // Forward to PostHog (lazy import to avoid circular deps)
+  try {
+    const { trackEvent } = require('./analytics');
+    trackEvent(event, data);
+  } catch { /* analytics not initialized yet */ }
 }
 
 export function getLogDir(): string {

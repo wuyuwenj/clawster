@@ -368,12 +368,14 @@ function showPermissionWindow(type: PermissionType): Promise<boolean> {
 
     ipcMain.once('permission-declined', () => {
       saveDecline(type);
+      try { require('./analytics').trackPermissionRequested({ permission: type, granted: false }); } catch {}
       cleanup();
       if (!win.isDestroyed()) win.close();
       resolve(false);
     });
 
     ipcMain.once('permission-granted-ack', () => {
+      try { require('./analytics').trackPermissionRequested({ permission: type, granted: true }); } catch {}
       cleanup();
       if (!win.isDestroyed()) win.close();
       if (PERMISSION_INFO[type].needsRestart) {

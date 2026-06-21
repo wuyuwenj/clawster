@@ -38,6 +38,16 @@ export function logInteraction(entry: InteractionEntry): void {
     } catch { /* file doesn't exist yet */ }
     fs.appendFileSync(filePath, JSON.stringify(entry) + '\n');
   } catch { /* never crash */ }
+
+  try {
+    const { trackChatSent } = require('../analytics');
+    trackChatSent({
+      tool: entry.tool,
+      latencyMs: entry.latencyMs,
+      model: entry.model || 'unknown',
+      mood: entry.mood,
+    });
+  } catch { /* analytics not initialized yet */ }
 }
 
 export function getInteractionLogDir(): string {

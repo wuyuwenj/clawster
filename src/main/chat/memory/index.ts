@@ -81,6 +81,10 @@ export class MemoryManager {
           });
         }
 
+        if (memoryData.facts.length > 0) {
+          try { require('../../analytics').trackMemoryStored({ type: 'fact', count: memoryData.facts.length }); } catch {}
+        }
+
         // Store emotional memory with embedding
         if (memoryData.emotional) {
           const vector = await this.embedText(memoryData.emotional);
@@ -91,6 +95,7 @@ export class MemoryManager {
             vector,
             timestamp: new Date().toISOString(),
           });
+          try { require('../../analytics').trackMemoryStored({ type: 'emotional', count: 1 }); } catch {}
         }
       }
 
