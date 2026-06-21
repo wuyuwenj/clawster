@@ -161,7 +161,7 @@ export class ChatRouter extends EventEmitter {
 
     // Check macOS permissions before executing tools that need them
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
-      const requiredPerm = getRequiredPermission(toolCall.tool);
+      const requiredPerm = getRequiredPermission(toolCall.tool, toolCall.args);
       if (requiredPerm && !checkPermission(requiredPerm)) {
         const granted = await requestPermission(requiredPerm);
         if (!granted) {
@@ -241,7 +241,7 @@ export class ChatRouter extends EventEmitter {
 
     // Check macOS permissions before executing tools that need them
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
-      const requiredPerm = getRequiredPermission(toolCall.tool);
+      const requiredPerm = getRequiredPermission(toolCall.tool, toolCall.args);
       if (requiredPerm && !checkPermission(requiredPerm)) {
         const granted = await requestPermission(requiredPerm);
         if (!granted) {

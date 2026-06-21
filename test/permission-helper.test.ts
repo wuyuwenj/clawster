@@ -69,8 +69,14 @@ describe('getRequiredPermission', () => {
     expect(getRequiredPermission('block_apps')).toBe('accessibility');
   });
 
-  it('maps system_control to accessibility', () => {
-    expect(getRequiredPermission('system_control')).toBe('accessibility');
+  it('maps system_control brightness to accessibility', () => {
+    expect(getRequiredPermission('system_control', { action: 'brightness_up' })).toBe('accessibility');
+  });
+
+  it('skips permission for system_control battery/volume', () => {
+    expect(getRequiredPermission('system_control', { action: 'battery' })).toBeNull();
+    expect(getRequiredPermission('system_control', { action: 'volume_up' })).toBeNull();
+    expect(getRequiredPermission('system_control', { action: 'mute' })).toBeNull();
   });
 
   it('maps take_screenshot to screen-recording', () => {

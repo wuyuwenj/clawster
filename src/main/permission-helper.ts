@@ -128,6 +128,12 @@ export async function requestPermission(type: PermissionType): Promise<boolean> 
     return false;
   }
 
+  // In test environment, skip the dialog window
+  if (process.env.NODE_ENV === 'test') {
+    console.log(`[Permission] Test env, skipping dialog for ${type}`);
+    return false;
+  }
+
   return showPermissionWindow(type);
 }
 
@@ -144,8 +150,8 @@ function buildDialogHTML(type: PermissionType): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #1a1a2e;
-    color: #e0e0e0;
+    background: #0f0f0f;
+    color: #e5e5e5;
     padding: 28px 32px;
     -webkit-app-region: drag;
     user-select: none;
@@ -162,12 +168,13 @@ function buildDialogHTML(type: PermissionType): string {
   .emoji { font-size: 36px; }
   h1 {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 500;
+    letter-spacing: -0.01em;
     color: #fff;
   }
   .subtitle {
     font-size: 13px;
-    color: #aaa;
+    color: #a3a3a3;
     margin-bottom: 20px;
     line-height: 1.5;
   }
@@ -175,12 +182,13 @@ function buildDialogHTML(type: PermissionType): string {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #888;
+    color: #737373;
     margin-bottom: 8px;
     font-weight: 600;
   }
   .unlocks {
-    background: #16213e;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
     border-radius: 10px;
     padding: 14px 18px;
     margin-bottom: 18px;
@@ -189,15 +197,16 @@ function buildDialogHTML(type: PermissionType): string {
     list-style: none;
     font-size: 13px;
     padding: 4px 0;
-    color: #ccc;
+    color: #d4d4d4;
   }
   .unlocks li::before {
     content: "✓ ";
-    color: #4ade80;
+    color: #008080;
     font-weight: bold;
   }
   .steps {
-    background: #16213e;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
     border-radius: 10px;
     padding: 14px 18px;
     margin-bottom: 20px;
@@ -206,7 +215,7 @@ function buildDialogHTML(type: PermissionType): string {
     list-style: none;
     font-size: 13px;
     padding: 6px 0;
-    color: #ccc;
+    color: #d4d4d4;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -218,8 +227,8 @@ function buildDialogHTML(type: PermissionType): string {
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #e94560;
-    color: #fff;
+    background: #FF8C69;
+    color: #0f0f0f;
     font-size: 12px;
     font-weight: 700;
     flex-shrink: 0;
@@ -227,12 +236,12 @@ function buildDialogHTML(type: PermissionType): string {
   .status {
     text-align: center;
     font-size: 13px;
-    color: #888;
+    color: #737373;
     margin-bottom: 16px;
     min-height: 20px;
   }
   .status.granted {
-    color: #4ade80;
+    color: #008080;
     font-weight: 600;
   }
   .buttons {
@@ -253,12 +262,13 @@ function buildDialogHTML(type: PermissionType): string {
   }
   button:hover { opacity: 0.85; }
   .btn-primary {
-    background: #e94560;
-    color: #fff;
+    background: #FF8C69;
+    color: #0f0f0f;
   }
   .btn-secondary {
-    background: #2a2a4a;
-    color: #aaa;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.05);
+    color: #a3a3a3;
   }
 </style>
 </head>
@@ -362,6 +372,22 @@ function showPermissionWindow(type: PermissionType): Promise<boolean> {
     ipcMain.once('permission-granted-ack', () => {
       cleanup();
       if (!win.isDestroyed()) win.close();
+      if (PERMISSION_INFO[type].needsRestart) {
+        const { dialog: dlg } = require('electron');
+        dlg.showMessageBox({
+          type: 'info',
+          title: 'Restart Required',
+          message: `${PERMISSION_INFO[type].title} permission granted! Please restart Clawster for it to take effect.`,
+          buttons: ['Restart Now', 'Later'],
+          defaultId: 0,
+        }).then((r: { response: number }) => {
+          if (r.response === 0) {
+            const { app: electronApp } = require('electron');
+            electronApp.relaunch();
+            electronApp.quit();
+          }
+        });
+      }
       resolve(true);
     });
 
@@ -381,13 +407,17 @@ function showPermissionWindow(type: PermissionType): Promise<boolean> {
   });
 }
 
-export function getRequiredPermission(tool: string): PermissionType | null {
+export function getRequiredPermission(tool: string, args?: Record<string, unknown>): PermissionType | null {
   switch (tool) {
     case 'close_app':
     case 'block_apps':
       return 'accessibility';
-    case 'system_control':
+    case 'system_control': {
+      const action = String(args?.action || '').toLowerCase().replace(/[\s-]+/g, '_');
+      // Battery and volume are read-only/safe — no accessibility needed
+      if (['battery', 'volume_up', 'volume_down', 'mute', 'unmute', 'set_volume'].includes(action)) return null;
       return 'accessibility';
+    }
     case 'take_screenshot':
       return 'screen-recording';
     default:
@@ -399,4 +429,27 @@ export function getDegradedMessage(type: PermissionType): string {
   const info = PERMISSION_INFO[type];
   const features = info.unlocks.slice(0, 2).join(' and ');
   return `I need ${info.title} permission for that! It lets me do ${features}. Say "Open Settings" and I'll take you there.`;
+}
+
+export function needsRestart(type: PermissionType): boolean {
+  return PERMISSION_INFO[type].needsRestart;
+}
+
+export function checkCodeSigning(): { signed: boolean; warning?: string } {
+  try {
+    const { app } = require('electron');
+    if (!app.isPackaged) return { signed: true };
+    // In production, if the app isn't properly signed, TCC may silently
+    // refuse to add it to the permission list
+    const identity = process.env.CODE_SIGN_IDENTITY || '';
+    if (app.isPackaged && !identity) {
+      return {
+        signed: false,
+        warning: 'Clawster may not appear in System Settings because it isn\'t code-signed. Contact the developer.',
+      };
+    }
+    return { signed: true };
+  } catch {
+    return { signed: true };
+  }
 }
