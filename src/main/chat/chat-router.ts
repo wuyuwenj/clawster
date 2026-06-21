@@ -9,6 +9,7 @@ import { getQuickReplies } from './quick-replies';
 import { formatContextForPrompt } from './memory';
 import type { MemoryManager } from './memory';
 import { checkPermission, requestPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
+import { trackToolExecuted, trackSafetyBlocked } from '../analytics';
 import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
@@ -141,6 +142,7 @@ export class ChatRouter extends EventEmitter {
     if (safety.blocked) {
       this.emotionEngine?.onConversationMood('worried');
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      trackSafetyBlocked(safety.mood === 'worried' ? 'distress' : 'harmful');
       return { type: 'message', text: safety.response! };
     }
 
@@ -179,7 +181,9 @@ export class ChatRouter extends EventEmitter {
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
+      const toolStart = Date.now();
       const result = await executeTool(toolCall.tool, toolCall.args);
+      trackToolExecuted({ tool: toolCall.tool, success: result.handled, latencyMs: Date.now() - toolStart });
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
@@ -219,6 +223,7 @@ export class ChatRouter extends EventEmitter {
       this.emotionEngine?.onConversationMood('worried');
       handlers.onDelta?.(safety.response!, safety.response!);
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      trackSafetyBlocked(safety.mood === 'worried' ? 'distress' : 'harmful');
       return { type: 'message', text: safety.response! };
     }
 
@@ -262,7 +267,9 @@ export class ChatRouter extends EventEmitter {
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
+      const toolStart = Date.now();
       const result = await executeTool(toolCall.tool, toolCall.args);
+      trackToolExecuted({ tool: toolCall.tool, success: result.handled, latencyMs: Date.now() - toolStart });
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
