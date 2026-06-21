@@ -47,7 +47,9 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
   for (const pattern of HARMFUL_PATTERNS) {
     if (pattern.test(lower)) {
       const isSelfHarm = /kys|kms|kill.*self|hurt.*self|end.it.all|want.to.(die|disappear)/i.test(lower);
+      const category = isSelfHarm ? 'harmful' : 'destructive';
       const responses = isSelfHarm ? SAFETY_RESPONSES : DESTRUCTIVE_RESPONSES;
+      try { require('../analytics').trackSafetyBlocked(category); } catch {}
       return {
         blocked: true,
         response: responses[Math.floor(Math.random() * responses.length)],
@@ -58,6 +60,7 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
 
   for (const pattern of DISTRESS_PATTERNS) {
     if (pattern.test(lower)) {
+      try { require('../analytics').trackSafetyBlocked('distress'); } catch {}
       return {
         blocked: true,
         response: DISTRESS_RESPONSES[Math.floor(Math.random() * DISTRESS_RESPONSES.length)],
@@ -67,6 +70,7 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
   }
 
   if (/^\s*\{.*"tool"\s*:/.test(lower)) {
+    try { require('../analytics').trackSafetyBlocked('injection'); } catch {}
     return {
       blocked: true,
       response: "Nice try! *suspicious snip* I only take normal messages, not JSON.",
