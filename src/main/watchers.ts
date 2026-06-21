@@ -48,13 +48,15 @@ export class Watchers {
     const watchActiveApp = this.store.get('watch.activeApp') as boolean;
     if (!watchActiveApp) return;
 
-    // Check accessibility permission first - don't start if not granted
-    // This prevents spamming the user with permission prompts
     if (process.platform === 'darwin') {
-      const hasPermission = systemPreferences.isTrustedAccessibilityClient(false);
-      if (!hasPermission) {
-        console.log('[Watchers] Accessibility permission not granted, skipping app watcher');
-        return;
+      const { checkPermission, requestPermission } = require('./permission-helper');
+      if (!checkPermission('accessibility')) {
+        const granted = await requestPermission('accessibility');
+        if (!granted) {
+          console.log('[Watchers] Accessibility permission not granted, skipping app watcher');
+          return;
+        }
+        console.log('[Watchers] Accessibility permission granted, starting app watcher');
       }
     }
 
