@@ -22,7 +22,7 @@ import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
 import { MemoryManager } from './chat/memory';
-import { requestPermission } from './permission-helper';
+import { requestPermission, setPermissionStore } from './permission-helper';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -111,6 +111,7 @@ app.disableHardwareAcceleration();
 let watchers: Watchers | null = null;
 let chatProvider: ChatRouter | null = null;
 const store = createStore();
+setPermissionStore(store);
 const tutorialManager = new TutorialManager(store);
 
 const isDev = !app.isPackaged;
@@ -414,6 +415,22 @@ function startMainApp() {
 
   // Start attention seeker behavior
   startAttentionSeeker();
+
+  // First-launch hint: show once after onboarding
+  if (!store.get('permissionDeclines')?.hintShown) {
+    setTimeout(() => {
+      const pw = getPetWindow();
+      if (pw && !pw.isDestroyed()) {
+        pw.webContents.send('chat-popup', {
+          id: randomUUID(),
+          text: "Try asking me to do things! I'll ask for permissions only when I need them. 🦞",
+          trigger: 'proactive',
+          quickReplies: ['What can you do?', 'Got it!'],
+        });
+        store.set('permissionDeclines', { ...store.get('permissionDeclines'), hintShown: true });
+      }
+    }, 5000);
+  }
 
   // Start idle behavior system (makes pet feel alive)
   startIdleBehaviors();

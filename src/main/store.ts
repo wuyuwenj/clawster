@@ -51,6 +51,7 @@ interface StoreSchema {
     windowBorders: boolean;
     showPetModeOverlay: boolean;
   };
+  permissionDeclines: Record<string, number>;
 }
 
 const defaults: StoreSchema = {
@@ -92,6 +93,7 @@ const defaults: StoreSchema = {
     windowBorders: false,
     showPetModeOverlay: false,
   },
+  permissionDeclines: {},
 };
 
 export function createStore(): Store<StoreSchema> {
