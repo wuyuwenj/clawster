@@ -21,7 +21,8 @@
     "start": "electron .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npx playwright test",
+    "test:e2e": "npx playwright test --grep-invert 'Production'",
+    "test:prod": "npx playwright test e2e/production-smoke.spec.ts",
     "eval": "npx tsx eval/runner.ts",
     "eval:holdout": "npx tsx eval/runner.ts --holdout"
   },
