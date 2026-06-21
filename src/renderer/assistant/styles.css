@@ -213,3 +213,22 @@
     transform: translateY(0);
   }
 }
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 300px;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\\[slideDown_0\\.2s_ease-out\\] {
+    animation: none !important;
+  }
+}

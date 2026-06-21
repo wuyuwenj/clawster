@@ -844,7 +844,7 @@ export const Assistant: React.FC = () => {
 
                 {/* Inline permission panel for Accessibility */}
                 {expandedPerm === 'accessibility' && permStatuses['accessibility'] !== 'granted' && (
-                  <div className="mt-3 p-3 rounded-lg bg-amber-950/20 border border-amber-800/20 space-y-2.5 transition-all">
+                  <div className="mt-3 p-3 rounded-lg bg-amber-950/20 border border-amber-800/20 space-y-2.5 animate-[slideDown_0.2s_ease-out]" style={{animation: 'slideDown 0.2s ease-out'}}>
                     <p className="text-[13px] text-neutral-300 leading-relaxed">
                       Clawster needs Accessibility access to close apps, hide distracting apps, and adjust brightness.{' '}
                       <span className="text-neutral-500">It does not read your screen contents.</span>
