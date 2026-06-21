@@ -6,6 +6,8 @@ import { getTemplateResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
 import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
+import { extractMemoryBlock, formatContextForPrompt } from './memory';
+import type { MemoryManager } from './memory';
 import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
@@ -77,6 +79,7 @@ export class ChatRouter extends EventEmitter {
   private emotionEngine: EmotionEngine | null = null;
   private visionProvider: VisionProvider | null = null;
   private screenCapturer: (() => Promise<string | null>) | null = null;
+  private memoryManager: MemoryManager | null = null;
 
   constructor(toolModel: LocalToolProvider) {
     super();
@@ -85,6 +88,10 @@ export class ChatRouter extends EventEmitter {
 
   setEmotionEngine(engine: EmotionEngine): void {
     this.emotionEngine = engine;
+  }
+
+  setMemoryManager(manager: MemoryManager): void {
+    this.memoryManager = manager;
   }
 
   // Cloud vision client used for screen analysis (the local model has no vision).
@@ -135,6 +142,15 @@ export class ChatRouter extends EventEmitter {
       return { type: 'message', text: safety.response! };
     }
 
+    // Retrieve memory context (sync, fast — uses pre-computed vector from previous turn)
+    if (this.memoryManager?.isReady()) {
+      const memCtx = await this.memoryManager.retrieve();
+      const ctxStr = formatContextForPrompt(memCtx);
+      if (ctxStr && this.visionProvider) {
+        (this.visionProvider as any).setMemoryContext?.(ctxStr);
+      }
+    }
+
     const start = Date.now();
     const toolCall = await this.toolModel.classify(rawInput, prepHistory(history));
     const latencyMs = Date.now() - start;
@@ -168,6 +184,12 @@ export class ChatRouter extends EventEmitter {
 
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
     logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
+
+    // Background: process memory extraction from the response (non-blocking)
+    if (this.memoryManager?.isReady()) {
+      void this.memoryManager.processResponseBackground(rawInput, reply);
+    }
+
     return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
   }
 
@@ -184,6 +206,15 @@ export class ChatRouter extends EventEmitter {
       handlers.onDelta?.(safety.response!, safety.response!);
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
       return { type: 'message', text: safety.response! };
+    }
+
+    // Retrieve memory context (sync, fast)
+    if (this.memoryManager?.isReady()) {
+      const memCtx = await this.memoryManager.retrieve();
+      const ctxStr = formatContextForPrompt(memCtx);
+      if (ctxStr && this.visionProvider) {
+        (this.visionProvider as any).setMemoryContext?.(ctxStr);
+      }
     }
 
     const start = Date.now();
@@ -227,6 +258,12 @@ export class ChatRouter extends EventEmitter {
     const reply = toolCall.response || getTemplateResponse(rawInput, toolCall.mood);
     logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: toolCall.mood, latencyMs, ts: Date.now() });
     handlers.onDelta?.(reply, reply);
+
+    // Background: process memory extraction (non-blocking)
+    if (this.memoryManager?.isReady()) {
+      void this.memoryManager.processResponseBackground(rawInput, reply);
+    }
+
     return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
   }
 

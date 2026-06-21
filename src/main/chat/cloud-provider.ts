@@ -58,11 +58,12 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
     } catch { /* no soul file */ }
   }
 
-  private buildSystemPrompt(): string {
+  buildSystemPrompt(memoryContextStr?: string): string {
     const parts = [SYSTEM_PROMPT];
     if (this.identityPrompt) parts.push(`\n\nIDENTITY:\n${this.identityPrompt}`);
     if (this.soulPrompt) parts.push(`\n\nSOUL:\n${this.soulPrompt}`);
-    parts.push(buildPreferencesPrompt()); // personalization memory (empty if none)
+    parts.push(buildPreferencesPrompt());
+    if (memoryContextStr) parts.push(`\n\n${memoryContextStr}`);
     return parts.join('');
   }
 
@@ -105,13 +106,19 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
     }, 15000);
   }
 
+  private memoryContextStr: string = '';
+
+  setMemoryContext(str: string): void {
+    this.memoryContextStr = str;
+  }
+
   private buildMessages(
     message: string,
     history: Array<{ role: 'user' | 'assistant'; content: string }>
   ): ChatMessage[] {
     const recentHistory = history.slice(-20);
     return [
-      { role: 'system', content: this.buildSystemPrompt() },
+      { role: 'system', content: this.buildSystemPrompt(this.memoryContextStr) },
       ...recentHistory,
       { role: 'user', content: message },
     ];
@@ -277,7 +284,7 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
 
     try {
       const messages: ChatMessage[] = [
-        { role: 'system', content: this.buildSystemPrompt() },
+        { role: 'system', content: this.buildSystemPrompt(this.memoryContextStr) },
         {
           role: 'user',
           content: [

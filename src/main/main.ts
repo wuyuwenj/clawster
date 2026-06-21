@@ -13,6 +13,7 @@ import {
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
@@ -20,6 +21,7 @@ import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
+import { MemoryManager } from './chat/memory';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
 import { TutorialManager } from './tutorial';
@@ -320,6 +322,23 @@ function startMainApp() {
   const proxyUrl = store.get('clawbot').url;
   chatProvider.setVisionProvider(createProxyVision(proxyUrl, deviceId));
   chatProvider.setScreenCapturer(() => captureScreen());
+
+  // Initialize memory layer (LanceDB — facts + emotional memories)
+  const memory = new MemoryManager({
+    dbPath: path.join(os.homedir(), '.clawster', 'memory'),
+    proxyUrl,
+    deviceId,
+  });
+  memory.init().then(ok => {
+    if (ok) {
+      chatProvider!.setMemoryManager(memory);
+      console.log('[Memory] LanceDB initialized at ~/.clawster/memory/');
+    } else {
+      console.warn('[Memory] Failed to initialize — running without memory');
+    }
+  }).catch(err => {
+    console.error('[Memory] Init error:', err);
+  });
 
   // Start emotion engine
   const emotionEngine = new EmotionEngine();
