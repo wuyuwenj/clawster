@@ -2,6 +2,15 @@
 
 import { DATASET, getDatasetStats, type TestCase } from './dataset';
 import { HOLDOUT } from './dataset-holdout';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+function loadBlackboxDataset(): TestCase[] {
+  const dir = dirname(fileURLToPath(import.meta.url));
+  const lines = readFileSync(join(dir, 'dataset-blackbox.jsonl'), 'utf-8').trim().split('\n');
+  return lines.map(line => JSON.parse(line) as TestCase);
+}
 import type { Provider, ProviderResult, ToolCall } from './providers';
 import {
   createOpenAIProvider,
@@ -316,6 +325,7 @@ Examples:
   const categoryArg = getArg('--category');
   const difficultyArg = getArg('--difficulty');
   const useHoldout = args.includes('--holdout');
+  const useBlackbox = args.includes('--blackbox');
   const concurrency = parseInt(getArg('--concurrency') || '3', 10);
 
   const filter = (tc: TestCase) => {
@@ -325,8 +335,8 @@ Examples:
   };
 
   // Print dataset stats
-  const activeDataset = useHoldout ? HOLDOUT : DATASET;
-  const datasetLabel = useHoldout ? 'Holdout (unseen)' : 'Standard';
+  const activeDataset = useBlackbox ? loadBlackboxDataset() : useHoldout ? HOLDOUT : DATASET;
+  const datasetLabel = useBlackbox ? 'Blackbox (user-perspective)' : useHoldout ? 'Holdout (unseen)' : 'Standard';
   const stats = getDatasetStats();
   console.log(`\nDataset: ${datasetLabel} — ${activeDataset.length} test cases`);
   if (!useHoldout) {

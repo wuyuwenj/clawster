@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { VibeStep } from './steps/VibeStep';
+import { PermissionsStep } from './steps/PermissionsStep';
 import { ReadyStep } from './steps/ReadyStep';
 
 export interface OnboardingData {
@@ -15,9 +16,9 @@ const INITIAL_DATA: OnboardingData = {
   personalityPreset: 'chill',
 };
 
-type Step = 'welcome' | 'vibe' | 'ready';
+type Step = 'welcome' | 'vibe' | 'permissions' | 'ready';
 
-const STEP_ORDER: Step[] = ['welcome', 'vibe', 'ready'];
+const STEP_ORDER: Step[] = ['welcome', 'vibe', 'permissions', 'ready'];
 
 export function Onboarding() {
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
@@ -99,6 +100,8 @@ export function Onboarding() {
         return <WelcomeStep {...props} />;
       case 'vibe':
         return <VibeStep {...props} />;
+      case 'permissions':
+        return <PermissionsStep {...props} />;
       case 'ready':
         return <ReadyStep {...props} onComplete={handleComplete} />;
       default:

@@ -158,6 +158,23 @@ test.describe.serial('New-user journey: fresh install → daily usage', () => {
     await expect.poll(async () => (await sassy.getAttribute('class')) || '', { timeout: 8000 }).toContain('FF8C69');
 
     await onboarding.getByRole('button', { name: 'Continue' }).click();
+    await onboarding.waitForSelector('text=Permissions', { timeout: 10000 });
+  });
+
+  test('2b2. PermissionsStep: permission rows shown, continue always enabled', async () => {
+    const onboarding = await findWindow(app!, 'onboarding.html');
+
+    await expect(onboarding.locator('h2', { hasText: 'Permissions' })).toBeVisible();
+    // All three permission rows are visible
+    await expect(onboarding.getByText('Accessibility')).toBeVisible();
+    await expect(onboarding.getByText('Screen Recording')).toBeVisible();
+    await expect(onboarding.getByText('Microphone')).toBeVisible();
+    // Badges shown
+    await expect(onboarding.getByText('Recommended')).toBeVisible();
+    // Continue button is always enabled (permissions are optional)
+    await expect(onboarding.getByRole('button', { name: 'Continue' })).toBeEnabled();
+
+    await onboarding.getByRole('button', { name: 'Continue' }).click();
     await onboarding.waitForSelector("text=You're all set!", { timeout: 10000 });
   });
 

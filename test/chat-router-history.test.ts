@@ -156,6 +156,7 @@ describe('ChatRouter screen analysis', () => {
     const seen: Array<{ img: string; q?: string }> = [];
     router.setVisionProvider({
       analyzeScreen: async (img, q) => { seen.push({ img, q }); return { type: 'message', text: 'I see a code editor.' }; },
+      setMemoryContext() {},
     });
 
     const res = await router.analyzeScreen('data:image/png;base64,AAAA', 'what is this?');
@@ -176,6 +177,7 @@ describe('ChatRouter screen analysis', () => {
     router.setScreenCapturer(async () => { captured = true; return 'data:image/png;base64,ZZZ'; });
     router.setVisionProvider({
       analyzeScreen: async (img, q) => ({ type: 'message', text: `analyzed ${img.slice(-3)} for "${q}"` }),
+      setMemoryContext() {},
     });
 
     const res = await router.chat("what's on my screen?");
@@ -192,7 +194,7 @@ describe('ChatRouter screen analysis', () => {
 
   it('take_screenshot reports when capture fails', async () => {
     const router = new ChatRouter(makeToolModelReturning({ tool: 'take_screenshot', args: {} }));
-    router.setVisionProvider({ analyzeScreen: async () => ({ type: 'message', text: 'nope' }) });
+    router.setVisionProvider({ analyzeScreen: async () => ({ type: 'message', text: 'nope' }), setMemoryContext() {} });
     router.setScreenCapturer(async () => null);
     const res = await router.chat('what do you see');
     expect(res.text).toMatch(/couldn't grab a screenshot|permission/i);
