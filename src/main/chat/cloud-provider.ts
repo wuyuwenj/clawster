@@ -300,6 +300,9 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          return { type: 'message', text: "I'm getting sleepy... let's look at your screen later!" };
+        }
         const errorText = await response.text();
         console.error(`[CloudChat] Image analysis error (${response.status}):`, errorText);
         return { type: 'message', text: 'Failed to analyze screenshot.' };
@@ -328,22 +331,28 @@ export class CloudChatProvider extends EventEmitter implements ChatProvider {
 
 export interface VisionProvider {
   analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse>;
+  setMemoryContext(ctx: string): void;
 }
 
 // Lightweight, on-demand screen-analysis client. Unlike CloudChatProvider it
 // does NOT poll or hold a connection — it only contacts the proxy when the user
 // explicitly asks about their screen, preserving the local-first default.
 export function createProxyVision(baseUrl: string, deviceId: string): VisionProvider {
+  let memoryCtx = '';
   return {
+    setMemoryContext(ctx: string): void {
+      memoryCtx = ctx;
+    },
     async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {
       if (!imageDataUrl) {
         return { type: 'message', text: "I couldn't grab a screenshot to look at." };
       }
       const userQuestion = question?.trim() || 'What do you see on my screen?';
+      const systemPrompt = memoryCtx ? `${SYSTEM_PROMPT}\n\n${memoryCtx}` : SYSTEM_PROMPT;
       const body = JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           {
             role: 'user',
             content: [
@@ -360,6 +369,9 @@ export function createProxyVision(baseUrl: string, deviceId: string): VisionProv
           body,
           signal: AbortSignal.timeout(20000),
         });
+        if (response.status === 429) {
+          return { type: 'message', text: "I'm getting sleepy... let's look at your screen later!" };
+        }
         if (!response.ok) {
           return { type: 'message', text: "I couldn't analyze your screen right now — my cloud eyes are offline." };
         }

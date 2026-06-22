@@ -1,8 +1,15 @@
 import { shell, Notification, BrowserWindow } from 'electron';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import { PET_ACTION_TOOLS } from './tool-definitions';
 import { addPreference, getPreferences } from './preferences';
+import type { MemoryDB } from './memory/memory-db';
+
+let memoryDB: MemoryDB | null = null;
+
+export function setMemoryDB(db: MemoryDB | null): void {
+  memoryDB = db;
+}
 
 let notifyCallback: ((title: string, body: string) => void) | null = null;
 
@@ -61,6 +68,17 @@ function notify(title: string, body: string): void {
 }
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+// Escape a string for embedding inside AppleScript double-quoted literals.
+function escapeAppleScript(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+// Run an osascript snippet without going through the shell.
+function runOsascript(script: string, timeout = 8000): Promise<{ stdout: string; stderr: string }> {
+  return execFileAsync('osascript', ['-e', script], { timeout });
+}
 
 function parseDurationMs(input: string): number {
   if (!input) return 0;
@@ -116,8 +134,7 @@ export function resolveFocusApps(raw: unknown): string[] {
 let focusTimer: ReturnType<typeof setInterval> | null = null;
 function hideApps(apps: string[]): void {
   for (const app of apps) {
-    const safe = app.replace(/["\\]/g, '');
-    execAsync(`osascript -e 'tell application "System Events" to set visible of (every process whose name is "${safe}") to false'`).catch(() => {});
+    runOsascript(`tell application "System Events" to set visible of (every process whose name is "${escapeAppleScript(app)}") to false`).catch(() => {});
   }
 }
 function startFocusMode(apps: string[], minutes: number): void {
@@ -162,7 +179,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       const app = args.app as string;
       if (!app) return { handled: true, response: "Which app should I open?" };
       try {
-        await execAsync(`open -a "${app.replace(/"/g, '\\"')}"`);
+        await execFileAsync('open', ['-a', app]);
         return { handled: true, response: `Opening ${app}!` };
       } catch {
         return { handled: true, response: `Couldn't find ${app} on your Mac.` };
@@ -243,16 +260,14 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         };
       }
 
-      // Escape for AppleScript string literals, then for the single-quoted -e arg.
-      const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       const script = `
         tell application "Messages"
           set targetService to 1st service whose service type = iMessage
-          set targetBuddy to buddy "${esc(recipient)}" of targetService
-          send "${esc(body)}" to targetBuddy
+          set targetBuddy to buddy "${escapeAppleScript(recipient)}" of targetService
+          send "${escapeAppleScript(body)}" to targetBuddy
         end tell`;
       try {
-        await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 8000 });
+        await runOsascript(script);
         return {
           handled: true,
           response: `Sent to ${recipient}! 💬`,
@@ -280,7 +295,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
 
     case 'read_clipboard': {
       try {
-        const { stdout } = await execAsync('pbpaste', { timeout: 3000, maxBuffer: 1024 * 1024 });
+        const { stdout } = await execFileAsync('pbpaste', [], { timeout: 3000, maxBuffer: 1024 * 1024 });
         const text = stdout.replace(/\s+$/, '');
         if (!text.trim()) return { handled: true, response: "Your clipboard is empty!" };
         const truncated = text.length > 1200 ? text.slice(0, 1200) + '\n…(truncated)' : text;
@@ -292,7 +307,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
 
     case 'summarize_clipboard': {
       try {
-        const { stdout } = await execAsync('pbpaste', { timeout: 3000, maxBuffer: 1024 * 1024 });
+        const { stdout } = await execFileAsync('pbpaste', [], { timeout: 3000, maxBuffer: 1024 * 1024 });
         const text = stdout.trim();
         if (!text) return { handled: true, response: "Your clipboard is empty — nothing to summarize!" };
         return { handled: true, response: summarizeText(text) };
@@ -318,8 +333,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return executeTool('list_files', { directory: args.directory || '~/Desktop' });
       }
       try {
-        const { stdout } = await execAsync(`mdfind -onlyin "${dir.replace(/"/g, '\\"')}" "${query.replace(/"/g, '\\"')}" | head -8`, { timeout: 5000 });
-        const files = stdout.trim().split('\n').filter(Boolean);
+        const { stdout } = await execFileAsync('mdfind', ['-onlyin', dir, query], { timeout: 5000 });
+        const files = stdout.trim().split('\n').filter(Boolean).slice(0, 8);
         if (files.length === 0) return { handled: true, response: `No files found matching "${query}".` };
         const home = process.env.HOME || '';
         const formatted = files.map(f => {
@@ -335,8 +350,8 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
     case 'list_files': {
       const dir = (args.directory as string || '~/Desktop').replace('~', process.env.HOME || '');
       try {
-        const { stdout } = await execAsync(`ls -1 "${dir.replace(/"/g, '\\"')}" | head -15`, { timeout: 3000 });
-        const files = stdout.trim().split('\n').filter(Boolean);
+        const { stdout } = await execFileAsync('ls', ['-1', dir], { timeout: 3000 });
+        const files = stdout.trim().split('\n').filter(Boolean).slice(0, 15);
         if (files.length === 0) return { handled: true, response: `That folder is empty.` };
         const home = process.env.HOME || '';
         const shortDir = home ? dir.replace(home, '~') : dir;
@@ -353,7 +368,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         const url = location
           ? `https://wttr.in/${encodeURIComponent(location)}?format=%l:+%C+%t+%h+humidity+%w+wind`
           : `https://wttr.in/?format=%l:+%C+%t+%h+humidity+%w+wind`;
-        const { stdout } = await execAsync(`curl -s "${url}"`, { timeout: 5000 });
+        const { stdout } = await execFileAsync('curl', ['-s', url], { timeout: 5000 });
         const weather = stdout.trim();
         if (!weather || weather.includes('Unknown')) {
           return { handled: true, response: `Couldn't find weather for "${location}".` };
@@ -369,11 +384,12 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       const duration = args.duration as string;
       const label = args.label as string || 'Timer';
       const ms = parseDurationMs(duration);
-      if (ms > 0) {
-        setTimeout(() => {
-          notify(label, `${duration} is up!`);
-        }, ms);
+      if (ms <= 0) {
+        return { handled: true, response: "I couldn't understand that duration — try something like '5 minutes' or '30 seconds'." };
       }
+      setTimeout(() => {
+        notify(label, `${duration} is up!`);
+      }, ms);
       return { handled: true, response: `Timer set for ${duration}!${label !== 'Timer' ? ` (${label})` : ''}` };
     }
 
@@ -389,7 +405,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         return { handled: true, response: `I'll remind you: "${text}" in ${time}` };
       }
       try {
-        await execAsync(`osascript -e 'tell application "Reminders" to make new reminder with properties {name:"${text.replace(/"/g, '\\"')}"}'`);
+        await runOsascript(`tell application "Reminders" to make new reminder with properties {name:"${escapeAppleScript(text)}"}`);
         return { handled: true, response: `Reminder created: "${text}"` };
       } catch (err) {
         if (isAutomationDenied(err)) return automationDeniedResponse('create_reminder');
@@ -411,7 +427,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
             end repeat
             return output
           end tell`;
-        const { stdout } = await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 8000 });
+        const { stdout } = await runOsascript(script);
         const events = stdout.trim();
         if (!events) return { handled: true, response: "No upcoming events found." };
         const lines = events.split('\n').filter(Boolean).slice(0, 8);
@@ -430,10 +446,10 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
         const script = `
           tell application "Calendar"
             tell calendar 1
-              make new event with properties {summary:"${title.replace(/"/g, '\\"')}", start date:date "${start}"}
+              make new event with properties {summary:"${escapeAppleScript(title)}", start date:date "${escapeAppleScript(start)}"}
             end tell
           end tell`;
-        await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 5000 });
+        await runOsascript(script, 5000);
         return { handled: true, response: `Event created: "${title}" at ${start}` };
       } catch (err) {
         if (isAutomationDenied(err)) return automationDeniedResponse('create_calendar_event');
@@ -446,22 +462,22 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       const query = args.query as string;
       try {
         if (action === 'pause') {
-          await execAsync(`osascript -e 'tell application "Music" to pause'`);
+          await runOsascript('tell application "Music" to pause');
           return { handled: true, response: 'Music paused!' };
         }
         if (action === 'next') {
-          await execAsync(`osascript -e 'tell application "Music" to next track'`);
+          await runOsascript('tell application "Music" to next track');
           return { handled: true, response: 'Skipping to next track!' };
         }
         if (action === 'previous') {
-          await execAsync(`osascript -e 'tell application "Music" to previous track'`);
+          await runOsascript('tell application "Music" to previous track');
           return { handled: true, response: 'Going back!' };
         }
         if (query) {
-          await execAsync(`open -a Music`);
+          await execFileAsync('open', ['-a', 'Music']);
           return { handled: true, response: `Opening Music to play ${query}!` };
         }
-        await execAsync(`osascript -e 'tell application "Music" to play'`);
+        await runOsascript('tell application "Music" to play');
         return { handled: true, response: 'Playing music!' };
       } catch (err) {
         if (isAutomationDenied(err)) return automationDeniedResponse('play_music');
@@ -475,52 +491,52 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       try {
         switch (action) {
           case 'volume_up':
-            await execAsync(`osascript -e 'set volume output volume (output volume of (get volume settings) + 12)'`);
+            await runOsascript('set volume output volume (output volume of (get volume settings) + 12)');
             return { handled: true, response: 'Volume up! 🔊' };
           case 'volume_down':
-            await execAsync(`osascript -e 'set volume output volume (output volume of (get volume settings) - 12)'`);
+            await runOsascript('set volume output volume (output volume of (get volume settings) - 12)');
             return { handled: true, response: 'Volume down! 🔉' };
           case 'mute':
-            await execAsync(`osascript -e 'set volume output muted true'`);
+            await runOsascript('set volume output muted true');
             return { handled: true, response: 'Muted! 🔇' };
           case 'unmute':
-            await execAsync(`osascript -e 'set volume output muted false'`);
+            await runOsascript('set volume output muted false');
             return { handled: true, response: 'Sound back on! 🔊' };
           case 'set_volume': {
             const v = Math.max(0, Math.min(100, parseInt(String(rawValue ?? '50'), 10) || 50));
-            await execAsync(`osascript -e 'set volume output volume ${v}'`);
+            await runOsascript(`set volume output volume ${v}`);
             return { handled: true, response: `Volume set to ${v}%` };
           }
           case 'brightness_up':
-            await execAsync(`osascript -e 'tell application "System Events" to key code 144'`);
+            await runOsascript('tell application "System Events" to key code 144');
             return { handled: true, response: 'Brightness up! ☀️' };
           case 'brightness_down':
-            await execAsync(`osascript -e 'tell application "System Events" to key code 145'`);
+            await runOsascript('tell application "System Events" to key code 145');
             return { handled: true, response: 'Brightness down! 🌙' };
           case 'battery': {
-            const { stdout } = await execAsync(`pmset -g batt`, { timeout: 4000 });
+            const { stdout } = await execFileAsync('pmset', ['-g', 'batt'], { timeout: 4000 });
             const pct = stdout.match(/(\d+)%/);
             const charging = /AC Power/.test(stdout) ? ', charging' : '';
             return { handled: true, response: pct ? `Battery is at ${pct[1]}%${charging} 🔋` : "Couldn't read the battery level." };
           }
           case 'lock_screen':
           case 'lock':
-            await execAsync(`osascript -e 'tell application "System Events" to keystroke "q" using {control down, command down}'`);
+            await runOsascript('tell application "System Events" to keystroke "q" using {control down, command down}');
             return { handled: true, response: 'Locking your screen! 🔒' };
           case 'sleep':
           case 'sleep_display':
-            await execAsync(`pmset displaysleepnow`);
+            await execFileAsync('pmset', ['displaysleepnow']);
             return { handled: true, response: 'Sending the display to sleep! 😴' };
           case 'dnd_on':
           case 'dnd':
           case 'do_not_disturb': {
-            // Best-effort: legacy NotificationCenter toggle (effective on older
-            // macOS). Harmless if no-op on newer Focus-based releases.
-            await execAsync(`defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean true && killall NotificationCenter`).catch(() => {});
+            await execFileAsync('defaults', ['-currentHost', 'write', 'com.apple.notificationcenterui', 'doNotDisturb', '-boolean', 'true']).catch(() => {});
+            await execFileAsync('killall', ['NotificationCenter']).catch(() => {});
             return { handled: true, response: 'Do Not Disturb on — keeping it quiet for you! 🌙' };
           }
           case 'dnd_off': {
-            await execAsync(`defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter`).catch(() => {});
+            await execFileAsync('defaults', ['-currentHost', 'write', 'com.apple.notificationcenterui', 'doNotDisturb', '-boolean', 'false']).catch(() => {});
+            await execFileAsync('killall', ['NotificationCenter']).catch(() => {});
             return { handled: true, response: 'Do Not Disturb off — notifications are back! 🔔' };
           }
           default:
@@ -554,7 +570,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
       }
 
       try {
-        await execAsync(`osascript -e 'tell application "${app.replace(/["\\]/g, '')}" to quit'`, { timeout: 5000 });
+        await runOsascript(`tell application "${escapeAppleScript(app)}" to quit`, 5000);
         return {
           handled: true,
           response: `Closed ${app}! 👋`,
@@ -573,11 +589,23 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
     case 'remember_preference': {
       const pref = String(args.preference ?? args.text ?? args.value ?? args.fact ?? '').trim();
       if (!pref) return { handled: true, response: "What would you like me to remember?" };
-      addPreference(pref);
+      if (memoryDB?.isReady()) {
+        const key = `pref_${pref.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40)}`;
+        await memoryDB.upsertFact({ key, value: pref, person: '', updatedAt: new Date().toISOString() });
+      } else {
+        addPreference(pref);
+      }
       return { handled: true, response: `Got it — I'll remember that! 🧠 ("${pref}")` };
     }
 
     case 'recall_preferences': {
+      if (memoryDB?.isReady()) {
+        const facts = await memoryDB.getAllFacts();
+        if (!facts.length) {
+          return { handled: true, response: "I don't know much about you yet! Tell me to remember something. *curious snip*" };
+        }
+        return { handled: true, response: `Here's what I remember about you:\n${facts.map(f => `- ${f.value}`).join('\n')}` };
+      }
       const prefs = getPreferences();
       if (!prefs.length) {
         return { handled: true, response: "I don't know much about you yet! Tell me to remember something. *curious snip*" };
@@ -588,7 +616,7 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
     case 'block_apps': {
       const apps = resolveFocusApps(args.apps ?? args.app ?? args.list);
       const durMs = parseDurationMs(String(args.minutes ?? args.duration ?? args.time ?? '25 minutes'));
-      const minutes = durMs > 0 ? Math.max(1, Math.round(durMs / 60000)) : 25;
+      const minutes = Math.min(120, durMs > 0 ? Math.max(1, Math.round(durMs / 60000)) : 25);
       startFocusMode(apps, minutes);
       return {
         handled: true,

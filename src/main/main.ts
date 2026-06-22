@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, createProxyVision } from './chat';
+import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, createProxyVision } from './chat';
 import { MemoryManager } from './chat/memory';
 import { requestPermission, setPermissionStore, getAllPermissionStatuses, openPermissionSettings, startPolling, stopPolling, checkPermission, needsRestart } from './permission-helper';
 import type { PermissionType } from './permission-helper';
@@ -354,6 +354,7 @@ function startMainApp() {
   memory.init().then(ok => {
     if (ok) {
       chatProvider!.setMemoryManager(memory);
+      setMemoryDB(memory.getDB());
       console.log(`[Memory] LanceDB initialized at ${path.join(clawsterDataDir(), 'memory')}`);
     } else {
       console.warn('[Memory] Failed to initialize — running without memory');
@@ -1223,7 +1224,17 @@ function registerHotkeys() {
 }
 
 // Auto-updater setup
+function broadcastUpdateStatus(payload: { state: string; version?: string; percent?: number }) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('update-status', payload);
+  }
+}
+
 function setupAutoUpdater() {
+  ipcMain.handle('install-update', () => {
+    autoUpdater.quitAndInstall();
+  });
+
   if (isDev) {
     console.log('[AutoUpdater] Skipping in dev mode');
     return;
@@ -1238,6 +1249,7 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-available', (info) => {
     console.log('[AutoUpdater] Update available:', info.version);
+    broadcastUpdateStatus({ state: 'available', version: info.version });
   });
 
   autoUpdater.on('update-not-available', () => {
@@ -1246,28 +1258,21 @@ function setupAutoUpdater() {
 
   autoUpdater.on('download-progress', (progress) => {
     console.log(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
+    broadcastUpdateStatus({ state: 'downloading', percent: Math.round(progress.percent) });
   });
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[AutoUpdater] Update downloaded:', info.version);
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Ready',
-      message: `Clawster ${info.version} is ready to install.`,
-      detail: 'The update will be installed when you restart the app.',
-      buttons: ['Restart Now', 'Later'],
-    }).then((result) => {
-      if (result.response === 0) {
-        autoUpdater.quitAndInstall();
-      }
-    });
+    broadcastUpdateStatus({ state: 'ready', version: info.version });
   });
 
   autoUpdater.on('error', (error) => {
     console.error('[AutoUpdater] Error:', error);
+    broadcastUpdateStatus({ state: 'error' });
   });
 
   autoUpdater.checkForUpdatesAndNotify();
+  setInterval(() => autoUpdater.checkForUpdates(), 30 * 60 * 1000);
 }
 
 // Setup system tray

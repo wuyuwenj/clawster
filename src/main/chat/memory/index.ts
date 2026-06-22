@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { clawsterDataDir } from '../../paths';
 import { MemoryDB } from './memory-db';
 import { embed } from './embeddings';
 import { extractMemoryBlock } from './memory-extractor';
@@ -85,17 +86,19 @@ export class MemoryManager {
           try { require('../../analytics').trackMemoryStored({ type: 'fact', count: memoryData.facts.length }); } catch {}
         }
 
-        // Store emotional memory with embedding
+        // Store emotional memory with embedding (skip if embedding failed)
         if (memoryData.emotional) {
           const vector = await this.embedText(memoryData.emotional);
-          await this.db.addMemory({
-            summary: memoryData.emotional,
-            emotions: JSON.stringify(memoryData.emotions || []),
-            people: JSON.stringify(memoryData.people || []),
-            vector,
-            timestamp: new Date().toISOString(),
-          });
-          try { require('../../analytics').trackMemoryStored({ type: 'emotional', count: 1 }); } catch {}
+          if (vector.length > 0) {
+            await this.db.addMemory({
+              summary: memoryData.emotional,
+              emotions: JSON.stringify(memoryData.emotions || []),
+              people: JSON.stringify(memoryData.people || []),
+              vector,
+              timestamp: new Date().toISOString(),
+            });
+            try { require('../../analytics').trackMemoryStored({ type: 'emotional', count: 1 }); } catch {}
+          }
         }
       }
 
@@ -119,17 +122,14 @@ export class MemoryManager {
   }
 
   private async migratePrefsJson(): Promise<void> {
-    const prefsPath = path.join(
-      process.env.HOME || process.env.USERPROFILE || '',
-      '.clawster',
-      'prefs.json'
-    );
+    const prefsPath = path.join(clawsterDataDir(), 'prefs.json');
 
     if (!fs.existsSync(prefsPath)) return;
 
     try {
       const raw = fs.readFileSync(prefsPath, 'utf-8');
-      const prefs = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      const prefs = Array.isArray(parsed) ? parsed : (parsed?.preferences ?? []);
 
       if (Array.isArray(prefs) && prefs.length > 0) {
         for (let i = 0; i < prefs.length; i++) {

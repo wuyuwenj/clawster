@@ -32,7 +32,11 @@ async function verifyHmac(request: Request, body: string, env: Env): Promise<{ v
     false,
     ['verify']
   );
-  const sigBytes = new Uint8Array(signature.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+  const hexPairs = signature.match(/.{2}/g);
+  if (!hexPairs || hexPairs.length === 0) {
+    return { valid: false, deviceId, error: 'Invalid signature format' };
+  }
+  const sigBytes = new Uint8Array(hexPairs.map(b => parseInt(b, 16)));
   const valid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(payload));
 
   if (!valid) {
@@ -169,13 +173,34 @@ export default {
           status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
         });
       }
+
+      const rateCheck = await checkRateLimit(auth.deviceId, env);
+      if (!rateCheck.allowed) {
+        const status = rateCheck.error === 'daily_limit' ? 429 : 503;
+        return new Response(JSON.stringify({ error: rateCheck.error }), {
+          status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+
+      await incrementCounters(auth.deviceId, env);
+
+      let parsedBody: unknown;
+      try {
+        parsedBody = JSON.parse(body);
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+
       const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
         },
-        body: JSON.stringify({ ...JSON.parse(body), model: 'text-embedding-3-small' }),
+        body: JSON.stringify({ model: 'text-embedding-3-small', input: (parsedBody as { input?: unknown }).input }),
       });
       const embeddingData = await embeddingResponse.text();
       return new Response(embeddingData, {
@@ -251,8 +276,12 @@ export default {
     // to Durable Objects for atomic counters if abuse becomes real.
     await incrementCounters(auth.deviceId, env);
 
-    const requestBody = parsed as { model?: string; stream?: boolean };
-    const openaiBody = { ...requestBody, model: env.OPENAI_MODEL || 'gpt-4o-mini' };
+    const allowedBody = parsed as { messages?: unknown; stream?: boolean };
+    const openaiBody = {
+      model: env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: allowedBody.messages,
+      ...(allowedBody.stream ? { stream: true } : {}),
+    };
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -273,7 +302,7 @@ export default {
       });
     }
 
-    if (requestBody.stream) {
+    if (allowedBody.stream) {
       return new Response(openaiResponse.body, {
         headers: {
           'Content-Type': 'text/event-stream',

@@ -36,7 +36,6 @@ const KNOWN_TOOLS = new Set([
   'play_music', 'send_notification', 'search_files', 'list_files', 'get_weather',
   'set_timer', 'create_timer', 'what_time', 'run_shell', 'system_control', 'send_message',
   'read_clipboard', 'summarize_clipboard', 'block_apps', 'remember_preference', 'recall_preferences',
-  'remember_preference', 'recall_preferences', 'close_app', 'what_time',
 ]);
 
 // Bare greetings / acknowledgements / fillers. When the WHOLE input is one of
@@ -74,6 +73,7 @@ export function isFalsePositiveTool(input: string, tool: string | null): boolean
 
 interface VisionProvider {
   analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse>;
+  setMemoryContext(ctx: string): void;
 }
 
 export class ChatRouter extends EventEmitter {
@@ -82,6 +82,7 @@ export class ChatRouter extends EventEmitter {
   private visionProvider: VisionProvider | null = null;
   private screenCapturer: (() => Promise<string | null>) | null = null;
   private memoryManager: MemoryManager | null = null;
+  private lastMemoryContext: string = '';
 
   constructor(toolModel: LocalToolProvider) {
     super();
@@ -94,6 +95,10 @@ export class ChatRouter extends EventEmitter {
 
   setMemoryManager(manager: MemoryManager): void {
     this.memoryManager = manager;
+  }
+
+  getMemoryContext(): string {
+    return this.lastMemoryContext;
   }
 
   // Cloud vision client used for screen analysis (the local model has no vision).
@@ -121,6 +126,7 @@ export class ChatRouter extends EventEmitter {
     if (!image) {
       return { type: 'message', text: "I couldn't grab a screenshot — I may need screen recording permission." };
     }
+    this.visionProvider.setMemoryContext(this.lastMemoryContext);
     return this.visionProvider.analyzeScreen(image, question);
   }
 
@@ -149,9 +155,7 @@ export class ChatRouter extends EventEmitter {
     // Retrieve memory context (sync, fast — uses pre-computed vector from previous turn)
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
-      const ctxStr = formatContextForPrompt(memCtx);
-      // Memory context available for cloud prompt injection when cloud path is active
-      void ctxStr;
+      this.lastMemoryContext = formatContextForPrompt(memCtx);
     }
 
     const start = Date.now();
@@ -227,9 +231,7 @@ export class ChatRouter extends EventEmitter {
     // Retrieve memory context (sync, fast)
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
-      const ctxStr = formatContextForPrompt(memCtx);
-      // Memory context available for cloud prompt injection when cloud path is active
-      void ctxStr;
+      this.lastMemoryContext = formatContextForPrompt(memCtx);
     }
 
     const start = Date.now();
