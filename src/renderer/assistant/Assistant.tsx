@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@iconify/react';
+import { UpdateBanner } from '../components/UpdateBanner';
 import { LinkifyText } from '../components/LinkifyText';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { HotkeyInput } from '../components/HotkeyInput';
@@ -594,6 +595,8 @@ export const Assistant: React.FC = () => {
           <Icon icon="solar:close-circle-linear" className="text-lg" />
         </button>
       </div>
+
+      <UpdateBanner />
 
       {/* Tabs */}
       <div className="flex px-2 border-b border-white/5 shrink-0 bg-[#0f0f0f]">

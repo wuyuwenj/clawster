@@ -78,6 +78,12 @@ contextBridge.exposeInMainWorld('clawster', {
     return onIpc('permission-statuses-updated', callback);
   },
 
+  // Auto-update
+  onUpdateStatus: (callback: (data: { state: string; version?: string; percent?: number }) => void) => {
+    return onIpc('update-status', callback);
+  },
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+
   // Screen capture
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
   captureScreenWithContext: () => ipcRenderer.invoke('capture-screen-with-context'),
@@ -91,7 +97,7 @@ contextBridge.exposeInMainWorld('clawster', {
   startClawbotStream: (message: string, includeScreen?: boolean) =>
     ipcRenderer.invoke('start-clawbot-stream', message, includeScreen),
   getClawbotStatus: () => ipcRenderer.invoke('clawbot-status'),
-  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null; gatewayUrl: string }) => void) => {
+  onConnectionStatusChange: (callback: (status: { connected: boolean; error: string | null }) => void) => {
     return onIpc('clawbot-connection-changed', callback);
   },
   onClawbotStreamChunk: (callback: (data: { requestId: string; delta: string; text: string }) => void) => {
@@ -249,7 +255,7 @@ contextBridge.exposeInMainWorld('clawster', {
 
 // TypeScript types for the exposed API
 export interface PetAction {
-  type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave' | 'look_at';
+  type: 'set_mood' | 'move_to' | 'move_to_cursor' | 'snip' | 'wave';
   value?: string;
   x?: number;
   y?: number;

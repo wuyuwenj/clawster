@@ -65,6 +65,8 @@ interface ClawsterAPI {
   saveChatHistory: (messages: unknown[]) => Promise<boolean>;
   clearChatHistory: () => Promise<boolean>;
   notifyChatSync: () => void;
+  onUpdateStatus: (callback: (data: { state: string; version?: string; percent?: number }) => void) => () => void;
+  installUpdate: () => Promise<void>;
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
   getScreenContext: () => Promise<unknown>;
