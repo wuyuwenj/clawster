@@ -1,37 +1,23 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { WelcomeStep } from './steps/WelcomeStep';
-import { PersonalityStep } from './steps/PersonalityStep';
-import { WatchStep } from './steps/WatchStep';
-import { HotkeysStep } from './steps/HotkeysStep';
-import { CompleteStep } from './steps/CompleteStep';
+import { VibeStep } from './steps/VibeStep';
+import { ReadyStep } from './steps/ReadyStep';
 
 export interface OnboardingData {
   launchOnStartup: boolean;
-  identity: string;
-  soul: string;
-  watchFolders: string[];
-  watchActiveApp: boolean;
-  watchWindowTitles: boolean;
   hotkeyOpenChat: string;
-  hotkeyCaptureScreen: string;
-  hotkeyOpenAssistant: string;
+  personalityPreset: string;
 }
 
 const INITIAL_DATA: OnboardingData = {
   launchOnStartup: true,
-  identity: '',
-  soul: '',
-  watchFolders: [],
-  watchActiveApp: false,
-  watchWindowTitles: false,
   hotkeyOpenChat: 'CommandOrControl+Shift+Space',
-  hotkeyCaptureScreen: 'CommandOrControl+Shift+/',
-  hotkeyOpenAssistant: 'CommandOrControl+Shift+A',
+  personalityPreset: 'chill',
 };
 
-type Step = 'welcome' | 'personality' | 'watch' | 'hotkeys' | 'complete';
+type Step = 'welcome' | 'vibe' | 'ready';
 
-const STEP_ORDER: Step[] = ['welcome', 'personality', 'watch', 'hotkeys', 'complete'];
+const STEP_ORDER: Step[] = ['welcome', 'vibe', 'ready'];
 
 export function Onboarding() {
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
@@ -42,24 +28,6 @@ export function Onboarding() {
   const updateData = useCallback((updates: Partial<OnboardingData>) => {
     setData(prev => ({ ...prev, ...updates }));
   }, []);
-
-  useEffect(() => {
-    const loadDefaults = async () => {
-      try {
-        const defaults = await window.clawster.getDefaultPersonality();
-        if (defaults.identity && defaults.soul) {
-          updateData({
-            identity: defaults.identity,
-            soul: defaults.soul,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load defaults:', error);
-      }
-    };
-
-    loadDefaults();
-  }, [updateData]);
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
 
@@ -101,21 +69,16 @@ export function Onboarding() {
     }
   }, [data]);
 
-  const isNextDisabled = () => {
-    return false;
-  };
-
   const getNextButtonText = () => {
     if (currentStep === 'welcome') return 'Get Started';
-    if (currentStep === 'complete') {
-      if (isCompleting) return 'Waking up...';
-      return 'Wake Up Clawster';
+    if (currentStep === 'ready') {
+      return isCompleting ? 'Waking up…' : "Let's go!";
     }
     return 'Continue';
   };
 
   const handleNextClick = () => {
-    if (currentStep === 'complete') {
+    if (currentStep === 'ready') {
       handleComplete();
     } else {
       goToNextStep();
@@ -134,14 +97,10 @@ export function Onboarding() {
     switch (currentStep) {
       case 'welcome':
         return <WelcomeStep {...props} />;
-      case 'personality':
-        return <PersonalityStep {...props} />;
-      case 'watch':
-        return <WatchStep {...props} />;
-      case 'hotkeys':
-        return <HotkeysStep {...props} />;
-      case 'complete':
-        return <CompleteStep {...props} onComplete={handleComplete} />;
+      case 'vibe':
+        return <VibeStep {...props} />;
+      case 'ready':
+        return <ReadyStep {...props} onComplete={handleComplete} />;
       default:
         return null;
     }
@@ -198,9 +157,9 @@ export function Onboarding() {
 
         <button
           onClick={handleNextClick}
-          disabled={isNextDisabled() || isCompleting}
+          disabled={isCompleting}
           className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            isNextDisabled() || isCompleting
+            isCompleting
               ? 'bg-[#FF8C69]/50 text-neutral-950/50 cursor-not-allowed'
               : 'bg-[#FF8C69] text-neutral-950 hover:bg-[#ff7a50] shadow-[0_0_15px_rgba(255,140,105,0.2)]'
           }`}

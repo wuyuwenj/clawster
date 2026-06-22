@@ -203,18 +203,18 @@ contextBridge.exposeInMainWorld('clawster', {
   onboardingSkip: () => ipcRenderer.invoke('onboarding-skip'),
   onboardingComplete: (data: {
     launchOnStartup: boolean;
-    identity: string;
-    soul: string;
-    watchFolders: string[];
-    watchActiveApp: boolean;
-    watchWindowTitles: boolean;
     hotkeyOpenChat: string;
-    hotkeyCaptureScreen: string;
-    hotkeyOpenAssistant: string;
+    personalityPreset: string;
   }) => ipcRenderer.invoke('onboarding-complete', data),
   getDefaultPersonality: () => ipcRenderer.invoke('get-default-personality'),
   getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
   resetOnboarding: () => ipcRenderer.invoke('reset-onboarding'),
+
+  // Personality presets (onboarding + Settings picker)
+  getPersonalityPresets: () => ipcRenderer.invoke('get-personality-presets'),
+  getPersonalityPreset: () => ipcRenderer.invoke('get-personality-preset'),
+  setPersonalityPreset: (id: string) => ipcRenderer.invoke('set-personality-preset', id),
+  openPersonalityFolder: () => ipcRenderer.invoke('open-personality-folder'),
 
   // Cleanup
   removeAllListeners: () => {
@@ -265,14 +265,15 @@ export interface ScreenContext {
 
 export interface OnboardingData {
   launchOnStartup: boolean;
-  identity: string;
-  soul: string;
-  watchFolders: string[];
-  watchActiveApp: boolean;
-  watchWindowTitles: boolean;
   hotkeyOpenChat: string;
-  hotkeyCaptureScreen: string;
-  hotkeyOpenAssistant: string;
+  personalityPreset: string;
+}
+
+export interface PersonalityPreset {
+  id: string;
+  label: string;
+  emoji: string;
+  blurb: string;
 }
 
 export interface ClawsterAPI {
@@ -364,6 +365,10 @@ export interface ClawsterAPI {
   getDefaultPersonality: () => Promise<{ identity: string; soul: string }>;
   getOnboardingStatus: () => Promise<{ completed: boolean; skipped: boolean }>;
   resetOnboarding: () => Promise<boolean>;
+  getPersonalityPresets: () => Promise<PersonalityPreset[]>;
+  getPersonalityPreset: () => Promise<string>;
+  setPersonalityPreset: (id: string) => Promise<{ ok: boolean }>;
+  openPersonalityFolder: () => Promise<boolean>;
   removeAllListeners: () => void;
 }
 

@@ -26,14 +26,15 @@ interface ScreenContext {
 
 interface OnboardingData {
   launchOnStartup: boolean;
-  identity: string;
-  soul: string;
-  watchFolders: string[];
-  watchActiveApp: boolean;
-  watchWindowTitles: boolean;
   hotkeyOpenChat: string;
-  hotkeyCaptureScreen: string;
-  hotkeyOpenAssistant: string;
+  personalityPreset: string;
+}
+
+interface PersonalityPreset {
+  id: string;
+  label: string;
+  emoji: string;
+  blurb: string;
 }
 
 interface ClawsterAPI {
@@ -126,6 +127,10 @@ interface ClawsterAPI {
   getDefaultPersonality: () => Promise<{ identity: string; soul: string }>;
   getOnboardingStatus: () => Promise<{ completed: boolean; skipped: boolean }>;
   resetOnboarding: () => Promise<boolean>;
+  getPersonalityPresets: () => Promise<PersonalityPreset[]>;
+  getPersonalityPreset: () => Promise<string>;
+  setPersonalityPreset: (id: string) => Promise<{ ok: boolean }>;
+  openPersonalityFolder: () => Promise<boolean>;
 }
 
 interface Window {
