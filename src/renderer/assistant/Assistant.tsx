@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 import { LinkifyText } from '../components/LinkifyText';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { HotkeyInput } from '../components/HotkeyInput';
+import { PERSONALITY_PRESETS } from '../personality-presets';
 
 interface Message {
   id: string;
@@ -38,6 +39,7 @@ export const Assistant: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [activePreset, setActivePreset] = useState<string>('chill');
   const [permStatuses, setPermStatuses] = useState<Record<string, string>>({});
   const [expandedPerm, setExpandedPerm] = useState<string | null>(null);
   const [permWaiting, setPermWaiting] = useState<string | null>(null);
@@ -104,6 +106,9 @@ export const Assistant: React.FC = () => {
       });
       window.clawster.getPermissionStatuses().then((s: Record<string, string>) => {
         setPermStatuses(s);
+      });
+      window.clawster.getPersonalityPreset().then((p: string) => {
+        if (p) setActivePreset(p);
       });
     };
     refreshSettings();
@@ -533,6 +538,11 @@ export const Assistant: React.FC = () => {
     setSettings(newSettings as Record<string, unknown>);
   }, []);
 
+  const changePreset = useCallback(async (id: string) => {
+    setActivePreset(id);
+    await window.clawster.setPersonalityPreset(id);
+  }, []);
+
   const closeWindow = useCallback(() => {
     window.clawster.closeAssistant();
   }, []);
@@ -798,6 +808,41 @@ export const Assistant: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Group: Personality */}
+          <div className="pt-4 border-t border-white/5">
+            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+              Personality
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              {PERSONALITY_PRESETS.map((preset) => {
+                const active = activePreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    data-preset={preset.id}
+                    onClick={() => changePreset(preset.id)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                      active
+                        ? 'border-[#FF8C69] bg-[#FF8C69]/10'
+                        : 'border-white/10 bg-neutral-900 hover:bg-neutral-800'
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{preset.emoji}</span>
+                    <span className={`text-sm font-medium ${active ? 'text-[#FF8C69]' : 'text-neutral-300'}`}>
+                      {preset.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => window.clawster.openPersonalityFolder()}
+              className="mt-3 text-xs text-neutral-500 hover:text-neutral-300 transition-colors underline underline-offset-2"
+            >
+              Edit raw files
+            </button>
           </div>
 
           {/* Group 2: Watching (permission-gated) */}

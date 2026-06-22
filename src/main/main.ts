@@ -12,7 +12,6 @@ import {
   systemPreferences,
 } from 'electron';
 import path from 'path';
-import fs from 'fs';
 import os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -27,6 +26,17 @@ import type { PermissionType } from './permission-helper';
 import { initAnalytics, shutdownAnalytics, trackPetInteraction } from './analytics';
 import { EmotionEngine } from './emotion-engine';
 import { createStore } from './store';
+import { clawsterDataDir } from './paths';
+import {
+  applyPreset,
+  ensureActivePersonality,
+  getActivePersonality,
+  activePersonalityDir,
+  isPresetId,
+  PRESETS,
+  DEFAULT_PRESET,
+  type PresetId,
+} from './personality';
 import { TutorialManager } from './tutorial';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
 import { logEvent } from './event-logger';
@@ -130,6 +140,7 @@ const APP_SWITCH_CHAT_COOLDOWN = 60 * 1000;
 let lastActivityTime = Date.now();
 let idleCheckInterval: NodeJS.Timeout | null = null;
 let lastAppSwitchChat = 0;
+let lastDeniedPermission: string | null = null;
 const IDLE_THRESHOLD = 5 * 60 * 1000;
 
 // Tray
@@ -308,17 +319,8 @@ function startMainApp() {
     });
   }
 
-  const personalityDir = isDev
-    ? path.join(__dirname, '../../personality')
-    : path.join(process.resourcesPath, 'personality');
-
-  let personalityPrompt = '';
-  try {
-    const identity = fs.readFileSync(path.join(personalityDir, 'IDENTITY.md'), 'utf-8');
-    const soul = fs.readFileSync(path.join(personalityDir, 'SOUL.md'), 'utf-8');
-    if (identity) personalityPrompt += `\nIDENTITY:\n${identity}`;
-    if (soul) personalityPrompt += `\nSOUL:\n${soul}`;
-  } catch { /* personality files optional */ }
+  // Seed the active personality from the chosen preset on first run (idempotent).
+  ensureActivePersonality((store.get('personality.preset') as PresetId) || DEFAULT_PRESET);
 
   const toolModel = new LocalToolProvider();
   chatProvider = new ChatRouter(toolModel);
@@ -345,14 +347,14 @@ function startMainApp() {
 
   // Initialize memory layer (LanceDB — facts + emotional memories)
   const memory = new MemoryManager({
-    dbPath: path.join(os.homedir(), '.clawster', 'memory'),
+    dbPath: path.join(clawsterDataDir(), 'memory'),
     proxyUrl,
     deviceId,
   });
   memory.init().then(ok => {
     if (ok) {
       chatProvider!.setMemoryManager(memory);
-      console.log('[Memory] LanceDB initialized at ~/.clawster/memory/');
+      console.log(`[Memory] LanceDB initialized at ${path.join(clawsterDataDir(), 'memory')}`);
     } else {
       console.warn('[Memory] Failed to initialize — running without memory');
     }
@@ -593,14 +595,19 @@ function setupIPC() {
     }
   });
 
-  // Open external URL
+  // Open external URL — allowlist safe schemes
   ipcMain.on('open-external', (_event, url: string) => {
-    shell.openExternal(url);
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
   });
 
-  // Open file/folder
+  // Open file/folder — restrict to user home directory
   ipcMain.on('open-path', (_event, filePath: string) => {
-    shell.openPath(filePath);
+    const home = os.homedir();
+    if (typeof filePath === 'string' && filePath.startsWith(home)) {
+      shell.openPath(filePath);
+    }
   });
 
   // Get settings
@@ -626,6 +633,12 @@ function setupIPC() {
     if (key.startsWith('clawbot.')) {
       const url = store.get('clawbot.url') as string;
       chatProvider?.updateConfig(url);
+    }
+
+    // Apply analytics opt-out immediately (not just on restart)
+    if (key === 'analytics.enabled') {
+      const { setAnalyticsEnabled } = require('./analytics');
+      setAnalyticsEnabled(Boolean(value));
     }
 
     if (key === 'pet.transparentWhenSleeping') {
@@ -770,9 +783,10 @@ function setupIPC() {
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
     if (!chatProvider) return { error: 'ChatProvider not initialized' };
 
-    // Intercept "Open Settings" quick reply — open the right System Settings pane
+    // Intercept "Open Settings" quick reply — open the pane for the last denied permission
     if (message.trim().toLowerCase() === 'open settings') {
-      await requestPermission('accessibility');
+      const perm = lastDeniedPermission || 'accessibility';
+      await requestPermission(perm as PermissionType);
       const reply = { type: 'message' as const, text: 'I opened System Settings for you — toggle Clawster ON and try again!', quickReplies: ['Thanks!'] };
       maybeShowPetResponse(reply.text, reply.quickReplies);
       return reply;
@@ -784,6 +798,13 @@ function setupIPC() {
     const { history, fullMessage } = await buildClawbotChatPayload(message, includeScreen);
 
     const response = await chatProvider.chat(fullMessage, history);
+
+    // Track which permission was denied so "Open Settings" opens the right pane
+    if (response.quickReplies?.includes('Open Settings') && response.text) {
+      if (response.text.includes('Screen Recording')) lastDeniedPermission = 'screen-recording';
+      else if (response.text.includes('Microphone')) lastDeniedPermission = 'microphone';
+      else lastDeniedPermission = 'accessibility';
+    }
 
     // Handle any actions in the response
     if (response.action?.payload) {
@@ -1080,46 +1101,51 @@ function setupIPC() {
 
   ipcMain.handle('onboarding-complete', (_event, data: {
     launchOnStartup: boolean;
-    identity: string;
-    soul: string;
-    watchFolders: string[];
-    watchActiveApp: boolean;
-    watchWindowTitles: boolean;
     hotkeyOpenChat: string;
-    hotkeyCaptureScreen: string;
-    hotkeyOpenAssistant: string;
+    personalityPreset: PresetId;
   }) => {
     logEvent('onboarding_completed');
     store.set('onboarding.completed', true);
     store.set('tutorial.completedAt', null);
     store.set('tutorial.lastStep', 0);
     store.set('tutorial.wasInterrupted', false);
-    store.set('watch.folders', data.watchFolders);
-    store.set('watch.activeApp', data.watchActiveApp);
-    store.set('watch.sendWindowTitles', data.watchWindowTitles);
+    // Apply the chosen "vibe" — no raw markdown editing during onboarding.
+    const preset = isPresetId(data.personalityPreset) ? data.personalityPreset : DEFAULT_PRESET;
+    store.set('personality.preset', preset);
+    applyPreset(preset);
+    // No upfront permissions: watching stays off until the user opts in from Settings.
+    store.set('watch.activeApp', false);
+    store.set('watch.sendWindowTitles', false);
     store.set('hotkeys.openChat', data.hotkeyOpenChat);
-    store.set('hotkeys.captureScreen', data.hotkeyCaptureScreen);
-    store.set('hotkeys.openAssistant', data.hotkeyOpenAssistant);
     setLaunchOnStartup(data.launchOnStartup);
     closeOnboardingAndStartApp();
     return true;
   });
 
-  // Get default identity and soul from app resources
+  // Active personality (the user-chosen preset's files, or the bundled default)
   ipcMain.handle('get-default-personality', () => {
-    try {
-      const basePath = isDev
-        ? path.join(__dirname, '../../personality')
-        : path.join(process.resourcesPath, 'personality');
+    return getActivePersonality();
+  });
 
-      const identity = fs.readFileSync(path.join(basePath, 'IDENTITY.md'), 'utf-8');
-      const soul = fs.readFileSync(path.join(basePath, 'SOUL.md'), 'utf-8');
+  // Personality preset picker (onboarding + Settings)
+  ipcMain.handle('get-personality-presets', () => PRESETS);
 
-      return { identity, soul };
-    } catch (error) {
-      console.error('Failed to read default personality:', error);
-      return { identity: '', soul: '' };
-    }
+  ipcMain.handle('get-personality-preset', () => {
+    return store.get('personality.preset') as string;
+  });
+
+  ipcMain.handle('set-personality-preset', (_event, id: string) => {
+    if (!isPresetId(id)) return { ok: false };
+    store.set('personality.preset', id);
+    const ok = applyPreset(id);
+    return { ok };
+  });
+
+  // Power-user escape hatch: reveal the active personality files for raw editing.
+  ipcMain.handle('open-personality-folder', () => {
+    ensureActivePersonality((store.get('personality.preset') as PresetId) || DEFAULT_PRESET);
+    shell.openPath(activePersonalityDir());
+    return true;
   });
 
   // Get onboarding status

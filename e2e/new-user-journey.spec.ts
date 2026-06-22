@@ -122,96 +122,53 @@ test.describe.serial('New-user journey: fresh install → daily usage', () => {
     await shot(onboarding, '01-onboarding-welcome');
   });
 
-  // ─── 2. ONBOARDING (5 steps) ─────────────────────────────────────────────────
+  // ─── 2. ONBOARDING (3 steps: Welcome → Pick Your Vibe → Ready) ────────────────
 
-  test('2a. WelcomeStep: lobster art, title, 4-item feature grid, Get Started', async () => {
+  test('2a. WelcomeStep: lobster art, real feature grid, hotkey card, Get Started', async () => {
     const onboarding = await findWindow(app!, 'onboarding.html');
 
     await expect(onboarding.locator('h1', { hasText: 'Welcome to Clawster' })).toBeVisible();
     // Lobster SVG renders.
     expect(await onboarding.locator('svg').count()).toBeGreaterThan(0);
-    // Feature grid (4 items).
-    for (const feature of ['Watches workflow', 'Answers questions', 'Monitors files', 'Custom personality']) {
+    // Feature grid reflects actual features (no jargon).
+    for (const feature of ['Chat with me', 'Control your Mac', 'Set timers & reminders', 'I remember things about you']) {
       await expect(onboarding.getByText(feature, { exact: true })).toBeVisible();
     }
+    // The one hotkey that matters is surfaced up front.
+    await expect(onboarding.getByText('Space', { exact: true })).toBeVisible();
     await expect(onboarding.getByRole('button', { name: 'Get Started' })).toBeVisible();
 
     await onboarding.getByRole('button', { name: 'Get Started' }).click();
-    await onboarding.waitForSelector('text=Customize Personality', { timeout: 10000 });
+    await onboarding.waitForSelector('text=Pick Your Vibe', { timeout: 10000 });
   });
 
-  test('2b. PersonalityStep: IDENTITY.md / SOUL.md defaults load and are editable', async () => {
+  test('2b. VibeStep: four presets shown, tap to pick a vibe (no raw markdown)', async () => {
     const onboarding = await findWindow(app!, 'onboarding.html');
 
-    await expect(onboarding.locator('h2', { hasText: 'Customize Personality' })).toBeVisible();
-    await expect(onboarding.getByRole('button', { name: 'IDENTITY.md' })).toBeVisible();
-    await expect(onboarding.getByRole('button', { name: 'SOUL.md' })).toBeVisible();
-
-    // IDENTITY default loaded from bundled personality files (contains "Clawster").
-    const identity = onboarding.locator('textarea');
-    await expect.poll(async () => (await identity.inputValue()).length, { timeout: 10000 }).toBeGreaterThan(20);
-    expect(await identity.inputValue()).toContain('Clawster');
-    await expect(identity).toBeEditable();
-
-    // SOUL tab also loads a non-empty default.
-    await onboarding.getByRole('button', { name: 'SOUL.md' }).click();
-    await expect.poll(async () => (await onboarding.locator('textarea').inputValue()).length).toBeGreaterThan(20);
-
-    await onboarding.getByRole('button', { name: 'Continue' }).click();
-    await onboarding.waitForSelector('text=Watch Preferences', { timeout: 10000 });
-  });
-
-  test('2c. WatchStep: toggles default off and can be flipped', async () => {
-    const onboarding = await findWindow(app!, 'onboarding.html');
-
-    await expect(onboarding.locator('h2', { hasText: 'Watch Preferences' })).toBeVisible();
-    await expect(onboarding.getByText('Watch Active Application')).toBeVisible();
-    await expect(onboarding.getByText('Send Window Titles')).toBeVisible();
-
-    const toggles = onboarding.locator('input[type="checkbox"]');
-    const toggleLabels = onboarding.locator('label.cursor-pointer');
-    expect(await toggles.nth(0).isChecked()).toBe(false);
-    expect(await toggles.nth(1).isChecked()).toBe(false);
-
-    // Flip "Watch Active Application" on, confirm it sticks, then back off so we
-    // finish onboarding with defaults (and never leave watching enabled). The
-    // checkbox is visually hidden (sr-only); clicking its wrapping label is how
-    // a real user toggles it and reliably fires the controlled onChange.
-    await toggleLabels.nth(0).click();
-    await expect.poll(async () => toggles.nth(0).isChecked(), { timeout: 8000 }).toBe(true);
-    await toggleLabels.nth(0).click();
-    await expect.poll(async () => toggles.nth(0).isChecked(), { timeout: 8000 }).toBe(false);
-
-    await onboarding.getByRole('button', { name: 'Continue' }).click();
-    await onboarding.waitForSelector('text=Keyboard Shortcuts', { timeout: 10000 });
-  });
-
-  test('2d. HotkeysStep: default hotkeys shown and recording affordance works', async () => {
-    const onboarding = await findWindow(app!, 'onboarding.html');
-
-    await expect(onboarding.locator('h2', { hasText: 'Keyboard Shortcuts' })).toBeVisible();
-    for (const label of ['Open Chat', 'Capture Screen', 'Open Assistant']) {
+    await expect(onboarding.locator('h2', { hasText: 'Pick Your Vibe' })).toBeVisible();
+    // No raw IDENTITY.md/SOUL.md editing anymore.
+    expect(await onboarding.locator('textarea').count()).toBe(0);
+    for (const label of ['Chill', 'Chaotic', 'Sassy', 'Wholesome']) {
       await expect(onboarding.getByText(label, { exact: true })).toBeVisible();
     }
-    // Default openChat hotkey renders formatted as "⌘ + ⇧ + Space".
-    const openChatBtn = onboarding.getByRole('button', { name: /Space/ }).first();
-    await expect(openChatBtn).toBeVisible();
-    expect(await openChatBtn.textContent()).toContain('⌘');
 
-    // Clicking a hotkey starts recording ("Press keys...") — the change affordance.
-    await openChatBtn.click();
-    await expect(onboarding.getByRole('button', { name: 'Press keys...' })).toBeVisible();
-    // Blur to cancel recording without changing the default.
-    await onboarding.locator('h2', { hasText: 'Keyboard Shortcuts' }).click();
+    // Tap a non-default vibe; the card shows the selected (orange) accent.
+    const sassy = onboarding.locator('button[data-preset="sassy"]');
+    await sassy.click();
+    await expect.poll(async () => (await sassy.getAttribute('class')) || '', { timeout: 8000 }).toContain('FF8C69');
 
     await onboarding.getByRole('button', { name: 'Continue' }).click();
-    await onboarding.waitForSelector('text=Clawster is Ready!', { timeout: 10000 });
+    await onboarding.waitForSelector("text=You're all set!", { timeout: 10000 });
   });
 
-  test('2e. CompleteStep: finishing stores onboarding.completed=true and launches the app', async () => {
+  test('2c. ReadyStep: finish stores the chosen vibe + launches the app', async () => {
     const onboarding = await findWindow(app!, 'onboarding.html');
 
-    await expect(onboarding.locator('h2', { hasText: 'Clawster is Ready!' })).toBeVisible();
+    await expect(onboarding.locator('h2', { hasText: "You're all set!" })).toBeVisible();
+    // Try-saying prompts + hotkey reminder are present.
+    await expect(onboarding.getByText(/wave at me/i)).toBeVisible();
+    await expect(onboarding.getByText(/what time is it/i)).toBeVisible();
+
     // Uncheck "Launch on startup" so the test never registers a real login item.
     const launchToggle = onboarding.locator('input[type="checkbox"]');
     if (await launchToggle.isChecked()) await launchToggle.uncheck({ force: true });
@@ -219,12 +176,26 @@ test.describe.serial('New-user journey: fresh install → daily usage', () => {
     // Still not completed until we click the finish button.
     expect((await onboarding.evaluate(() => (window as any).clawster.getOnboardingStatus())).completed).toBe(false);
 
-    await onboarding.getByRole('button', { name: 'Wake Up Clawster' }).click();
+    await onboarding.getByRole('button', { name: "Let's go!" }).click();
 
     // Onboarding window closes; the main app (pet window) starts.
     const pet = await findWindow(app!, 'pet.html');
     const status = await pet.evaluate(() => (window as any).clawster.getOnboardingStatus());
     expect(status.completed).toBe(true);
+
+    // The chosen "sassy" vibe persisted, and its personality files were written
+    // to the (isolated) active personality dir.
+    const settings: any = await pet.evaluate(() => (window as any).clawster.getSettings());
+    expect(settings.personality.preset).toBe('sassy');
+    await expect
+      .poll(() => {
+        try { return fs.readFileSync(path.join(dataDir, 'personality', 'IDENTITY.md'), 'utf-8'); } catch { return ''; }
+      }, { timeout: 8000 })
+      .toMatch(/sassy/i);
+
+    // No upfront permissions: watching stays off after onboarding.
+    expect(settings.watch.activeApp).toBe(false);
+    expect(settings.watch.sendWindowTitles).toBe(false);
   });
 
   // ─── 3. POST-ONBOARDING ──────────────────────────────────────────────────────
@@ -433,14 +404,14 @@ test.describe.serial('New-user journey: fresh install → daily usage', () => {
 
   // ─── 9. SETTINGS EXPLORATION ─────────────────────────────────────────────────
 
-  test('9. settings: all 6 sections render, privacy toggle + permission statuses work', async () => {
+  test('9. settings: all 7 sections render, privacy toggle + permission statuses work', async () => {
     await (await findWindow(app!, 'pet.html')).evaluate(() => (window as any).clawster.openAssistant());
     const assistant = await findWindow(app!, 'assistant.html');
     await assistant.getByRole('button', { name: 'Settings' }).click();
     await assistant.waitForSelector('h3:has-text("AI Server")', { timeout: 8000 });
 
     const headings = await assistant.locator('h3').allTextContents();
-    for (const section of ['AI Server', 'Watching', 'Pet Behavior', 'Keyboard Shortcuts', 'Privacy', 'Developer']) {
+    for (const section of ['AI Server', 'Personality', 'Watching', 'Pet Behavior', 'Keyboard Shortcuts', 'Privacy', 'Developer']) {
       expect(headings).toContain(section);
     }
 
@@ -454,6 +425,34 @@ test.describe.serial('New-user journey: fresh install → daily usage', () => {
     const statuses = await assistant.evaluate(() => (window as any).clawster.getPermissionStatuses());
     expect(['granted', 'needs-permission', 'restricted']).toContain(statuses['accessibility']);
     expect(typeof statuses['screen-recording']).toBe('string');
+  });
+
+  // ─── 9b. SETTINGS PERSONALITY PICKER ─────────────────────────────────────────
+
+  test('9b. settings personality picker: switching vibe persists + rewrites files', async () => {
+    await (await findWindow(app!, 'pet.html')).evaluate(() => (window as any).clawster.openAssistant());
+    const assistant = await findWindow(app!, 'assistant.html');
+    await assistant.getByRole('button', { name: 'Settings' }).click();
+    await assistant.waitForSelector('h3:has-text("Personality")', { timeout: 8000 });
+
+    // The vibe chosen during onboarding (sassy) is the active one.
+    await expect
+      .poll(async () => (await assistant.locator('button[data-preset="sassy"]').getAttribute('class')) || '', { timeout: 8000 })
+      .toContain('FF8C69');
+
+    // Switch to a different vibe.
+    await assistant.locator('button[data-preset="wholesome"]').click();
+    await expect
+      .poll(async () => assistant.evaluate(() => (window as any).clawster.getPersonalityPreset()), { timeout: 8000 })
+      .toBe('wholesome');
+
+    // It persisted to the store and rewrote the active personality on disk.
+    expect((await assistant.evaluate(() => (window as any).clawster.getSettings())).personality.preset).toBe('wholesome');
+    await expect
+      .poll(() => {
+        try { return fs.readFileSync(path.join(dataDir, 'personality', 'IDENTITY.md'), 'utf-8'); } catch { return ''; }
+      }, { timeout: 8000 })
+      .toMatch(/wholesome/i);
   });
 
   // ─── 10. MEMORY (write) ───────────────────────────────────────────────────────
@@ -494,6 +493,10 @@ test.describe.serial('New-user journey: fresh install → daily usage', () => {
     expect(await hasWindow(app!, 'onboarding.html')).toBe(false);
     const status = await pet.evaluate(() => (window as any).clawster.getOnboardingStatus());
     expect(status.completed).toBe(true);
+
+    // The personality vibe (switched to wholesome in Settings) survived the restart.
+    const settings: any = await pet.evaluate(() => (window as any).clawster.getSettings());
+    expect(settings.personality.preset).toBe('wholesome');
 
     if (modelAvailable) {
       // The pizza preference survived the restart on disk. The fresh process'

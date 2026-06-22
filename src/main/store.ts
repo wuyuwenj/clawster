@@ -47,6 +47,9 @@ interface StoreSchema {
   };
   chatHistory: ChatMessage[];
   onboarding: OnboardingState;
+  personality: {
+    preset: string;
+  };
   tutorial: TutorialState;
   dev: {
     windowBorders: boolean;
@@ -63,8 +66,10 @@ const defaults: StoreSchema = {
     url: 'https://clawster-proxy.clawster-app.workers.dev',
   },
   watch: {
-    activeApp: true,
-    sendWindowTitles: true,
+    // Off by default — we never ask for Accessibility upfront. Users opt in
+    // from Settings, where the inline permission flow explains why.
+    activeApp: false,
+    sendWindowTitles: false,
     folders: [],
   },
   pet: {
@@ -86,6 +91,9 @@ const defaults: StoreSchema = {
   onboarding: {
     completed: false,
     skipped: false,
+  },
+  personality: {
+    preset: 'chill',
   },
   tutorial: {
     version: 1,
