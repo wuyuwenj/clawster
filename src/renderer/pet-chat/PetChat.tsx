@@ -162,6 +162,13 @@ export const PetChat: React.FC = () => {
       return;
     }
 
+    if (reply === 'Open Settings') {
+      animalese.stop();
+      window.clawster.openAssistant();
+      window.clawster.hidePetChat();
+      return;
+    }
+
     // "Got it" - just close
     if (reply === 'Got it') {
       animalese.stop();

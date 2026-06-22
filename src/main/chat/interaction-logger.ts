@@ -6,11 +6,13 @@ const LOG_DIR = path.join(clawsterDataDir(), 'interactions');
 const MAX_LOG_SIZE = 10 * 1024 * 1024;
 
 let logPath: string | null = null;
+let dirEnsured = false;
 
 function getLogPath(): string {
   if (!logPath) {
-    if (!fs.existsSync(LOG_DIR)) {
-      fs.mkdirSync(LOG_DIR, { recursive: true });
+    if (!dirEnsured) {
+      try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch { /* exists */ }
+      dirEnsured = true;
     }
     const date = new Date().toISOString().slice(0, 10);
     logPath = path.join(LOG_DIR, `${date}.jsonl`);
@@ -30,14 +32,12 @@ export interface InteractionEntry {
 }
 
 export function logInteraction(entry: InteractionEntry): void {
-  try {
-    const filePath = getLogPath();
-    try {
-      const stats = fs.statSync(filePath);
-      if (stats.size > MAX_LOG_SIZE) return;
-    } catch { /* file doesn't exist yet */ }
-    fs.appendFileSync(filePath, JSON.stringify(entry) + '\n');
-  } catch { /* never crash */ }
+  const filePath = getLogPath();
+  const line = JSON.stringify(entry) + '\n';
+  fs.stat(filePath, (err, stats) => {
+    if (!err && stats.size > MAX_LOG_SIZE) return;
+    fs.appendFile(filePath, line, () => {});
+  });
 
   try {
     const { trackChatSent } = require('../analytics');

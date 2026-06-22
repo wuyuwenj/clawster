@@ -20,7 +20,6 @@ Available actions:
 - move_to_cursor: Move near the user's cursor: {"type": "move_to_cursor"}
 - snip: Do a claw snip animation: {"type": "snip"}
 - wave: Wave your claws happily: {"type": "wave"}
-- look_at: Move to look at a position: {"type": "look_at", "x": 800, "y": 400}
 
 Screen coordinates: Top-left is (0,0). When you receive [Screen Context: ...], you'll see cursor position and screen size.
 
