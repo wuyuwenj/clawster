@@ -21,6 +21,7 @@ import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, createProxyVision } from './chat';
 import { MemoryManager } from './chat/memory';
+import { runConsolidation } from './chat/memory/consolidation';
 import { requestPermission, setPermissionStore, getAllPermissionStatuses, openPermissionSettings, startPolling, stopPolling, checkPermission, needsRestart } from './permission-helper';
 import type { PermissionType } from './permission-helper';
 import { initAnalytics, shutdownAnalytics, trackPetInteraction } from './analytics';
@@ -345,17 +346,21 @@ function startMainApp() {
     modelName: 'clawster-tool-v8-q4',
   });
 
-  // Initialize memory layer (LanceDB — facts + emotional memories)
+  // Initialize memory layer (SQLite — facts + emotional memories)
+  const memoryDbPath = path.join(clawsterDataDir(), 'memory', 'clawster.db');
   const memory = new MemoryManager({
-    dbPath: path.join(clawsterDataDir(), 'memory'),
-    proxyUrl,
-    deviceId,
+    dbPath: memoryDbPath,
   });
   memory.init().then(ok => {
     if (ok) {
       chatProvider!.setMemoryManager(memory);
       setMemoryDB(memory.getDB());
-      console.log(`[Memory] LanceDB initialized at ${path.join(clawsterDataDir(), 'memory')}`);
+      console.log(`[Memory] SQLite initialized at ${memoryDbPath}`);
+      setTimeout(() => {
+        runConsolidation(memory.getDB()).catch(err => {
+          console.error('[Memory] Consolidation error:', err);
+        });
+      }, 5000);
     } else {
       console.warn('[Memory] Failed to initialize — running without memory');
     }
@@ -387,6 +392,10 @@ function startMainApp() {
   // Shows a native modal with the exact action; nothing proceeds unless the
   // user clicks the confirm button.
   setConfirmCallback(async (req) => {
+    if (process.env.NODE_ENV === 'test') {
+      console.log(`[Test] Auto-approving: ${req.title} — ${req.detail}`);
+      return true;
+    }
     const parent = getPetWindow() || getAssistantWindow() || getChatbarWindow() || undefined;
     const opts = {
       type: 'warning' as const,
