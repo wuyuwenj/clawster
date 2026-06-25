@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { clawsterDataDir } from '../../paths';
-import { MemoryDB } from './memory-db';
+import { MemoryDB, computeEmotionalWeight } from './memory-db';
 import { embed } from './embeddings';
 import { extractMemoryBlock } from './memory-extractor';
 import { retrieveContext, formatContextForPrompt } from './memory-retriever';
@@ -14,31 +14,26 @@ export { cosineSimilarity } from './embeddings';
 
 interface MemoryManagerOptions {
   dbPath: string;
-  proxyUrl: string;
-  deviceId: string;
 }
 
 const DECISIONS_LOG = 'decisions.jsonl';
 
 export class MemoryManager {
   private db: MemoryDB;
-  private proxyUrl: string;
-  private deviceId: string;
   private dbPath: string;
   private ready: boolean = false;
   private lastQueryVector: number[] = [];
 
   constructor(opts: MemoryManagerOptions) {
     this.dbPath = opts.dbPath;
-    this.proxyUrl = opts.proxyUrl;
-    this.deviceId = opts.deviceId;
     this.db = new MemoryDB(opts.dbPath);
   }
 
   async init(): Promise<boolean> {
     try {
-      if (!fs.existsSync(this.dbPath)) {
-        fs.mkdirSync(this.dbPath, { recursive: true });
+      const dir = path.dirname(this.dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
       }
       this.ready = await this.db.init();
       if (this.ready) {
@@ -90,12 +85,14 @@ export class MemoryManager {
         if (memoryData.emotional) {
           const vector = await this.embedText(memoryData.emotional);
           if (vector.length > 0) {
+            const emotionsJson = JSON.stringify(memoryData.emotions || []);
             await this.db.addMemory({
               summary: memoryData.emotional,
-              emotions: JSON.stringify(memoryData.emotions || []),
+              emotions: emotionsJson,
               people: JSON.stringify(memoryData.people || []),
               vector,
               timestamp: new Date().toISOString(),
+              emotional_weight: computeEmotionalWeight(emotionsJson),
             });
             try { require('../../analytics').trackMemoryStored({ type: 'emotional', count: 1 }); } catch {}
           }
@@ -118,7 +115,7 @@ export class MemoryManager {
   }
 
   private async embedText(text: string): Promise<number[]> {
-    return embed(text, this.proxyUrl, this.deviceId);
+    return embed(text);
   }
 
   private async migratePrefsJson(): Promise<void> {
@@ -154,7 +151,7 @@ export class MemoryManager {
 
   private logDecision(message: string, extraction: MemoryExtraction | null): void {
     try {
-      const logPath = path.join(this.dbPath, DECISIONS_LOG);
+      const logPath = path.join(path.dirname(this.dbPath), DECISIONS_LOG);
       const entry = {
         message: message.slice(0, 200),
         memorable: extraction?.memorable ?? false,
