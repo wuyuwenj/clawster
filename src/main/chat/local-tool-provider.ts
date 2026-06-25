@@ -18,6 +18,7 @@ export class LocalToolProvider {
   private available: boolean = false;
   private availabilityChecked: boolean = false;
   private checkPromise: Promise<void> | null = null;
+  private recheckInterval: ReturnType<typeof setInterval> | null = null;
   private memoryContext: string = '';
 
   constructor(model: string = 'clawster-qwen3-8b-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
@@ -54,6 +55,32 @@ export class LocalToolProvider {
     this.available = false;
     this.availabilityChecked = true;
     console.log(`[LocalTool] Ollama not reachable at ${this.baseUrl} after 3 attempts`);
+    this.startRecheckInterval();
+  }
+
+  private startRecheckInterval(): void {
+    if (this.recheckInterval) return;
+    this.recheckInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/api/tags`, {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) return;
+        const data = await response.json() as { models?: Array<{ name: string }> };
+        if (data.models?.some(m => m.name === this.model)) {
+          this.available = true;
+          console.log(`[LocalTool] Model ${this.model} recovered — now available`);
+          this.stopRecheckInterval();
+        }
+      } catch { /* still down, try again next interval */ }
+    }, 30_000);
+  }
+
+  private stopRecheckInterval(): void {
+    if (this.recheckInterval) {
+      clearInterval(this.recheckInterval);
+      this.recheckInterval = null;
+    }
   }
 
   private async ensureChecked(): Promise<void> {
@@ -101,7 +128,7 @@ export class LocalToolProvider {
           ],
           stream: false,
           keep_alive: '10m',
-          options: { temperature: 0, num_predict: 80 },
+          options: { temperature: 0, num_predict: 200 },
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -143,7 +170,7 @@ export class LocalToolProvider {
           ],
           stream: true,
           keep_alive: '10m',
-          options: { temperature: 0, num_predict: 80 },
+          options: { temperature: 0, num_predict: 200 },
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -291,6 +318,6 @@ export class LocalToolProvider {
   }
 
   destroy(): void {
-    // Nothing to clean up — Ollama manages its own lifecycle
+    this.stopRecheckInterval();
   }
 }

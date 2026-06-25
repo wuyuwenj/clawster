@@ -34,7 +34,14 @@ Available tools:
 
 If the user request does not match any tool, respond with: {"tool": null, "response": "your short fun reply"}
 Always respond with ONLY a JSON object.
-Do NOT include any other text.`;
+Do NOT include any other text.
+
+MEMORY — If the message contains personal info worth remembering, append after your JSON:
+\`\`\`memory
+{"memorable": true, "facts": [{"key": "name", "value": "Emma"}], "emotional": "short summary of what happened", "emotions": ["happy"], "people": ["Emma"]}
+\`\`\`
+Only for: names, ages, preferences, relationships, feelings, pets, allergies, significant events.
+NOT for: greetings, jokes, tool requests, small talk, questions.`;
 
 export const PET_ACTION_TOOLS = ['set_mood', 'move_to', 'move_to_cursor', 'snip', 'wave'] as const;
 
