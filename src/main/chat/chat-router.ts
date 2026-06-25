@@ -2,12 +2,29 @@ import { EventEmitter } from 'events';
 import type { ChatResponse, ChatStreamHandlers } from './types';
 import { LocalToolProvider } from './local-tool-provider';
 import { executeTool } from './tool-executor';
-import { getTemplateResponse } from './personality-responses';
+import { getTemplateResponse, getEmotionalResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
 import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
 import { formatContextForPrompt } from './memory';
 import type { MemoryManager } from './memory';
+
+const EMOTIONAL_PATTERNS = [
+  /bad day|rough day|terrible day|worst day|really bad|having a.*(hard|tough|bad|rough) time/i,
+  /feeling.*(sad|down|low|awful|terrible|lonely|alone)/i,
+  /nobody (understands|cares|likes|loves)/i,
+  /can'?t (stop crying|take it|handle it|focus|concentrate|do this|cope)/i,
+  /(so |kinda |really )?(stressed|overwhelmed|anxious)/i,
+  /feel.*(failure|worthless|useless|stupid|dumb|hopeless)/i,
+  /(gonna|going to) fail/i,
+  /I (just |really )?need (someone|somebody|help|a friend|to talk|a hug)/i,
+  /miss (him|her|them|my)/i,
+  /i('?m| am) (so )?(sad|depressed|miserable|heartbroken|devastated)/i,
+];
+
+function isEmotionalMessage(input: string): boolean {
+  return EMOTIONAL_PATTERNS.some(p => p.test(input));
+}
 import { checkPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
 import { trackToolExecuted, trackSafetyBlocked } from '../analytics';
 import type { EmotionEngine } from '../emotion-engine';
@@ -152,10 +169,23 @@ export class ChatRouter extends EventEmitter {
       return { type: 'message', text: safety.response! };
     }
 
+    // Emotional messages get empathy first, not routed through the tool classifier
+    if (isEmotionalMessage(rawInput)) {
+      this.emotionEngine?.onInteraction();
+      this.emotionEngine?.onConversationMood('worried');
+      const reply = getEmotionalResponse();
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      if (this.memoryManager?.isReady()) {
+        void this.memoryManager.processResponseBackground(rawInput, reply);
+      }
+      return { type: 'message', text: reply, quickReplies: getQuickReplies(null, 'worried') };
+    }
+
     // Retrieve memory context (sync, fast — uses pre-computed vector from previous turn)
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
       this.lastMemoryContext = formatContextForPrompt(memCtx);
+      this.toolModel.setMemoryContext(this.lastMemoryContext);
     }
 
     const start = Date.now();
@@ -228,10 +258,24 @@ export class ChatRouter extends EventEmitter {
       return { type: 'message', text: safety.response! };
     }
 
+    // Emotional messages get empathy first, not routed through the tool classifier
+    if (isEmotionalMessage(rawInput)) {
+      this.emotionEngine?.onInteraction();
+      this.emotionEngine?.onConversationMood('worried');
+      const reply = getEmotionalResponse();
+      handlers.onDelta?.(reply, reply);
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: 'worried', latencyMs: 0, ts: Date.now() });
+      if (this.memoryManager?.isReady()) {
+        void this.memoryManager.processResponseBackground(rawInput, reply);
+      }
+      return { type: 'message', text: reply, quickReplies: getQuickReplies(null, 'worried') };
+    }
+
     // Retrieve memory context (sync, fast)
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
       this.lastMemoryContext = formatContextForPrompt(memCtx);
+      this.toolModel.setMemoryContext(this.lastMemoryContext);
     }
 
     const start = Date.now();

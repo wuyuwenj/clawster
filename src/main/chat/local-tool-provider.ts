@@ -18,11 +18,16 @@ export class LocalToolProvider {
   private available: boolean = false;
   private availabilityChecked: boolean = false;
   private checkPromise: Promise<void> | null = null;
+  private memoryContext: string = '';
 
-  constructor(model: string = 'clawster-tool-v8-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
+  constructor(model: string = 'clawster-qwen3-8b-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
     this.model = model;
     this.baseUrl = baseUrl;
     this.checkPromise = this.checkAvailability();
+  }
+
+  setMemoryContext(ctx: string): void {
+    this.memoryContext = ctx;
   }
 
   private async checkAvailability(): Promise<void> {
@@ -65,6 +70,12 @@ export class LocalToolProvider {
     return this.model;
   }
 
+  private buildSystemPrompt(): string {
+    return this.memoryContext
+      ? `${TOOL_PROMPT}\n\n${this.memoryContext}`
+      : TOOL_PROMPT;
+  }
+
   async classify(
     input: string,
     history: Array<{ role: 'user' | 'assistant'; content: string }> = []
@@ -84,15 +95,12 @@ export class LocalToolProvider {
         body: JSON.stringify({
           model: this.model,
           messages: [
-            { role: 'system', content: TOOL_PROMPT },
+            { role: 'system', content: this.buildSystemPrompt() },
             ...recentHistory,
             { role: 'user', content: input },
           ],
           stream: false,
           keep_alive: '10m',
-          // 80-token cap: long tool calls (create_calendar_event) need ~60;
-          // short outputs still stop early at EOS, so this only prevents
-          // truncation of the longest valid JSON. See eval/providers.ts.
           options: { temperature: 0, num_predict: 80 },
         }),
         signal: AbortSignal.timeout(10000),
@@ -129,7 +137,7 @@ export class LocalToolProvider {
         body: JSON.stringify({
           model: this.model,
           messages: [
-            { role: 'system', content: TOOL_PROMPT },
+            { role: 'system', content: this.buildSystemPrompt() },
             ...recentHistory,
             { role: 'user', content: input },
           ],
