@@ -1,0 +1,30 @@
+package.json
+  s_c2794f4d041cf5::t_c94143df9f6baf 181
+  s_c2794f4d041cf5::t_5a608f9061264b 30,33,45,149,167-170,180
+package-lock.json
+  s_7ab199a22f5f43::t_4cfe43a4cb6deb 11,14,26,1125-1152,2561-2617,3356-3365,3730-3738,3859,4427-4440,4453-4461,4502,4877,4894,5070,5083,5564-5572,5679,6372,6488-6496,6654-6659,6800,6979-6984,7164-7169,7199,7599-7604,8621-8626,9858-9863,9911-9916,9927-9950,10279-10327,10821-10826,11089-11115,11174-11196,11274-11288,12023,12165-12209,12390,12549-12557,12888-12905,13207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a7fa4eedba53dbf6be64745be29b8afbaaee7831",
+  "prompts": {},
+  "sessions": {
+    "s_7ab199a22f5f43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c3b35ac8-7092-4893-b100-9abda2664d15",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
