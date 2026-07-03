@@ -1,0 +1,19 @@
+test/proxy-hmac-compat.test.ts
+  s_c2794f4d041cf5::t_ef7b87f418a6fa 4-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "dc1f6420b1494e11981e12c5928ec877d92f5f47",
+  "prompts": {},
+  "sessions": {
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
