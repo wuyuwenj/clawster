@@ -51,6 +51,7 @@ export const Assistant: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const activeStreamMessageIdRef = useRef<string | null>(null);
+  const messagesSessionIdRef = useRef<string | null>(null);
   const chatScrollTopRef = useRef(0);
   const chatShouldAutoScrollRef = useRef(true);
   const hasInitializedChatScrollRef = useRef(false);
@@ -149,6 +150,7 @@ export const Assistant: React.FC = () => {
     window.clawster.listSessions().then(({ sessions: list, activeId }) => {
       setSessions(list);
       setActiveSessionId(activeId);
+      messagesSessionIdRef.current = activeId;
     });
 
     window.clawster.getClawbotStatus().then(setConnectionStatus);
@@ -331,7 +333,7 @@ export const Assistant: React.FC = () => {
 
   useEffect(() => {
     if (messages.length > 0) {
-      window.clawster.saveChatHistory(messages);
+      window.clawster.saveChatHistory(messages, messagesSessionIdRef.current ?? undefined);
     }
   }, [messages]);
 
@@ -590,16 +592,23 @@ export const Assistant: React.FC = () => {
     });
   };
 
+  // While a response is streaming, session changes are blocked: switching would
+  // drop the in-flight reply and leave the old session ending in a placeholder.
   const handleNewSession = async () => {
-    await window.clawster.createSession();
+    if (isLoading) return;
+    const created = await window.clawster.createSession();
+    messagesSessionIdRef.current = created.id;
     setMessages([]);
     setShowSessions(false);
     reloadSessions();
   };
 
   const handleSwitchSession = async (id: string) => {
+    if (isLoading) return;
     if (id === activeSessionId) { setShowSessions(false); return; }
     const msgs = await window.clawster.switchSession(id);
+    if (msgs === null) { reloadSessions(); setShowSessions(false); return; }
+    messagesSessionIdRef.current = id;
     setMessages(Array.isArray(msgs) ? (msgs as Message[]) : []);
     setActiveSessionId(id);
     setShowSessions(false);
@@ -608,8 +617,10 @@ export const Assistant: React.FC = () => {
 
   const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isLoading) return;
     const { activeId } = await window.clawster.deleteSession(id);
     const msgs = await window.clawster.switchSession(activeId);
+    messagesSessionIdRef.current = activeId;
     setMessages(Array.isArray(msgs) ? (msgs as Message[]) : []);
     setActiveSessionId(activeId);
     reloadSessions();
@@ -690,7 +701,8 @@ export const Assistant: React.FC = () => {
             </button>
             <button
               onClick={handleNewSession}
-              className="ml-auto text-xs px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300"
+              disabled={isLoading}
+              className="ml-auto text-xs px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Start a new chat"
             >
               ＋ New
@@ -715,7 +727,8 @@ export const Assistant: React.FC = () => {
                       {s.id === activeSessionId && <span className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] shrink-0" />}
                       <button
                         onClick={(e) => handleDeleteSession(s.id, e)}
-                        className="opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400 text-sm px-1 shrink-0"
+                        disabled={isLoading}
+                        className="opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400 text-sm px-1 shrink-0 disabled:cursor-not-allowed"
                         title="Delete chat"
                       >
                         ×

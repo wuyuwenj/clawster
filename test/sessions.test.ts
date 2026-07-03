@@ -39,6 +39,14 @@ describe('deriveTitle', () => {
     expect(t.length).toBe(40);
     expect(t.endsWith('…')).toBe(true);
   });
+  it('truncates on code points without splitting surrogate pairs', () => {
+    const emoji = '🦞'.repeat(45);
+    const t = deriveTitle([msg('user', emoji)]);
+    expect(Array.from(t)).toHaveLength(40);
+    expect(t.endsWith('…')).toBe(true);
+    expect(t.includes('�')).toBe(false);
+    expect(Array.from(t).slice(0, -1).every((c) => c === '🦞')).toBe(true);
+  });
   it('falls back to "New chat" with no user message', () => {
     expect(deriveTitle([msg('assistant', 'hello')])).toBe('New chat');
     expect(deriveTitle([])).toBe('New chat');

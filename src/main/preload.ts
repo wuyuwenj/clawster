@@ -69,7 +69,10 @@ contextBridge.exposeInMainWorld('clawster', {
 
   // Chat history
   getChatHistory: () => ipcRenderer.invoke('get-chat-history'),
-  saveChatHistory: (messages: unknown[]) => ipcRenderer.invoke('save-chat-history', messages),
+  saveChatHistory: (messages: unknown[], sessionId?: string) =>
+    ipcRenderer.invoke('save-chat-history', messages, sessionId),
+  appendChatMessages: (messages: unknown[], sessionId?: string) =>
+    ipcRenderer.invoke('append-chat-messages', messages, sessionId),
   clearChatHistory: () => ipcRenderer.invoke('clear-chat-history'),
   // Chat sessions (CLA-33)
   listSessions: () => ipcRenderer.invoke('list-sessions'),
@@ -322,7 +325,8 @@ export interface ClawsterAPI {
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   getChatHistory: () => Promise<unknown[]>;
-  saveChatHistory: (messages: unknown[]) => Promise<boolean>;
+  saveChatHistory: (messages: unknown[], sessionId?: string) => Promise<boolean>;
+  appendChatMessages: (messages: unknown[], sessionId?: string) => Promise<boolean>;
   clearChatHistory: () => Promise<boolean>;
   listSessions: () => Promise<{ sessions: SessionMeta[]; activeId: string }>;
   createSession: () => Promise<SessionMeta>;

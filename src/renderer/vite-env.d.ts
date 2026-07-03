@@ -70,7 +70,8 @@ interface ClawsterAPI {
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   getChatHistory: () => Promise<unknown[]>;
-  saveChatHistory: (messages: unknown[]) => Promise<boolean>;
+  saveChatHistory: (messages: unknown[], sessionId?: string) => Promise<boolean>;
+  appendChatMessages: (messages: unknown[], sessionId?: string) => Promise<boolean>;
   clearChatHistory: () => Promise<boolean>;
   // Chat sessions (CLA-33)
   listSessions: () => Promise<{ sessions: SessionMeta[]; activeId: string }>;

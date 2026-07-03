@@ -35,7 +35,8 @@ export function deriveTitle(messages: ChatMessage[]): string {
   const firstUser = messages.find((m) => m.role === 'user');
   const raw = firstUser?.content.trim().replace(/\s+/g, ' ') ?? '';
   if (!raw) return 'New chat';
-  return raw.length > TITLE_MAX ? raw.slice(0, TITLE_MAX - 1) + '…' : raw;
+  const chars = Array.from(raw);
+  return chars.length > TITLE_MAX ? chars.slice(0, TITLE_MAX - 1).join('') + '…' : raw;
 }
 
 export function newSession(now: number, id: string): ChatSession {

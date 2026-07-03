@@ -715,19 +715,33 @@ function setupIPC() {
     return ensureActiveSession().active.messages;
   });
 
-  // save-chat-history → persist into the active session (title + updatedAt refreshed)
-  ipcMain.handle('save-chat-history', (_event, messages: ChatMessage[]) => {
+  // save-chat-history → persist into the given session, or the active one when
+  // no id is passed; a write for a deleted session is dropped (returns false)
+  ipcMain.handle('save-chat-history', (_event, messages: ChatMessage[], sessionId?: string | null) => {
     const { sessions, active } = ensureActiveSession();
+    const target = sessionId ? sessions.find((s) => s.id === sessionId) : active;
+    if (!target) return false;
     const trimmed = (messages || []).slice(-100);
-    const updated = withMessages(active, trimmed, Date.now());
-    store.set('sessions', capSessions(sessions.map((s) => (s.id === active.id ? updated : s))));
+    const updated = withMessages(target, trimmed, Date.now());
+    store.set('sessions', capSessions(sessions.map((s) => (s.id === target.id ? updated : s))));
+    return true;
+  });
+
+  // append-chat-messages → atomically append to a session pinned at send time
+  ipcMain.handle('append-chat-messages', (_event, messages: ChatMessage[], sessionId?: string | null) => {
+    const { sessions, active } = ensureActiveSession();
+    const target = sessionId ? sessions.find((s) => s.id === sessionId) : active;
+    if (!target) return false;
+    const combined = [...target.messages, ...(messages || [])].slice(-100);
+    const updated = withMessages(target, combined, Date.now());
+    store.set('sessions', capSessions(sessions.map((s) => (s.id === target.id ? updated : s))));
     return true;
   });
 
   // clear-chat-history → empty the active session (keeps the session itself)
   ipcMain.handle('clear-chat-history', () => {
     const { sessions, active } = ensureActiveSession();
-    const cleared: ChatSession = { ...active, messages: [], updatedAt: Date.now() };
+    const cleared: ChatSession = { ...active, messages: [], title: 'New chat', updatedAt: Date.now() };
     store.set('sessions', sessions.map((s) => (s.id === active.id ? cleared : s)));
     return true;
   });
@@ -770,7 +784,7 @@ function setupIPC() {
   // rename-session → set a custom title (persists across message updates)
   ipcMain.handle('rename-session', (_event, id: string, title: string) => {
     const sessions = loadSessions().map((s) =>
-      s.id === id ? { ...s, title: (title || '').trim().slice(0, 60) || s.title, updatedAt: Date.now() } : s,
+      s.id === id ? { ...s, title: Array.from((title || '').trim()).slice(0, 60).join('') || s.title, updatedAt: Date.now() } : s,
     );
     store.set('sessions', sessions);
     return true;
@@ -842,11 +856,7 @@ function setupIPC() {
 
   // Build chat payload with history and optional screen context
   const buildClawbotChatPayload = async (message: string, includeScreen?: boolean) => {
-    const chatHistory = (store.get('chatHistory') || []) as Array<{
-      role: 'user' | 'assistant' | 'system';
-      content: string;
-    }>;
-    const history = chatHistory
+    const history = ensureActiveSession().active.messages
       .filter(msg => msg.role === 'user' || msg.role === 'assistant')
       .map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
 
