@@ -23,6 +23,7 @@ describe('computePetChatMaxHeight (CLA-16)', () => {
   const AREA_Y = 0;
   const AREA_H = 1080;
   const CEILING = Math.round(AREA_H * 0.8); // 864
+  const GAP = -2; // PET_CHAT_VERTICAL_GAP: bubble bottom overlaps the pet top by 2px
 
   it('grows above the base 420 cap when the pet sits low', () => {
     expect(computePetChatMaxHeight(900, AREA_Y, AREA_H)).toBeGreaterThan(420);
@@ -36,13 +37,22 @@ describe('computePetChatMaxHeight (CLA-16)', () => {
     expect(computePetChatMaxHeight(100, AREA_Y, AREA_H)).toBe(420);
   });
 
-  it('is bounded by the space above the pet (petY=500 → 590)', () => {
-    expect(computePetChatMaxHeight(500, AREA_Y, AREA_H)).toBe(590);
+  it('is bounded by the space above the pet (petY=500 → 498)', () => {
+    expect(computePetChatMaxHeight(500, AREA_Y, AREA_H)).toBe(500 - AREA_Y + GAP);
   });
 
   it('respects a non-zero work-area top like a menu bar', () => {
-    // areaY=25, petY=800 → spaceAbovePet=865, ceiling=864 → 864
-    expect(computePetChatMaxHeight(800, 25, AREA_H)).toBe(CEILING);
+    // 25px menu bar: workArea y=25, height=1055. petY=800 → spaceAbovePet=773,
+    // ceiling=round(1055*0.8)=844 → the space-above bound wins.
+    expect(computePetChatMaxHeight(800, 25, 1055)).toBe(800 - 25 + GAP);
+  });
+
+  it('keeps a full-height bubble below the work-area top for a mid-screen pet', () => {
+    for (const [petY, areaY, areaH] of [[500, 0, 1080], [800, 25, 1055], [700, 0, 1080]]) {
+      const maxHeight = computePetChatMaxHeight(petY, areaY, areaH);
+      const chatY = petY - maxHeight + GAP;
+      expect(chatY).toBeGreaterThanOrEqual(areaY);
+    }
   });
 
   it('is always at least the base cap', () => {
