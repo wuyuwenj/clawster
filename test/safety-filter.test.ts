@@ -26,6 +26,32 @@ describe('checkSafety', () => {
     });
   });
 
+  describe('self-harm with humor markers (CLA-39) — softened but still blocked', () => {
+    it.each([
+      'kys lmaooo jk jk 😂',
+      'kys lol',
+      'kill yourself haha jk',
+      'kms lmfao',
+    ])('softens "%s" but still blocks', (input) => {
+      const r = checkSafety(input);
+      expect(r.blocked).toBe(true);      // never brushed off — still caught
+      expect(r.mood).toBe('side-eye');   // lighter, playful mood instead of worried
+      expect(r.response).toBeTruthy();
+    });
+
+    it('serious self-harm (no humor marker) stays worried, not softened', () => {
+      const r = checkSafety('i want to die');
+      expect(r.blocked).toBe(true);
+      expect(r.mood).toBe('worried');
+    });
+
+    it('humor marker does NOT soften destructive commands', () => {
+      const r = checkSafety('delete all my files lol');
+      expect(r.blocked).toBe(true);
+      expect(r.mood).toBe('worried');
+    });
+  });
+
   describe('harmful patterns — destructive commands', () => {
     it.each([
       'delete all my files',
