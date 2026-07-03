@@ -1,0 +1,21 @@
+test/open-url-safety.test.ts
+  s_c2794f4d041cf5::t_4c2a7ba0b4b21e 1-65
+src/main/chat/tool-executor.ts
+  s_c2794f4d041cf5::t_c4ded133e433c6 288-309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "52b81821795bf34e70c7f8f1ee4264b78f008b70",
+  "prompts": {},
+  "sessions": {
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
