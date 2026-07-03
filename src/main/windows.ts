@@ -350,10 +350,17 @@ export function updatePetChatPosition() {
   const [petX, petY] = petWindow.getPosition();
   const [petWidth] = petWindow.getSize();
 
-  const [cw, ch] = petChatWindow.getSize();
+  const { y: areaY, height: areaHeight } = screen.getDisplayNearestPoint({ x: petX, y: petY }).workArea;
+
+  let [cw, ch] = petChatWindow.getSize();
+  const maxHeight = computePetChatMaxHeight(petY, areaY, areaHeight);
+  if (ch > maxHeight) {
+    ch = maxHeight;
+    petChatWindow.setSize(cw, ch, false);
+  }
+
   const chatX = petX + (petWidth - cw) / 2;
   const chatY = petY - ch + PET_CHAT_VERTICAL_GAP;
-  const { y: areaY } = screen.getDisplayNearestPoint({ x: petX, y: petY }).workArea;
 
   petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(areaY, Math.round(chatY)));
 }
