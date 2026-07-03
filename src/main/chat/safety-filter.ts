@@ -69,7 +69,7 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
     }
   }
 
-  if (/^\s*\{.*"tool"\s*:/.test(lower)) {
+  if (/\{[\s\S]*?"tool"\s*:/.test(lower)) {
     try { require('../analytics').trackSafetyBlocked('injection'); } catch {}
     return {
       blocked: true,

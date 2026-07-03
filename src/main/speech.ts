@@ -54,10 +54,10 @@ export function resetSpeechHelperState(): void {
 function handleSpeechHelperMessage(msg: any): void {
   const sender = getSpeechEventSender();
 
-  console.log('speech-helper:', JSON.stringify(msg));
+  console.log('[Speech]', JSON.stringify(msg));
 
   if (msg.type === 'status') {
-    console.log('speech-helper status:', msg.state);
+    console.log('[Speech] status:', msg.state);
     if (msg.state === 'ready') {
       speechHelperReady = true;
     } else if (msg.state === 'recording') {
@@ -176,7 +176,7 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
       const sender = getSpeechEventSender();
       const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
 
-      console.log('speech-helper exited:', { code, signal, expected: speechProcessExitExpected });
+      console.log('[Speech] exited:', { code, signal, expected: speechProcessExitExpected });
 
       resetSpeechHelperState();
       rejectStartup(new Error(exitMessage));

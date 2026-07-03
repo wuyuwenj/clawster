@@ -7,6 +7,8 @@ export interface ChatResponse {
   };
   // Contextual quick-reply suggestions based on the tool/mood of this response.
   quickReplies?: string[];
+  // Raw model classification for feedback/training data collection
+  toolCall?: { tool: string | null; args?: Record<string, unknown>; mood?: string };
 }
 
 export interface ChatStreamHandlers {

@@ -384,3 +384,60 @@ export function createProxyVision(baseUrl: string, deviceId: string): VisionProv
     },
   };
 }
+
+// Fireworks-hosted vision provider — uses Llama 3.2 Vision 11B serverless.
+// No deployment needed, pay-per-token (~$0.0013 per screenshot).
+export function createFireworksVision(apiKey: string, model?: string): VisionProvider {
+  let memoryCtx = '';
+  const visionModel = model || 'accounts/fireworks/models/llama-v3p2-11b-vision-instruct';
+  return {
+    setMemoryContext(ctx: string): void {
+      memoryCtx = ctx;
+    },
+    async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {
+      if (!imageDataUrl) {
+        return { type: 'message', text: "I couldn't grab a screenshot to look at." };
+      }
+      const userQuestion = question?.trim() || 'What do you see on my screen?';
+      console.log(`[FireworksVision] Sending: model=${visionModel}, image=${Math.round(imageDataUrl.length / 1024)}KB`);
+      try {
+        const response = await fetch('https://api.fireworks.ai/inference/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: visionModel,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: `You are Clawster, a cute desktop lobster pet. ${userQuestion}\n\nDescribe what is visible on the screen briefly and helpfully. Be fun and concise.${memoryCtx ? '\n\n' + memoryCtx : ''}` },
+                  { type: 'image_url', image_url: { url: imageDataUrl } },
+                ],
+              },
+            ],
+            max_tokens: 300,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => '');
+          console.error(`[FireworksVision] HTTP ${response.status}: ${errBody.slice(0, 500)}`);
+          if (response.status === 429) {
+            return { type: 'message', text: "I'm getting sleepy... let's look at your screen later!" };
+          }
+          return { type: 'message', text: "I couldn't analyze your screen right now — my cloud eyes are offline." };
+        }
+        const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const text = data.choices?.[0]?.message?.content?.trim();
+        console.log(`[FireworksVision] Success: ${text?.slice(0, 100)}...`);
+        return { type: 'message', text: text || "I looked but couldn't make out anything useful." };
+      } catch (err) {
+        console.error('[FireworksVision] Error:', err);
+        return { type: 'message', text: "I couldn't reach my cloud eyes to look at your screen." };
+      }
+    },
+  };
+}

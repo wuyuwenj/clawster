@@ -1,5 +1,7 @@
 # Clawster Project Instructions
 
+@AGENTS.md
+
 ## Git Workflow
 
 Before any push:
@@ -72,3 +74,15 @@ The app uses `electron-updater` with GitHub Releases. On launch, it checks for n
 - If local build skips notarization, check that `electron-builder.env` exists with valid credentials
 - Notarization requires an app-specific password from appleid.apple.com (not your regular Apple ID password)
 - `electron-builder.env` is gitignored — each dev needs their own copy for local builds
+
+## Product & Business Context
+
+See [docs/BUSINESS_STRATEGY.md](docs/BUSINESS_STRATEGY.md) for full details. Key points for development:
+
+- **Target:** 10-14 year old girls. Personality must be cute, funny, playful — never creepy, preachy, or robotic
+- **Free forever:** Clawster (default character), all tools, unlimited chat, local memory, voice I/O
+- **Paid:** Character packs ($2-3), accessories ($1), optional subscription ($3/month) for screen analysis + cloud sync
+- **Never charge for:** chat, basic memory, tool usage, evolution progress
+- **Architecture:** App is open source. Model weights, training data, personality files, and paid character packs are private
+- **Character loading must be data-driven** — adding a character is dropping in a folder, not changing app code
+- **Fine-tuned local model** — training pipeline and details are private (see eval/ directory, gitignored)

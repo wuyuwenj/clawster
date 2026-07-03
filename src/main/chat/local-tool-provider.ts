@@ -5,6 +5,12 @@ interface OllamaResponse {
   message?: { content?: string };
 }
 
+interface OpenAIResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+}
+
+type ApiFormat = 'ollama' | 'openai';
+
 interface ToolCall {
   tool: string | null;
   args: Record<string, unknown>;
@@ -15,15 +21,24 @@ interface ToolCall {
 export class LocalToolProvider {
   private baseUrl: string;
   private model: string;
+  private apiFormat: ApiFormat;
+  private apiKey: string | undefined;
   private available: boolean = false;
   private availabilityChecked: boolean = false;
   private checkPromise: Promise<void> | null = null;
   private recheckInterval: ReturnType<typeof setInterval> | null = null;
   private memoryContext: string = '';
 
-  constructor(model: string = 'clawster-qwen3-8b-q4:latest', baseUrl: string = 'http://127.0.0.1:11434') {
+  constructor(
+    model: string = 'clawster-qwen3-8b-q4:latest',
+    baseUrl: string = 'http://127.0.0.1:11434',
+    apiFormat: ApiFormat = 'ollama',
+    apiKey?: string,
+  ) {
     this.model = model;
     this.baseUrl = baseUrl;
+    this.apiFormat = apiFormat;
+    this.apiKey = apiKey;
     this.checkPromise = this.checkAvailability();
   }
 
@@ -32,6 +47,14 @@ export class LocalToolProvider {
   }
 
   private async checkAvailability(): Promise<void> {
+    if (this.apiFormat === 'openai') {
+      // For hosted APIs (Fireworks etc), assume available if API key is set
+      this.available = !!this.apiKey;
+      this.availabilityChecked = true;
+      console.log(`[LocalTool] Using hosted API at ${this.baseUrl} (${this.available ? 'key set' : 'no key'})`);
+      return;
+    }
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
@@ -116,27 +139,41 @@ export class LocalToolProvider {
         content: m.content,
       }));
 
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: this.buildSystemPrompt() },
-            ...recentHistory,
-            { role: 'user', content: input },
-          ],
-          stream: false,
-          keep_alive: '10m',
-          options: { temperature: 0, num_predict: 200 },
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
+      const messages = [
+        { role: 'system', content: this.buildSystemPrompt() },
+        ...recentHistory,
+        { role: 'user', content: input },
+      ];
 
-      if (!response.ok) return { tool: null, args: {} };
+      let raw: string;
 
-      const data = await response.json() as OllamaResponse;
-      const raw = data.message?.content || '';
+      if (this.apiFormat === 'openai') {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ model: this.model, messages, max_tokens: 200, temperature: 0 }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!response.ok) return { tool: null, args: {} };
+        const data = await response.json() as OpenAIResponse;
+        raw = data.choices?.[0]?.message?.content || '';
+      } else {
+        const response = await fetch(`${this.baseUrl}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: this.model, messages, stream: false, keep_alive: '10m',
+            options: { temperature: 0, num_predict: 200 },
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) return { tool: null, args: {} };
+        const data = await response.json() as OllamaResponse;
+        raw = data.message?.content || '';
+      }
+
       return this.parseToolCall(raw);
     } catch (error) {
       console.error('[LocalTool] Classification failed:', error);
@@ -231,7 +268,11 @@ export class LocalToolProvider {
   }
 
   private parseToolCall(text: string): ToolCall {
-    const jsonMatch = text.trim().match(/\{[\s\S]*\}/);
+    // Strip any appended ```memory block first — the model is instructed to
+    // emit it after the tool JSON, and the greedy match below would otherwise
+    // span both objects and fail JSON.parse, silently dropping response/mood.
+    const stripped = text.replace(/```memory[\s\S]*$/, '').trim();
+    const jsonMatch = stripped.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { tool: null, args: {} };
 
     try {

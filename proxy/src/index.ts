@@ -1,5 +1,6 @@
 interface Env {
   RATE_LIMITS: KVNamespace;
+  clawster_feedback: D1Database;
   OPENAI_API_KEY: string;
   OPENAI_MODEL: string;
   APP_SECRET: string;
@@ -158,6 +159,43 @@ export default {
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       });
+    }
+
+    if (url.pathname === '/v1/feedback') {
+      if (request.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+          status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+      try {
+        const body = await request.text();
+        const auth = await verifyHmac(request, body, env);
+        if (!auth.valid) {
+          return new Response(JSON.stringify({ error: auth.error }), {
+            status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+          });
+        }
+        const fb = JSON.parse(body) as Record<string, unknown>;
+        await env.clawster_feedback.prepare(
+          'INSERT INTO feedback (type, category, note, user_input, model_output, tool_call, app_version, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(
+          String(fb.type || ''),
+          String(fb.category || ''),
+          String(fb.note || ''),
+          String(fb.userInput || ''),
+          String(fb.modelOutput || ''),
+          JSON.stringify(fb.toolCall || null),
+          String(fb.appVersion || ''),
+          String(fb.timestamp || new Date().toISOString()),
+        ).run();
+        return new Response(JSON.stringify({ status: 'ok' }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid feedback' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
     }
 
     if (url.pathname === '/v1/embeddings') {

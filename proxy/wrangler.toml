@@ -10,3 +10,8 @@ MONTHLY_BUDGET_LIMIT = "10000"
 [[kv_namespaces]]
 binding = "RATE_LIMITS"
 id = "e017fcaee459428e843150712b81b648"
+
+[[d1_databases]]
+binding = "clawster_feedback"
+database_name = "clawster-feedback"
+database_id = "b1805a86-4241-4e31-b564-4dbb9bebb410"

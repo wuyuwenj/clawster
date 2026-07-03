@@ -1,15 +1,11 @@
 import { test, expect, ElectronApplication, Page } from '@playwright/test';
-import { _electron as electron } from 'playwright';
-import * as path from 'path';
+import { launchApp } from './helpers';
 
 let app: ElectronApplication;
 let page: Page;
 
 test.beforeAll(async () => {
-  app = await electron.launch({
-    args: [path.join(__dirname, '..')],
-    env: { ...process.env, NODE_ENV: 'test' },
-  });
+  app = await launchApp();
   page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(5000);

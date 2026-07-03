@@ -8,10 +8,21 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
   },
-  // The Electron windows load their renderer from the Vite dev server in
-  // unpackaged (test) runs. Start it automatically, or reuse one already
-  // running via `npm run dev`.
-  webServer: {
+  projects: [
+    {
+      name: 'dev',
+      testIgnore: /production-smoke/,
+    },
+    {
+      name: 'prod',
+      testIgnore: /production-smoke/,
+    },
+    {
+      name: 'prod-bundle',
+      testMatch: /production-smoke/,
+    },
+  ],
+  webServer: process.env.E2E_MODE === 'prod' ? undefined : {
     command: 'npm run dev:renderer',
     url: 'http://localhost:5173/onboarding.html',
     reuseExistingServer: true,

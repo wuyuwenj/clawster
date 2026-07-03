@@ -26,7 +26,7 @@ function isEmotionalMessage(input: string): boolean {
   return EMOTIONAL_PATTERNS.some(p => p.test(input));
 }
 import { checkPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
-import { trackToolExecuted, trackSafetyBlocked } from '../analytics';
+import { trackToolExecuted } from '../analytics';
 import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
@@ -165,7 +165,6 @@ export class ChatRouter extends EventEmitter {
     if (safety.blocked) {
       this.emotionEngine?.onConversationMood('worried');
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
-      trackSafetyBlocked(safety.mood === 'worried' ? 'distress' : 'harmful');
       return { type: 'message', text: safety.response! };
     }
 
@@ -217,17 +216,20 @@ export class ChatRouter extends EventEmitter {
       trackToolExecuted({ tool: toolCall.tool, success: result.handled, latencyMs: Date.now() - toolStart });
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
+      const tc = { tool: toolCall.tool, args: toolCall.args, mood: toolCall.mood };
+
       if (result.petAction) {
         return {
           type: 'action',
           text: result.response || '',
           action: { type: result.petAction.type, payload: result.petAction },
           quickReplies: getQuickReplies(toolCall.tool, toolCall.mood),
+          toolCall: tc,
         };
       }
 
       if (result.handled && result.response) {
-        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood) };
+        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood), toolCall: tc };
       }
     }
 
@@ -239,7 +241,7 @@ export class ChatRouter extends EventEmitter {
       void this.memoryManager.processResponseBackground(rawInput, reply);
     }
 
-    return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
+    return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood), toolCall: { tool: null, args: {}, mood: toolCall.mood } };
   }
 
   async chatStream(
@@ -254,7 +256,6 @@ export class ChatRouter extends EventEmitter {
       this.emotionEngine?.onConversationMood('worried');
       handlers.onDelta?.(safety.response!, safety.response!);
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: safety.response, mood: 'worried', latencyMs: 0, ts: Date.now() });
-      trackSafetyBlocked(safety.mood === 'worried' ? 'distress' : 'harmful');
       return { type: 'message', text: safety.response! };
     }
 
@@ -312,6 +313,8 @@ export class ChatRouter extends EventEmitter {
       trackToolExecuted({ tool: toolCall.tool, success: result.handled, latencyMs: Date.now() - toolStart });
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
+      const tc = { tool: toolCall.tool, args: toolCall.args, mood: toolCall.mood };
+
       if (result.petAction) {
         const text = result.response || '';
         handlers.onDelta?.(text, text);
@@ -320,12 +323,13 @@ export class ChatRouter extends EventEmitter {
           text,
           action: { type: result.petAction.type, payload: result.petAction },
           quickReplies: getQuickReplies(toolCall.tool, toolCall.mood),
+          toolCall: tc,
         };
       }
 
       if (result.handled && result.response) {
         handlers.onDelta?.(result.response, result.response);
-        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood) };
+        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood), toolCall: tc };
       }
     }
 
@@ -338,7 +342,7 @@ export class ChatRouter extends EventEmitter {
       void this.memoryManager.processResponseBackground(rawInput, reply);
     }
 
-    return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood) };
+    return { type: 'message', text: reply, quickReplies: getQuickReplies(null, toolCall.mood), toolCall: { tool: null, args: {}, mood: toolCall.mood } };
   }
 
   async analyzeScreen(imageDataUrl: string, question?: string): Promise<ChatResponse> {

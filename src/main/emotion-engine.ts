@@ -1,5 +1,3 @@
-import { screen } from 'electron';
-
 export interface EmotionState {
   valence: number;   // -1 (sad) to +1 (happy)
   arousal: number;   // 0 (sleepy) to 1 (energetic)

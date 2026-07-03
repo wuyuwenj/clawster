@@ -80,20 +80,22 @@ function runOsascript(script: string, timeout = 8000): Promise<{ stdout: string;
   return execFileAsync('osascript', ['-e', script], { timeout });
 }
 
+const MAX_TIMEOUT_MS = 2147483647; // 2^31 - 1, setTimeout max
+
 function parseDurationMs(input: string): number {
   if (!input) return 0;
   const lower = input.toLowerCase();
   const numMatch = lower.match(/(\d+)/);
   if (!numMatch) return 0;
   const num = parseInt(numMatch[1], 10);
-  if (lower.includes('hour')) return num * 3600000;
-  if (lower.includes('min')) return num * 60000;
-  if (lower.includes('sec')) return num * 1000;
-  if (lower.startsWith('in ')) {
-    if (lower.includes('hour')) return num * 3600000;
-    return num * 60000;
-  }
-  return num * 60000;
+  let ms: number;
+  if (lower.includes('week')) ms = num * 7 * 86400000;
+  else if (lower.includes('day')) ms = num * 86400000;
+  else if (lower.includes('hour')) ms = num * 3600000;
+  else if (lower.includes('min')) ms = num * 60000;
+  else if (lower.includes('sec')) ms = num * 1000;
+  else ms = num * 60000;
+  return Math.min(ms, MAX_TIMEOUT_MS);
 }
 
 // Structural summary of arbitrary clipboard text: detect a likely content type,

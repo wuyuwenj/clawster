@@ -6,6 +6,8 @@ interface ChatMessage {
   id: string;
   text: string;
   quickReplies?: string[];
+  toolCall?: { tool: string | null; args?: Record<string, unknown> };
+  userInput?: string;
 }
 
 const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
@@ -13,6 +15,10 @@ const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
 export const PetChat: React.FC = () => {
   const [message, setMessage] = useState<ChatMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('wrong_tool');
+  const [feedbackNote, setFeedbackNote] = useState('');
   const contentRef = useRef<HTMLDivElement | null>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
   const lastInteractionSentAtRef = useRef(0);
@@ -26,6 +32,8 @@ export const PetChat: React.FC = () => {
         quickReplies: msg.quickReplies || DEFAULT_QUICK_REPLIES,
       });
       setIsLoading(false);
+      setFeedbackSent(null);
+      setShowFeedbackModal(false);
     });
     const unsubscribeHidden = window.clawster.onPetChatHidden(() => {
       animalese.stop();
@@ -111,6 +119,42 @@ export const PetChat: React.FC = () => {
     lastInteractionSentAtRef.current = now;
     window.clawster.petChatInteracted();
   }, []);
+
+  const handleFeedback = useCallback(async (type: 'positive' | 'negative') => {
+    if (!message || feedbackSent) return;
+    if (type === 'positive') {
+      setFeedbackSent('positive');
+      try {
+        await window.clawster.sendToClawbot(JSON.stringify({
+          __feedback: true,
+          type: 'positive',
+          userInput: message.userInput,
+          modelOutput: message.text,
+          toolCall: message.toolCall,
+        }));
+      } catch { /* non-critical */ }
+      return;
+    }
+    setShowFeedbackModal(true);
+  }, [message, feedbackSent]);
+
+  const submitFeedback = useCallback(async () => {
+    if (!message) return;
+    setFeedbackSent('negative');
+    setShowFeedbackModal(false);
+    try {
+      await window.clawster.sendToClawbot(JSON.stringify({
+        __feedback: true,
+        type: 'negative',
+        category: feedbackType,
+        note: feedbackNote,
+        userInput: message.userInput,
+        modelOutput: message.text,
+        toolCall: message.toolCall,
+      }));
+    } catch { /* non-critical */ }
+    setFeedbackNote('');
+  }, [message, feedbackType, feedbackNote]);
 
   const handleQuickReply = useCallback(async (reply: string) => {
     if (!message) return;
@@ -211,22 +255,103 @@ export const PetChat: React.FC = () => {
             )}
           </div>
 
-          {/* Quick Replies */}
-          {!isLoading && message.quickReplies && (
-            <div className="flex gap-2 px-3 pb-2 pt-2 flex-wrap justify-center border-t border-white/5">
-              {message.quickReplies.map((reply) => (
-                <button
-                  key={reply}
-                  onClick={() => handleQuickReply(reply)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    reply === 'Not now'
-                      ? 'bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:text-neutral-300'
-                      : 'bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[#FF8C69] hover:bg-[#FF8C69]/20 hover:border-[#FF8C69]/40'
-                  }`}
-                >
-                  {reply}
-                </button>
-              ))}
+          {/* Feedback + Quick Replies */}
+          {!isLoading && (
+            <div className="border-t border-white/5">
+              {/* Feedback thumbs */}
+              <div className="flex items-center justify-between px-3 pt-1.5 pb-1">
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleFeedback('positive')}
+                    disabled={!!feedbackSent}
+                    className={`p-1 rounded text-xs transition-all ${
+                      feedbackSent === 'positive'
+                        ? 'text-green-400'
+                        : feedbackSent ? 'text-neutral-600 cursor-default'
+                        : 'text-neutral-500 hover:text-green-400 hover:bg-white/5'
+                    }`}
+                    title="Good response"
+                  >👍</button>
+                  <button
+                    onClick={() => handleFeedback('negative')}
+                    disabled={!!feedbackSent}
+                    className={`p-1 rounded text-xs transition-all ${
+                      feedbackSent === 'negative'
+                        ? 'text-red-400'
+                        : feedbackSent ? 'text-neutral-600 cursor-default'
+                        : 'text-neutral-500 hover:text-red-400 hover:bg-white/5'
+                    }`}
+                    title="Wrong response"
+                  >👎</button>
+                </div>
+                {feedbackSent && (
+                  <span className="text-[10px] text-neutral-500">
+                    {feedbackSent === 'positive' ? 'Thanks!' : 'Sent to developer'}
+                  </span>
+                )}
+              </div>
+
+              {/* Feedback modal */}
+              {showFeedbackModal && (
+                <div className="px-3 pb-2 space-y-2">
+                  <p className="text-[11px] text-neutral-400">What went wrong?</p>
+                  <div className="flex flex-col gap-1">
+                    {[
+                      ['wrong_tool', 'Wrong action'],
+                      ['bad_response', 'Bad response'],
+                      ['other', 'Other'],
+                    ].map(([val, label]) => (
+                      <label key={val} className="flex items-center gap-2 text-[11px] text-neutral-300 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="feedbackType"
+                          value={val}
+                          checked={feedbackType === val}
+                          onChange={() => setFeedbackType(val)}
+                          className="accent-[#FF8C69] w-3 h-3"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="What should it have done?"
+                    value={feedbackNote}
+                    onChange={(e) => setFeedbackNote(e.target.value)}
+                    className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-[11px] text-neutral-200 placeholder-neutral-500 outline-none focus:border-[#FF8C69]/40"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={submitFeedback}
+                      className="flex-1 px-2 py-1 bg-[#FF8C69]/20 border border-[#FF8C69]/30 rounded text-[11px] text-[#FF8C69] hover:bg-[#FF8C69]/30"
+                    >Send</button>
+                    <button
+                      onClick={() => setShowFeedbackModal(false)}
+                      className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[11px] text-neutral-400 hover:bg-white/10"
+                    >Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick replies */}
+              {message.quickReplies && !showFeedbackModal && (
+                <div className="flex gap-2 px-3 pb-2 pt-1 flex-wrap justify-center">
+                  {message.quickReplies.map((reply) => (
+                    <button
+                      key={reply}
+                      onClick={() => handleQuickReply(reply)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        reply === 'Not now'
+                          ? 'bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:text-neutral-300'
+                          : 'bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[#FF8C69] hover:bg-[#FF8C69]/20 hover:border-[#FF8C69]/40'
+                      }`}
+                    >
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

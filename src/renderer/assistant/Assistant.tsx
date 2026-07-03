@@ -793,28 +793,8 @@ export const Assistant: React.FC = () => {
       {/* CONTENT: Settings */}
       {activeTab === 'settings' && (
         <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-6 scrollbar-hide">
-          {/* Group 1: ClawBot Server */}
-          <div>
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
-              AI Server
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                  Server URL
-                </label>
-                <input
-                  type="text"
-                  value={(settings.clawbot as { url: string })?.url || ''}
-                  onChange={(e) => updateSetting('clawbot.url', e.target.value)}
-                  className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all font-mono"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Group: Personality */}
-          <div className="pt-4 border-t border-white/5">
+          <div>
             <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
               Personality
             </h3>

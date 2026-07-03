@@ -158,7 +158,7 @@ export class MemoryManager {
         extracted: extraction?.memorable ? extraction : undefined,
         ts: new Date().toISOString(),
       };
-      fs.appendFileSync(logPath, JSON.stringify(entry) + '\n');
+      fs.promises.appendFile(logPath, JSON.stringify(entry) + '\n').catch(() => {});
     } catch { /* never crash for logging */ }
   }
 }

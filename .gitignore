@@ -8,6 +8,8 @@ playwright-report/
 .env
 electron-builder.env
 *.omc
-eval/fused-model/
-eval/adapters/
-eval/results-*.json
+eval/
+models/
+native/speech-helper/speech-helper
+proxy/.wrangler/
+.claude/settings.local.json

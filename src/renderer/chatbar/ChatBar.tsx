@@ -266,9 +266,7 @@ export const ChatBar: React.FC = () => {
       await window.clawster.stopSpeechRecognition();
       setIsRecording(false);
     } else {
-      console.log('Starting speech recognition...');
       const result = await window.clawster.startSpeechRecognition();
-      console.log('Speech start result:', result);
       if (result.success) {
         setIsRecording(true);
         setInput('');

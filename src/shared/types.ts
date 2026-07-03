@@ -18,4 +18,4 @@ export interface ClawBotResponse {
   };
 }
 
-export type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited';
+export type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'worried' | 'sad' | 'huff' | 'peek' | 'side-eye' | 'tap' | 'scoot';

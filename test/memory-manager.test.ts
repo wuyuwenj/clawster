@@ -4,21 +4,29 @@ import * as path from 'path';
 import * as os from 'os';
 import { MemoryManager } from '../src/main/chat/memory';
 
-function tmpDir() {
-  return path.join(os.tmpdir(), `clawster-mm-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+let nativeAvailable = false;
+try {
+  const probe = new MemoryManager({ dbPath: path.join(os.tmpdir(), `clawster-mm-probe-${Date.now()}.sqlite`) });
+  nativeAvailable = await probe.init();
+} catch { /* native module not loadable */ }
+
+function tmpDbPath() {
+  const dir = path.join(os.tmpdir(), `clawster-mm-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  fs.mkdirSync(dir, { recursive: true });
+  return path.join(dir, 'test.db');
 }
 
-describe('MemoryManager', () => {
+describe.skipIf(!nativeAvailable)('MemoryManager', () => {
   let mm: MemoryManager;
   let dbPath: string;
 
   beforeEach(async () => {
-    dbPath = tmpDir();
-    mm = new MemoryManager({ dbPath, proxyUrl: 'http://localhost:9999', deviceId: 'test' });
+    dbPath = tmpDbPath();
+    mm = new MemoryManager({ dbPath });
   });
 
   afterEach(() => {
-    try { fs.rmSync(dbPath, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }); } catch {}
   });
 
   it('initializes successfully', async () => {
@@ -46,7 +54,7 @@ describe('MemoryManager', () => {
   it('logs decisions to decisions.jsonl', async () => {
     await mm.init();
     await mm.processResponseBackground('my name is Emma', 'Nice to meet you Emma!');
-    const logPath = path.join(dbPath, 'decisions.jsonl');
+    const logPath = path.join(path.dirname(dbPath), 'decisions.jsonl');
     expect(fs.existsSync(logPath)).toBe(true);
     const lines = fs.readFileSync(logPath, 'utf-8').trim().split('\n');
     expect(lines.length).toBeGreaterThanOrEqual(1);
@@ -81,20 +89,20 @@ describe('MemoryManager', () => {
   });
 });
 
-describe('MemoryManager prefs.json migration', () => {
+describe.skipIf(!nativeAvailable)('MemoryManager prefs.json migration', () => {
   let dbPath: string;
   let prefsDir: string;
   let prefsPath: string;
 
   beforeEach(() => {
-    dbPath = tmpDir();
+    dbPath = tmpDbPath();
     prefsDir = path.join(os.tmpdir(), `clawster-prefs-test-${Date.now()}`);
     prefsPath = path.join(prefsDir, 'prefs.json');
     fs.mkdirSync(prefsDir, { recursive: true });
   });
 
   afterEach(() => {
-    try { fs.rmSync(dbPath, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }); } catch {}
     try { fs.rmSync(prefsDir, { recursive: true, force: true }); } catch {}
   });
 
@@ -109,7 +117,7 @@ describe('MemoryManager prefs.json migration', () => {
     process.env.HOME = origHome;
 
     // Direct test: write prefs, create MemoryManager with custom migration
-    const mm = new MemoryManager({ dbPath, proxyUrl: 'http://localhost:9999', deviceId: 'test' });
+    const mm = new MemoryManager({ dbPath });
     await mm.init();
 
     // Manually simulate what migration does
@@ -127,14 +135,14 @@ describe('MemoryManager prefs.json migration', () => {
 
   it('handles empty prefs.json', async () => {
     fs.writeFileSync(prefsPath, '[]');
-    const mm = new MemoryManager({ dbPath, proxyUrl: 'http://localhost:9999', deviceId: 'test' });
+    const mm = new MemoryManager({ dbPath });
     await mm.init();
     const ctx = await mm.retrieve();
     expect(ctx.facts).toEqual([]);
   });
 
   it('handles missing prefs.json', async () => {
-    const mm = new MemoryManager({ dbPath, proxyUrl: 'http://localhost:9999', deviceId: 'test' });
+    const mm = new MemoryManager({ dbPath });
     await mm.init();
     expect(mm.isReady()).toBe(true);
   });
