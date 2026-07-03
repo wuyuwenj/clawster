@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createHmac } from 'crypto';
-import { signRequest } from '../src/main/chat/hmac-auth';
 
-const APP_SECRET = 'clawster-v1-2026';
+// The app secret is env-driven now (no hardcoded default in hmac-auth, so a
+// public repo never ships a working key). Pin one before signRequest is first
+// called so the client signer and the mock server verifier share the same key.
+process.env.CLAWSTER_APP_SECRET = 'clawster-test-secret';
+const APP_SECRET = process.env.CLAWSTER_APP_SECRET;
+
+const { signRequest } = await import('../src/main/chat/hmac-auth');
 
 function serverVerify(body: string, timestamp: number, deviceId: string, clientSignature: string): boolean {
   const payload = `${timestamp}.${deviceId}.${body}`;
