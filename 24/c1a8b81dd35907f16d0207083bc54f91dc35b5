@@ -1,0 +1,22 @@
+src/main/windows.ts
+  s_c2794f4d041cf5::t_3245f70cb78e8c 320-327
+  s_c2794f4d041cf5::t_66c864836b2118 30-40
+test/pet-chat-height.test.ts
+  s_c2794f4d041cf5::t_4e332ea1c5456f 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "24c1a8b81dd35907f16d0207083bc54f91dc35b5",
+  "prompts": {},
+  "sessions": {
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
