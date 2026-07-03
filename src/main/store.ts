@@ -28,6 +28,7 @@ interface StoreSchema {
   watch: {
     activeApp: boolean;
     sendWindowTitles: boolean;
+    browserUrl: boolean;
     folders: string[];
   };
   pet: {
@@ -70,6 +71,7 @@ const defaults: StoreSchema = {
     // from Settings, where the inline permission flow explains why.
     activeApp: false,
     sendWindowTitles: false,
+    browserUrl: false,
     folders: [],
   },
   pet: {

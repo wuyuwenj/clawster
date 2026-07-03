@@ -1,6 +1,6 @@
 {
   "name": "clawster",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "author": "Yuwen Wu",
   "description": "Desktop pet companion with AI-powered conversation",
   "main": "dist/main/main.js",
@@ -21,8 +21,9 @@
     "start": "electron .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npx playwright test --grep-invert 'Production'",
-    "test:prod": "npx playwright test e2e/production-smoke.spec.ts",
+    "test:e2e": "npx playwright test --project=dev",
+    "test:e2e:prod": "E2E_MODE=prod npx playwright test --project=prod",
+    "test:prod-bundle": "npx playwright test --project=prod-bundle",
     "eval": "npx tsx eval/runner.ts",
     "eval:holdout": "npx tsx eval/runner.ts --holdout"
   },
@@ -60,7 +61,8 @@
     "tsx": "^4.22.4",
     "typescript": "^5.3.0",
     "vite": "^5.0.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "ws": "^8.21.0"
   },
   "build": {
     "appId": "com.clawster.app",

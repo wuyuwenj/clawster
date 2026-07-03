@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TutorialOverlay } from './TutorialOverlay';
 
-type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o';
+type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'worried' | 'sad' | 'huff' | 'peek' | 'side-eye' | 'tap' | 'scoot';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
 
 interface ChatMessage {
@@ -319,11 +319,13 @@ export const Pet: React.FC = () => {
 
     // Handle chat messages from main process - show in separate window
     window.clawster.onChatPopup((data: unknown) => {
-      const messageData = data as ChatMessage;
+      const messageData = data as ChatMessage & { userInput?: string; toolCall?: unknown };
       const message = {
         id: messageData.id || crypto.randomUUID(),
         text: messageData.text || messageData.content || '',
         quickReplies: messageData.quickReplies || DEFAULT_QUICK_REPLIES,
+        userInput: messageData.userInput,
+        toolCall: messageData.toolCall as { tool: string | null; args?: Record<string, unknown> } | undefined,
       };
       window.clawster.showPetChat(message);
       if (!sleepLockedRef.current) {

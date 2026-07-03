@@ -2,7 +2,6 @@ export type { ChatProvider, ChatResponse, ChatStreamHandlers } from './types';
 export { CloudChatProvider, createProxyVision } from './cloud-provider';
 export type { VisionProvider } from './cloud-provider';
 export { LocalToolProvider } from './local-tool-provider';
-export { LocalChatProvider } from './local-chat-provider';
 export { ChatRouter } from './chat-router';
 export { executeTool, setNotifyCallback, setConfirmCallback, setMemoryDB } from './tool-executor';
 export { parseActionFromResponse } from './parse-action';

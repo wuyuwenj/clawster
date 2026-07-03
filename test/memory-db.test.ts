@@ -2,26 +2,35 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
 import { MemoryDB } from '../src/main/chat/memory/memory-db';
 
-const TEST_DB_PATH = path.join(os.tmpdir(), `clawster-memdb-test-${Date.now()}`);
+let nativeAvailable = false;
+try {
+  const probe = new MemoryDB(path.join(os.tmpdir(), `clawster-memdb-probe-${Date.now()}.sqlite`));
+  nativeAvailable = await probe.init();
+  if (nativeAvailable) {
+    try { fs.rmSync(path.join(os.tmpdir(), `clawster-memdb-probe-${Date.now()}.sqlite`), { force: true }); } catch {}
+  }
+} catch { /* native module not loadable */ }
 
-describe('MemoryDB', () => {
-  let db: MemoryDB;
+const TEST_DB_PREFIX = `clawster-memdb-test-${Date.now()}`;
+
+describe.skipIf(!nativeAvailable)('MemoryDB', () => {
+  let db: InstanceType<typeof MemoryDB>;
 
   beforeEach(async () => {
-    const uniquePath = `${TEST_DB_PATH}-${Math.random().toString(36).slice(2)}`;
+    const uniquePath = path.join(os.tmpdir(), `${TEST_DB_PREFIX}-${Math.random().toString(36).slice(2)}.sqlite`);
     db = new MemoryDB(uniquePath);
     const ok = await db.init();
     expect(ok).toBe(true);
   });
 
   afterAll(() => {
-    // Cleanup temp dirs (best-effort)
     try {
-      const dirs = fs.readdirSync(os.tmpdir()).filter(d => d.startsWith('clawster-memdb-test-'));
-      for (const d of dirs) {
-        fs.rmSync(path.join(os.tmpdir(), d), { recursive: true, force: true });
+      const files = fs.readdirSync(os.tmpdir()).filter(f => f.startsWith('clawster-memdb-test-'));
+      for (const f of files) {
+        fs.rmSync(path.join(os.tmpdir(), f), { force: true });
       }
     } catch { /* ignore */ }
   });

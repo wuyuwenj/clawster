@@ -89,33 +89,43 @@ describe('G002 — rate limit handling in vision', () => {
 });
 
 // G003: Empty vector guard — don't store memories with empty vectors
-describe('G003 — empty vector guard', () => {
+// Requires better-sqlite3 native module (built for Electron ABI, may not match test Node ABI)
+let sqliteAvailable = false;
+try {
+  const { MemoryManager } = await import('../src/main/chat/memory');
+  const os = await import('os');
+  const path = await import('path');
+  const probe = new MemoryManager({ dbPath: path.join(os.tmpdir(), `clawster-g003-probe-${Date.now()}.sqlite`) });
+  sqliteAvailable = await probe.init();
+} catch { /* native module not loadable */ }
+
+describe.skipIf(!sqliteAvailable)('G003 — empty vector guard', () => {
   it('skips storing emotional memory when embedding returns empty vector', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const os = await import('os');
 
-    const dbPath = path.join(os.tmpdir(), `clawster-evg-test-${Date.now()}`);
+    const dir = path.join(os.tmpdir(), `clawster-evg-test-${Date.now()}`);
+    fs.mkdirSync(dir, { recursive: true });
+    const dbPath = path.join(dir, 'test.db');
     const { MemoryManager } = await import('../src/main/chat/memory');
 
-    // Stub fetch to fail (embed returns [])
-    vi.stubGlobal('fetch', async () => { throw new Error('offline'); });
+    const embeddings = await import('../src/main/chat/memory/embeddings');
+    vi.spyOn(embeddings, 'embed').mockResolvedValue([]);
 
-    const mm = new MemoryManager({ dbPath, proxyUrl: 'http://localhost:9999', deviceId: 'test' });
+    const mm = new MemoryManager({ dbPath });
     await mm.init();
 
-    // Simulate a response with a memory block
     const fakeResponse = `Great to hear!\n\`\`\`memory\n{"memorable": true, "facts": [], "emotional": "User is happy about their new job", "emotions": ["happy"], "people": []}\n\`\`\``;
 
     await mm.processResponseBackground('I got a new job!', fakeResponse);
 
-    // Check that no emotional memory was stored (embedding failed → empty vector → skipped)
     const db = mm.getDB();
     const memories = await db.getRecentMemories(10);
     expect(memories).toHaveLength(0);
 
-    vi.unstubAllGlobals();
-    try { fs.rmSync(dbPath, { recursive: true, force: true }); } catch {}
+    vi.restoreAllMocks();
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   });
 
   it('stores emotional memory when embedding succeeds', async () => {
@@ -123,17 +133,16 @@ describe('G003 — empty vector guard', () => {
     const path = await import('path');
     const os = await import('os');
 
-    const dbPath = path.join(os.tmpdir(), `clawster-evg-test-${Date.now()}`);
+    const dir = path.join(os.tmpdir(), `clawster-evg-test-${Date.now()}`);
+    fs.mkdirSync(dir, { recursive: true });
+    const dbPath = path.join(dir, 'test.db');
     const { MemoryManager } = await import('../src/main/chat/memory');
 
-    const fakeVector = Array(1536).fill(0).map((_, i) => Math.sin(i));
-    vi.stubGlobal('fetch', async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ data: [{ embedding: fakeVector }] }),
-    }));
+    const fakeVector = Array(384).fill(0).map((_, i) => Math.sin(i));
+    const embeddings = await import('../src/main/chat/memory/embeddings');
+    vi.spyOn(embeddings, 'embed').mockResolvedValue(fakeVector);
 
-    const mm = new MemoryManager({ dbPath, proxyUrl: 'http://localhost:9999', deviceId: 'test' });
+    const mm = new MemoryManager({ dbPath });
     await mm.init();
 
     const fakeResponse = `Great to hear!\n\`\`\`memory\n{"memorable": true, "facts": [], "emotional": "User is happy about their new job", "emotions": ["happy"], "people": []}\n\`\`\``;
@@ -145,8 +154,8 @@ describe('G003 — empty vector guard', () => {
     expect(memories.length).toBeGreaterThan(0);
     expect(memories[0].summary).toContain('new job');
 
-    vi.unstubAllGlobals();
-    try { fs.rmSync(dbPath, { recursive: true, force: true }); } catch {}
+    vi.restoreAllMocks();
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   });
 });
 

@@ -1,15 +1,11 @@
 import { test, expect, ElectronApplication, Page } from '@playwright/test';
-import { _electron as electron } from 'playwright';
-import * as path from 'path';
+import { launchApp, sendChat } from './helpers';
 
 let app: ElectronApplication;
 let page: Page;
 
 test.beforeAll(async () => {
-  app = await electron.launch({
-    args: [path.join(__dirname, '..')],
-    env: { ...process.env, NODE_ENV: 'test' },
-  });
+  app = await launchApp();
   page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(5000);
@@ -18,13 +14,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await app.close();
 });
-
-async function sendChat(page: Page, msg: string): Promise<any> {
-  return page.evaluate(async (m) => {
-    const r = await (window as any).clawster.sendToClawbot(m);
-    return JSON.parse(JSON.stringify(r));
-  }, msg);
-}
 
 test.describe('analytics events fire on real interactions', () => {
   test('chat_sent fires on tool call (weather)', async () => {

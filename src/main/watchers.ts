@@ -1,14 +1,16 @@
 import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
-import { systemPreferences } from 'electron';
 import type Store from 'electron-store';
 import type { StoreSchema } from './store';
 import { getFrontmostWindowTitleFromSystemEvents } from './window-title';
+import { getBrowserContext, isBrowser, type BrowserContext } from './browser-context';
 
 export interface ActivityEvent {
   type: 'app_focus_changed' | 'file_added' | 'file_changed' | 'file_deleted';
   app?: string;
   title?: string;
+  url?: string;
+  domain?: string;
   path?: string;
   filename?: string;
   at: number;
@@ -22,6 +24,7 @@ export class Watchers {
   private fileWatcher: FSWatcher | null = null;
   private appWatcherInterval: NodeJS.Timeout | null = null;
   private lastActiveApp: string | null = null;
+  private lastBrowserUrl: string | null = null;
   private hasLoggedScreenRecordingWarning = false;
 
   constructor(store: Store<StoreSchema>, onEvent: EventCallback) {
@@ -88,20 +91,35 @@ export class Watchers {
           }
         }
 
-        if (win && win.owner.name !== this.lastActiveApp) {
+        if (win) {
+          const appChanged = win.owner.name !== this.lastActiveApp;
           let title = sendTitles ? win.title || undefined : undefined;
           if (sendTitles && screenRecordingDenied && !title) {
             title = await getFrontmostWindowTitleFromSystemEvents(win.owner.name);
           }
 
-          this.onEvent({
-            type: 'app_focus_changed',
-            app: win.owner.name,
-            title,
-            at: Date.now(),
-          });
+          // Capture browser URL if enabled and active app is a browser
+          let browserCtx: BrowserContext | null = null;
+          const watchBrowserUrl = this.store.get('watch.browserUrl') as boolean;
+          if (watchBrowserUrl && isBrowser(win.owner.name)) {
+            browserCtx = await getBrowserContext(win.owner.name);
+          }
 
-          this.lastActiveApp = win.owner.name;
+          const urlChanged = browserCtx && browserCtx.url !== this.lastBrowserUrl;
+          if (browserCtx) this.lastBrowserUrl = browserCtx.url;
+
+          if (appChanged || urlChanged) {
+            this.onEvent({
+              type: 'app_focus_changed',
+              app: win.owner.name,
+              title: browserCtx?.title || title,
+              url: browserCtx?.url,
+              domain: browserCtx?.domain,
+              at: Date.now(),
+            });
+
+            this.lastActiveApp = win.owner.name;
+          }
         }
       } catch (error) {
         console.error('App watcher error:', error);

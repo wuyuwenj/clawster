@@ -123,6 +123,14 @@ interface ClawsterAPI {
   onTutorialHint: (callback: (data: { step: number; hintType: string }) => void) => void;
   onTutorialEnded: (callback: (data: { skipped: boolean }) => void) => void;
   onTutorialResumePrompt: (callback: () => void) => void;
+  // Permissions
+  getPermissionStatuses: () => Promise<Record<string, string>>;
+  requestPermission: (type: string) => Promise<boolean>;
+  openPermissionSettings: (type: string) => Promise<void>;
+  startPermissionPolling: (type: string) => Promise<void>;
+  stopPermissionPolling: (type: string) => Promise<void>;
+  onPermissionStatusChanged: (callback: (data: { type: string; status: string; needsRestart: boolean }) => void) => ListenerCleanup;
+  onPermissionStatusesUpdated: (callback: (statuses: Record<string, string>) => void) => ListenerCleanup;
   // Onboarding
   onboardingSkip: () => Promise<boolean>;
   onboardingComplete: (data: OnboardingData) => Promise<boolean>;

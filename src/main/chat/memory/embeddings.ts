@@ -1,4 +1,4 @@
-import { buildAuthHeaders } from '../hmac-auth';
+import * as path from 'path';
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
@@ -12,29 +12,46 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-export async function embed(
-  text: string,
-  baseUrl: string,
-  deviceId: string
-): Promise<number[]> {
+export const EMBEDDING_DIMS = 384;
+
+let embedder: any = null;
+let loading: Promise<any> | null = null;
+
+function getModelPath(): string {
+  const isDev = !process.resourcesPath || process.resourcesPath.includes('node_modules');
+  if (isDev) {
+    return path.join(process.cwd(), 'models', 'bge-small-en-v1.5');
+  }
+  return path.join(process.resourcesPath, 'models', 'bge-small-en-v1.5');
+}
+
+async function getEmbedder(): Promise<any> {
+  if (embedder) return embedder;
+  if (loading) return loading;
+
+  loading = (async () => {
+    const { pipeline, env } = await import('@huggingface/transformers');
+    env.cacheDir = getModelPath();
+    env.allowRemoteModels = false;
+    embedder = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5', {
+      dtype: 'q8',
+    });
+    loading = null;
+    return embedder;
+  })();
+
+  return loading;
+}
+
+export async function embed(text: string): Promise<number[]> {
   if (!text.trim()) return [];
 
   try {
-    const body = JSON.stringify({ input: text, model: 'text-embedding-3-small' });
-    const headers = buildAuthHeaders(body, deviceId);
-
-    const response = await fetch(`${baseUrl}/v1/embeddings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body,
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) return [];
-
-    const data = await response.json() as { data?: Array<{ embedding?: number[] }> };
-    return data.data?.[0]?.embedding ?? [];
-  } catch {
+    const extractor = await getEmbedder();
+    const output = await extractor(text, { pooling: 'mean', normalize: true });
+    return Array.from(output.data as Float32Array);
+  } catch (error) {
+    console.error('[Embeddings] Local embed failed:', error);
     return [];
   }
 }

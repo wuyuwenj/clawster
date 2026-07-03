@@ -33,9 +33,12 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Screen Awareness** | Detects your active app and window for contextual help | — |
 | **Tool Calling** | Open apps, run commands, set timers, send messages, control volume | — |
 | **Memory** | Remembers facts and emotional context across conversations | — |
+| **Focus Mode** | Block distracting apps for a set time period | — |
+| **Voice Input** | Talk to Clawster with your voice (speech recognition) | — |
+| **Auto-Update** | In-app banner when a new version is available | — |
 | **Customizable Personality** | Edit IDENTITY.md and SOUL.md to shape behavior | — |
 | **Attention Seeking** | Scuttles toward your cursor when feeling lonely | — |
-| **Guided Onboarding** | Setup wizard, no terminal required | — |
+| **Guided Onboarding** | Setup wizard with permission grants, no terminal required | — |
 
 ## Animations
 
@@ -94,6 +97,7 @@ User message
 - **Cloud proxy** handles natural conversation, screen analysis, and personality
 - **Memory** stores facts and emotional context locally in LanceDB with vector search
 - **Safety filter** blocks harmful content, destructive commands, and prompt injection
+- **Auto-update** checks GitHub Releases on launch and every 30 minutes; in-app banner shows download progress and "Restart Now"
 
 ## Getting Started (from source)
 
@@ -108,7 +112,7 @@ User message
 git clone https://github.com/wuyuwenj/clawster.git
 cd clawster
 npm install
-npm run dev
+npm start
 ```
 
 On first launch, the onboarding wizard walks you through setup.
@@ -145,7 +149,7 @@ rm ~/Library/Application\ Support/clawster/clawster-config.json
 ## Development
 
 ```bash
-npm run dev      # Run in development mode
+npm start        # Run in development mode
 npm run build    # Build for production
 npm test         # Run test suite
 npm run dist     # Create distributable package

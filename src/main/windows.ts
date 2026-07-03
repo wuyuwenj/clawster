@@ -197,7 +197,7 @@ export function schedulePetChatAutoHide() {
   }, PET_CHAT_AUTO_HIDE_MS);
 }
 
-export function showPetChat(message: { id: string; text: string; quickReplies?: string[] }) {
+export function showPetChat(message: { id: string; text: string; quickReplies?: string[]; toolCall?: { tool: string | null; args?: Record<string, unknown> }; userInput?: string }) {
   if (!petWindow) return;
 
   if (tutorialManager?.getStatus().isActive) return;

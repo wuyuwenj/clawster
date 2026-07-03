@@ -24,6 +24,22 @@ const RESPONSE_SETS: ResponseSet[] = [
     ],
   },
   {
+    patterns: [/good\s?night|goodnight|nighty?\s?night|sleep well|off to (bed|sleep)|heading to bed|\bgn\b/i],
+    responses: [
+      "Goodnight! I'll be right here when you wake up. Sleep well! 🌙",
+      "Night night! Sweet dreams. I'll keep watch on your desktop. 💤",
+      "Sleep tight! See you tomorrow. *quiet snip* 🌙",
+    ],
+  },
+  {
+    patterns: [/bye|goodbye|see you|later|gotta go|leaving|peace|im out|i'm out|cya|gtg/i],
+    responses: [
+      "See ya! I'll be right here when you get back. *waves*",
+      "Bye! *snip snip* Don't be a stranger!",
+      "Later! I'll just be chilling on your desktop.",
+    ],
+  },
+  {
     patterns: [/thank/i, /thanks/i, /thx/i, /appreciate/i],
     responses: [
       "Anytime! *happy snip*",
@@ -68,6 +84,15 @@ const RESPONSE_SETS: ResponseSet[] = [
     ],
   },
   {
+    patterns: [/bad day|rough day|terrible day|worst day|having a.*(hard|tough|bad|rough) time/i, /feeling.*(sad|down|low|awful|terrible|lonely|alone)/i, /nobody (understands|cares|likes|loves)/i, /can'?t (focus|concentrate|sleep|stop crying)/i, /so (stressed|overwhelmed|anxious)/i, /miss (him|her|them|my)/i],
+    responses: [
+      "Hey, I hear you. That sounds really tough. I'm right here with you. 💙",
+      "I'm sorry you're going through that. Want to talk about it, or would a distraction help? I can play some music or set a chill timer.",
+      "*scoots closer* You don't have to go through this alone. I'm here. Want me to set up some focus time, or just hang out?",
+      "That sounds hard. Take a deep breath — in... and out. I'm not going anywhere. 💙",
+    ],
+  },
+  {
     patterns: [/tired/i, /sleepy/i, /exhausted/i, /need (a )?break/i],
     responses: [
       "Take a break! Want me to set a 5 minute timer?",
@@ -76,11 +101,10 @@ const RESPONSE_SETS: ResponseSet[] = [
     ],
   },
   {
-    patterns: [/bye|goodbye|see you|later|gotta go|leaving/i],
+    patterns: [/what can you do|what do you do|help me|your features|what are you|how do you work|what('?s| is) your purpose/i],
     responses: [
-      "See ya! I'll be right here when you get back. *waves*",
-      "Bye! *snip snip* Don't be a stranger!",
-      "Later! I'll just be chilling on your desktop.",
+      "I can open apps, set timers, check the weather, search files, control volume/brightness, read your clipboard, send messages, remember things about you, and more! Just ask. 🦞",
+      "I'm your desktop buddy! I can set timers, open apps, check weather, search your files, control system settings, remember things you tell me, and keep you company. Try 'set a timer for 5 minutes'!",
     ],
   },
   {
@@ -159,8 +183,25 @@ const FALLBACK_RESPONSES = [
   "Interesting! I'm more of an action lobster though. Want me to open an app or set a timer?",
 ];
 
+const recentResponses: string[] = [];
+const MAX_RECENT = 3;
+
 function pick(arr: string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
+  const available = arr.filter(r => !recentResponses.includes(r));
+  const choice = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : arr[Math.floor(Math.random() * arr.length)];
+  recentResponses.push(choice);
+  if (recentResponses.length > MAX_RECENT) recentResponses.shift();
+  return choice;
+}
+
+export function getEmotionalResponse(): string {
+  const responses = [
+    "Hey, I hear you. That sounds really tough. I'm right here with you. 💙",
+    "I'm sorry you're going through that. Want to talk about it, or would a distraction help? I can play some music or set a chill timer.",
+    "*scoots closer* You don't have to go through this alone. I'm here. Want me to set up some focus time, or just hang out?",
+    "That sounds hard. Take a deep breath — in... and out. I'm not going anywhere. 💙",
+  ];
+  return pick(responses);
 }
 
 export function getTemplateResponse(input: string, mood?: string): string {

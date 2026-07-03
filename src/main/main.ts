@@ -20,6 +20,7 @@ import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, createProxyVision } from './chat';
+import { buildAuthHeaders } from './chat/hmac-auth';
 import { MemoryManager } from './chat/memory';
 import { runConsolidation } from './chat/memory/consolidation';
 import { requestPermission, setPermissionStore, getAllPermissionStatuses, openPermissionSettings, startPolling, stopPolling, checkPermission, needsRestart } from './permission-helper';
@@ -127,7 +128,7 @@ const store = createStore();
 setPermissionStore(store);
 const tutorialManager = new TutorialManager(store);
 
-const isDev = !app.isPackaged;
+const isDev = process.env.CLAWSTER_DEV === 'true' || (!app.isPackaged && process.env.CLAWSTER_DEV !== 'false');
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
 
 // Constants used only in main.ts
@@ -142,6 +143,8 @@ let lastActivityTime = Date.now();
 let idleCheckInterval: NodeJS.Timeout | null = null;
 let lastAppSwitchChat = 0;
 let lastDeniedPermission: string | null = null;
+let lastBrowserContext: { domain: string; title: string; url: string } | null = null;
+let lastChatContext: { userInput: string; toolCall: unknown; modelOutput: string } | null = null;
 const IDLE_THRESHOLD = 5 * 60 * 1000;
 
 // Tray
@@ -201,7 +204,8 @@ function resetOnboardingState(): void {
 async function sendChatPopup(
   trigger: 'app_switch' | 'idle' | 'proactive',
   context?: string,
-  windowTitle?: string
+  windowTitle?: string,
+  browserUrl?: string,
 ) {
   const petWindow = getPetWindow();
   if (!petWindow || !chatProvider?.isAvailable()) return;
@@ -216,7 +220,7 @@ async function sendChatPopup(
         if (!context?.trim()) {
           return;
         }
-        prompt = `User is using app name: "${context}". Window title: "${windowTitle?.trim() || '[unavailable]'}". Based on what you know about the user, say something funny that's relevant to the app and/or window title.`;
+        prompt = `User is using app name: "${context}". Window title: "${windowTitle?.trim() || '[unavailable]'}"${browserUrl ? `. URL: ${browserUrl}` : ''}. Based on what you know about the user, say something funny that's relevant to the app and/or window title.`;
         break;
       case 'idle':
         prompt = 'The user has been idle for a while. Give a brief, friendly message to check in or suggest a break (1-2 sentences max). Be warm and not pushy.';
@@ -323,18 +327,23 @@ function startMainApp() {
   // Seed the active personality from the chosen preset on first run (idempotent).
   ensureActivePersonality((store.get('personality.preset') as PresetId) || DEFAULT_PRESET);
 
-  const toolModel = new LocalToolProvider();
+  const toolModel = new LocalToolProvider(
+    isDev ? 'clawster-qwen3-8b-q4:latest' : (process.env.FIREWORKS_MODEL || 'clawster-qwen3-8b-q4:latest'),
+    isDev ? 'http://127.0.0.1:11434' : (process.env.FIREWORKS_BASE_URL || 'http://127.0.0.1:11434'),
+    isDev ? 'ollama' : ((process.env.FIREWORKS_BASE_URL ? 'openai' : 'ollama') as 'ollama' | 'openai'),
+    isDev ? undefined : process.env.FIREWORKS_API_KEY,
+  );
   chatProvider = new ChatRouter(toolModel);
 
   // Wire on-demand cloud vision for screen analysis (local model has no vision).
-  // No background polling — the proxy is only contacted when the user asks about
-  // their screen.
+  // Dev mode: uses proxy (OpenAI via CF Worker). Production: uses Fireworks Vision.
   let deviceId = store.get('clawbot').deviceId;
   if (!deviceId) {
     deviceId = randomUUID();
     store.set('clawbot', { ...store.get('clawbot'), deviceId });
   }
   const proxyUrl = store.get('clawbot').url;
+  console.log('[Vision] Using proxy vision (GPT-4o-mini)');
   chatProvider.setVisionProvider(createProxyVision(proxyUrl, deviceId));
   chatProvider.setScreenCapturer(() => captureScreen());
 
@@ -428,11 +437,17 @@ function startMainApp() {
     if (event.type === 'app_focus_changed' && event.app) {
       emotionEngine.onAppSwitch(event.app);
 
+      if (event.url && event.domain) {
+        lastBrowserContext = { domain: event.domain, title: event.title || '', url: event.url };
+      } else {
+        lastBrowserContext = null;
+      }
+
       const now = Date.now();
       if (now - lastAppSwitchChat > APP_SWITCH_CHAT_COOLDOWN) {
         lastAppSwitchChat = now;
         if (Math.random() < 0.3) {
-          sendChatPopup('app_switch', event.app, event.title);
+          sendChatPopup('app_switch', event.app, event.title, event.url);
         }
       }
     }
@@ -585,19 +600,12 @@ function setupIPC() {
 
   // Ask about screen (screenshot + question)
   ipcMain.handle('ask-about-screen', async (_event, question: string, imageDataUrl: string) => {
-    console.log('[ScreenshotQuestion] ask-about-screen called');
-    console.log('[ScreenshotQuestion] Question:', question);
-    console.log('[ScreenshotQuestion] Image size:', imageDataUrl?.length || 0, 'chars');
-
     if (!chatProvider) {
-      console.log('[ScreenshotQuestion] ChatProvider not initialized!');
       return { error: 'ChatProvider not initialized' };
     }
 
     try {
-      console.log('[ScreenshotQuestion] Calling analyzeScreen...');
       const response = await chatProvider.analyzeScreen(imageDataUrl, question);
-      console.log('[ScreenshotQuestion] Response:', response);
       return response;
     } catch (error) {
       console.error('Failed to analyze screen:', error);
@@ -769,11 +777,19 @@ function setupIPC() {
       }
     }
 
+    // Inject browser URL context if available and enabled
+    if (store.get('watch.browserUrl') && lastBrowserContext) {
+      const browserPrefix = `[Browser: ${lastBrowserContext.domain} | Title: ${lastBrowserContext.title}]`;
+      fullMessage = fullMessage.startsWith('[Screen Context:')
+        ? fullMessage.replace(']\n\n', ` | ${browserPrefix}]\n\n`)
+        : `${browserPrefix}\n\n${fullMessage}`;
+    }
+
     return { history, fullMessage };
   };
 
   // Show final response as a speech bubble on the pet when appropriate
-  const maybeShowPetResponse = (responseText?: string, quickReplies?: string[]) => {
+  const maybeShowPetResponse = (responseText?: string, quickReplies?: string[], context?: { userInput?: string; toolCall?: { tool: string | null; args?: Record<string, unknown> } }) => {
     const assistantWindow = getAssistantWindow();
     const chatbarWindow = getChatbarWindow();
     const petWindow = getPetWindow();
@@ -785,6 +801,8 @@ function setupIPC() {
         text: responseText,
         trigger: 'proactive',
         quickReplies: quickReplies && quickReplies.length ? quickReplies : ['Thanks!', 'Not now'],
+        userInput: context?.userInput,
+        toolCall: context?.toolCall,
       });
     }
   };
@@ -792,6 +810,32 @@ function setupIPC() {
   // Send message to ClawBot (with optional screen context)
   ipcMain.handle('send-to-clawbot', async (_event, message: string, includeScreen?: boolean) => {
     if (!chatProvider) return { error: 'ChatProvider not initialized' };
+
+    // Intercept feedback submissions — send to proxy, don't route through chat
+    if (message.startsWith('{"__feedback":true')) {
+      try {
+        const feedback = JSON.parse(message);
+        delete feedback.__feedback;
+        feedback.appVersion = app.getVersion();
+        feedback.timestamp = new Date().toISOString();
+        if (lastChatContext) {
+          feedback.userInput = feedback.userInput || lastChatContext.userInput;
+          feedback.toolCall = feedback.toolCall || lastChatContext.toolCall;
+          feedback.modelOutput = feedback.modelOutput || lastChatContext.modelOutput;
+        }
+        const proxyUrl = store.get('clawbot').url;
+        const feedbackBody = JSON.stringify(feedback);
+        const deviceId = store.get('clawbot').deviceId || 'unknown';
+        fetch(`${proxyUrl}/v1/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(feedbackBody, deviceId) },
+          body: feedbackBody,
+        }).then(r => {
+          if (!r.ok) console.error(`[Feedback] ${r.status} ${r.statusText}`);
+        }).catch(err => console.error('[Feedback] Error:', err));
+      } catch { /* malformed feedback, ignore */ }
+      return { type: 'message', text: '' };
+    }
 
     // Intercept "Open Settings" quick reply — open the pane for the last denied permission
     if (message.trim().toLowerCase() === 'open settings') {
@@ -821,7 +865,8 @@ function setupIPC() {
       await executePetAction(response.action.payload as PetAction);
     }
 
-    maybeShowPetResponse(response.text, response.quickReplies);
+    lastChatContext = { userInput: message, toolCall: response.toolCall, modelOutput: response.text || '' };
+    maybeShowPetResponse(response.text, response.quickReplies, { userInput: message, toolCall: response.toolCall });
 
     return response;
   });
@@ -857,8 +902,9 @@ function setupIPC() {
           await executePetAction(response.action.payload as PetAction);
         }
 
+        lastChatContext = { userInput: message, toolCall: response.toolCall, modelOutput: response.text || '' };
         if (!isChatbarRequest) {
-          maybeShowPetResponse(response.text, response.quickReplies);
+          maybeShowPetResponse(response.text, response.quickReplies, { userInput: message, toolCall: response.toolCall });
         }
 
         if (!sender.isDestroyed()) {
@@ -1304,65 +1350,78 @@ function setupTray() {
   tray = new Tray(trayIcon);
   tray.setToolTip('Clawster');
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show Clawster',
-      click: () => {
-        getPetWindow()?.show();
-        getPetWindow()?.focus();
-      },
-    },
-    {
-      label: 'Open Assistant',
-      click: () => {
-        createAssistantWindow();
-      },
-    },
-    {
-      label: 'Settings',
-      click: () => {
-        createAssistantWindow();
-        const assistantWindow = getAssistantWindow();
-        if (!assistantWindow) return;
+  function buildTrayMenu() {
+    const petWindow = getPetWindow();
+    const isVisible = petWindow?.isVisible() ?? false;
 
-        if (assistantWindow.webContents.isLoading()) {
-          assistantWindow.webContents.once('did-finish-load', () => {
-            getAssistantWindow()?.webContents.send('switch-to-settings');
-          });
-        } else {
-          assistantWindow.webContents.send('switch-to-settings');
-        }
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: isVisible ? 'Hide Clawster' : 'Show Clawster',
+        click: () => {
+          const win = getPetWindow();
+          if (!win) return;
+          if (win.isVisible()) {
+            win.hide();
+          } else {
+            win.show();
+            win.focus();
+          }
+          buildTrayMenu();
+        },
       },
-    },
-    { type: 'separator' },
-    {
-      label: 'Restart Tutorial',
-      click: () => {
-        tutorialManager.startOver();
+      {
+        label: 'Open Assistant',
+        click: () => {
+          createAssistantWindow();
+        },
       },
-    },
-    {
-      label: 'Reset Onboarding',
-      click: () => {
-        resetOnboardingState();
-        dialog.showMessageBox({
-          type: 'info',
-          title: 'Onboarding Reset',
-          message: 'Onboarding has been reset. Restart Clawster to see the onboarding wizard.',
-          buttons: ['OK'],
-        });
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit Clawster',
-      click: () => {
-        app.quit();
-      },
-    },
-  ]);
+      {
+        label: 'Settings',
+        click: () => {
+          createAssistantWindow();
+          const assistantWindow = getAssistantWindow();
+          if (!assistantWindow) return;
 
-  tray.setContextMenu(contextMenu);
+          if (assistantWindow.webContents.isLoading()) {
+            assistantWindow.webContents.once('did-finish-load', () => {
+              getAssistantWindow()?.webContents.send('switch-to-settings');
+            });
+          } else {
+            assistantWindow.webContents.send('switch-to-settings');
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Restart Tutorial',
+        click: () => {
+          tutorialManager.startOver();
+        },
+      },
+      {
+        label: 'Reset Onboarding',
+        click: () => {
+          resetOnboardingState();
+          store.set('tutorial.completedAt', null);
+          store.set('tutorial.lastStep', 0);
+          store.set('tutorial.wasInterrupted', false);
+          app.relaunch();
+          app.exit(0);
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit Clawster',
+        click: () => {
+          app.quit();
+        },
+      },
+    ]);
+
+    tray!.setContextMenu(contextMenu);
+  }
+
+  buildTrayMenu();
 
   if (process.platform !== 'darwin') {
     tray.on('click', () => {

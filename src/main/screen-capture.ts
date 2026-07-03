@@ -75,14 +75,14 @@ export async function captureScreenNative(): Promise<string | null> {
 
   const permissionStatus = getScreenCapturePermissionStatus();
   if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
-    console.log('Screen capture permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording');
+    console.log('[ScreenCapture] Permission denied — enable in System Preferences > Privacy & Security > Screen Recording');
     return null;
   }
 
-  const tempPath = path.join(os.tmpdir(), `clawster-screenshot-${Date.now()}.png`);
+  const tempPath = path.join(os.tmpdir(), `clawster-screenshot-${Date.now()}.jpg`);
 
   try {
-    execSync(`screencapture -x -C -t png "${tempPath}"`, {
+    execSync(`screencapture -x -C -t jpg "${tempPath}"`, {
       timeout: 5000,
       windowsHide: true,
     });
@@ -92,9 +92,9 @@ export async function captureScreenNative(): Promise<string | null> {
 
     fs.unlinkSync(tempPath);
 
-    return `data:image/png;base64,${base64}`;
+    return `data:image/jpeg;base64,${base64}`;
   } catch (error) {
-    console.error('Native screen capture failed:', error);
+    console.error('[ScreenCapture] Native capture failed:', error);
     try {
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
     } catch {}
@@ -108,7 +108,7 @@ export async function captureScreenFallback(): Promise<string | null> {
     const permissionStatus = getScreenCapturePermissionStatus();
 
     if (permissionStatus === 'denied' || permissionStatus === 'restricted') {
-      console.log('Screen capture permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording');
+      console.log('[ScreenCapture] Permission denied — enable in System Preferences > Privacy & Security > Screen Recording');
       return null;
     }
 
