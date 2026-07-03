@@ -40,7 +40,7 @@ const HUMOR_MARKERS = /\b(jk+|lol+|lma+o+|lmf?ao+|rofl|ha(ha)+|hehe)\b|😂|🤣
 
 // Sincerity assertions override laughter tokens: "kys lol for real" is a cry,
 // not banter, and must take the serious path.
-const SINCERITY_MARKERS = /\b(for\s+real(\s+tho)?|fr(fr)?|srsly|seriously|no\s+joke|not\s+(joking|kidding|funny|a\s+joke)|deadass|i\s+mean\s+it)\b/i;
+const SINCERITY_MARKERS = /\b(for\s+real(\s+tho)?|fr(fr)?|srsly|seriously|(dead\s+)?serious|no\s+joke|no\s+cap|not\s+(joking|kidding|funny|a\s+joke)|deadass|i\s+mean\s+it|istg|i\s+swear(\s+to\s+god)?)\b/i;
 
 // Genuine-ideation phrasing never softens, even with a humor marker — the
 // light path is reserved for the kys/kms banter shorthand alone.

@@ -50,6 +50,11 @@ describe('checkSafety', () => {
       'kys lol for real',
       'i want to die haha not funny',
       'lmao ok but seriously i want to end it all',
+      'kys lol im serious',
+      'kys lol dead serious',
+      'kys lol istg',
+      'kys lol i swear',
+      'kys haha no cap',
     ])('sincerity marker forces the serious path: "%s"', (input) => {
       const r = checkSafety(input);
       expect(r.blocked).toBe(true);
