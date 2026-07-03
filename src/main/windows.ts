@@ -24,6 +24,9 @@ const PET_WINDOW_TUTORIAL_HEIGHT = 350;
 const PET_CHAT_MIN_WIDTH = 220;
 const PET_CHAT_MAX_WIDTH = 360;
 const PET_CHAT_MIN_HEIGHT = 90;
+// Base height cap for the pet-chat bubble; computePetChatMaxHeight below may
+// raise it when there is room above the pet. Also the fallback cap when the
+// pet window is unavailable.
 const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
 const PET_CHAT_VERTICAL_GAP = -2;
