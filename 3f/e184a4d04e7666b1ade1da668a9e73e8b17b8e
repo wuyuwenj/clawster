@@ -1,0 +1,237 @@
+src/main/chat/memory/index.ts
+  s_3ebc833da42a00::t_c45d0bfa3bf1c2 161
+src/main/browser-context.ts
+  s_c2794f4d041cf5::t_f14020e691a7cb 1-109
+e2e/confirmation-gates.spec.ts
+  s_c2794f4d041cf5::t_abbe7af3ece976 9
+  s_c2794f4d041cf5::t_a5f302eb75f7de 47
+  s_c2794f4d041cf5::t_a6724e664b335b 60,77
+  s_c2794f4d041cf5::t_515a993b5b5375 3
+  s_c2794f4d041cf5::t_d849252fa40974 21-23,26-27,33-34
+playwright.config.ts
+  s_c2794f4d041cf5::t_6a3ca0b6e6641d 11-25
+src/main/chat/safety-filter.ts
+  s_45f41b35ba9637::t_92a45f7c1d0c5d 72
+src/main/watchers.ts
+  s_c2794f4d041cf5::t_c36d757202de5c 6,12-13
+  s_c2794f4d041cf5::t_7b77f3754c4a56 27
+  s_c2794f4d041cf5::t_05c0573613b954 94-95,101-106,108-122
+src/main/chat/cloud-provider.ts
+  s_3ebc833da42a00::t_0bf51d350548a5 388
+  s_c2794f4d041cf5::t_293d742a213890 402-438
+  s_3ebc833da42a00::t_3263eed9e371ab 387
+  s_c2794f4d041cf5::t_bc9f2c6b7c3248 439-441
+  s_3ebc833da42a00::t_7c0ca764f084aa 389-401,442-443
+src/main/main.ts
+  s_c2794f4d041cf5::t_16d038cde261ef 827-828,831-834
+  s_c2794f4d041cf5::t_6102f0bb4629f4 207-208
+  s_c2794f4d041cf5::t_1f0de9dbe26f72 346
+  s_c2794f4d041cf5::t_b9b90046fa4acd 147
+  s_c2794f4d041cf5::t_e0535ce4ed31d0 780-785
+  s_c2794f4d041cf5::t_bbf4b2187a7806 835
+  s_c2794f4d041cf5::t_8c5b8b283601fa 1353-1370,1372-1376,1378-1392,1394-1399,1401-1410,1412-1417,1419-1422,1424
+  s_c2794f4d041cf5::t_f27dc0918a3c32 792,804-805
+  s_c2794f4d041cf5::t_5944e9fb519807 450
+  s_c2794f4d041cf5::t_123b6193fe818b 440-444
+  s_c2794f4d041cf5::t_ed5397613201f2 868
+  s_c2794f4d041cf5::t_5da03534410168 869
+  s_c2794f4d041cf5::t_bfbd86c0837781 905
+  s_c2794f4d041cf5::t_65896ee3d3dc44 821-825
+  s_c2794f4d041cf5::t_ee4a9f95ae6810 23
+  s_c2794f4d041cf5::t_703bf8ef22f74b 907
+  s_c2794f4d041cf5::t_d0f382145751b3 786,814-820,826,829-830,836-838
+  s_c2794f4d041cf5::t_ecede995074171 146
+  s_c2794f4d041cf5::t_9940e2d89b3f0c 223
+  s_c2794f4d041cf5::t_3c01b9f8efc5a2 445
+  s_c2794f4d041cf5::t_893610317bf677 787
+  s_c2794f4d041cf5::t_c2b6a848cc0c8c 839
+  s_c2794f4d041cf5::t_9acaad3df2d865 131,330-335,339
+e2e/cdp-eval.mjs
+  s_c2794f4d041cf5::t_bbfa8658dd9d14 1-63
+src/main/screen-capture.ts
+  s_c2794f4d041cf5::t_c06561395043cb 82,85,95
+  s_c2794f4d041cf5::t_a7b4b0e7e9ddd5 78,111
+  s_c2794f4d041cf5::t_244abdc6ccbbab 97
+src/shared/types.ts
+  s_c2794f4d041cf5::t_dfc5edd2069af8 21
+e2e/permission-flow.spec.ts
+  s_c2794f4d041cf5::t_f64b54ee296748 2,8
+src/renderer/pet/Pet.tsx
+  s_c2794f4d041cf5::t_313da02f80d246 322,327-328
+  s_c2794f4d041cf5::t_4c09080cba08fd 4
+src/renderer/assistant/Assistant.tsx
+  s_c2794f4d041cf5::t_a161d4cfafd178 797
+src/main/chat/types.ts
+  s_c2794f4d041cf5::t_3f361c4f0566d1 10-11
+proxy/src/index.ts
+  s_c2794f4d041cf5::t_baad01c925e764 179
+  s_3ebc833da42a00::t_15cfb5435a8c00 172-177
+  s_c2794f4d041cf5::t_d1b014a2388e2e 178,180-190
+  s_c2794f4d041cf5::t_d2c4189fa01c28 3
+  s_c2794f4d041cf5::t_d40466cc59fba4 164-171,191-198
+  s_c2794f4d041cf5::t_845d1d8b28542c 199-200
+src/main/speech.ts
+  s_c2794f4d041cf5::t_f8ab9e65c937ec 179
+  s_c2794f4d041cf5::t_46f0060d7d7712 60
+  s_c2794f4d041cf5::t_debeadf0bd0635 57
+src/renderer/pet-chat/PetChat.tsx
+  s_c2794f4d041cf5::t_3d86a57518b11e 35-36
+  s_c2794f4d041cf5::t_d51c0004efc096 261-262
+  s_c2794f4d041cf5::t_92d5cb72314c5f 9-10
+  s_c2794f4d041cf5::t_e53f131c60eafe 123-158
+  s_c2794f4d041cf5::t_10c7645d33978b 258-260,263-291,294-354
+  s_c2794f4d041cf5::t_f95b771cb6e06b 18-21
+  s_c2794f4d041cf5::t_00aed0a8757353 292
+  s_c2794f4d041cf5::t_41930d400123a4 293
+test/review-fixes.test.ts
+  s_c2794f4d041cf5::t_5195249cfe8de4 92-102
+  s_c2794f4d041cf5::t_87b48870ff70fe 108-110,113-114,116,127-128,136-138,141-143,145,157-158
+src/main/windows.ts
+  s_c2794f4d041cf5::t_6fce1c73326b2d 200
+.gitignore
+  s_c2794f4d041cf5::t_f34f751e184ae8 12-15
+  s_c2794f4d041cf5::t_c828fe49271abd 11
+package.json
+  s_c2794f4d041cf5::t_e4643d046daf0c 24-26
+  s_c2794f4d041cf5::t_33527297781f68 64-65
+  s_c2794f4d041cf5::t_048bc7098a14f2 3
+src/main/chat/local-tool-provider.ts
+  s_45f41b35ba9637::t_c5c1467c338ae8 271-275
+  s_06724f3c2067b8::t_8b44093fa43775 8-13,24-25,32-37,40-41,50-57,142-148,150-175
+test/memory-manager.test.ts
+  s_c2794f4d041cf5::t_bc5e3ee14b7c56 7-16,19
+  s_c2794f4d041cf5::t_73b2e7537f9a81 92
+  s_c2794f4d041cf5::t_6f0bbf3a61a191 24-25,29,57,98,105,120,138,145
+src/main/chat/chat-router.ts
+  s_c2794f4d041cf5::t_2cca2539c2b92d 219-220,227,232,244
+  s_7d13c99375f3a9::t_baf8a768f4f186 29
+  s_c2794f4d041cf5::t_9a8a4ff45abf9a 316-317,326,332,345
+src/main/chat/tool-executor.ts
+  s_c2794f4d041cf5::t_649b5e7497cd5d 83-84,91-98
+e2e/permission-panel.spec.ts
+  s_c2794f4d041cf5::t_3e1bddbabc3ec5 2,8
+test/memory-db.test.ts
+  s_c2794f4d041cf5::t_8c2d9dfbfaaf75 8,10-15
+  s_c2794f4d041cf5::t_709f9dfb368ad3 9,16-17,19-20
+  s_c2794f4d041cf5::t_98600df3270f3e 5,23,31-33
+src/renderer/vite-env.d.ts
+  s_c2794f4d041cf5::t_2fcad3814e5036 126-133
+src/main/chat/hmac-auth.ts
+  s_c2794f4d041cf5::t_fd3fc68bbac9ee 15-16
+CLAUDE.md
+  s_0667959126d732::t_ab3158f658e68e 80-88
+  s_0667959126d732::t_d0bcdc35db3ce1 77-79
+  s_0667959126d732::t_aa44ef5b89c135 3-4
+e2e/helpers.ts
+  s_c2794f4d041cf5::t_e31388e5fbaec9 1-59
+.claude/commands/production-qa.md
+  s_c2794f4d041cf5::t_5f10787dea3401 1-73,135-151,155,169-191,193-195,257-258,260-265,270-277,281-289
+  s_c2794f4d041cf5::t_08a9d8197c5514 74-134
+  s_c2794f4d041cf5::t_1e5f1bf070d85d 192,196-256,259,266-269
+  s_c2794f4d041cf5::t_5fa89cb0146886 278-280
+  s_c2794f4d041cf5::t_953fe0cc48069e 152-154,156-168
+e2e/new-user-journey.spec.ts
+  s_c2794f4d041cf5::t_81bff473d788b7 56,540
+  s_c2794f4d041cf5::t_1eedf159f35ac3 21
+  s_c2794f4d041cf5::t_c9698c309b03f9 386,389
+  s_c2794f4d041cf5::t_74b400d6c6f5dc 441-444,446-455,461-527,554-561,563-569
+src/main/store.ts
+  s_c2794f4d041cf5::t_74c44b0e3c481d 74
+  s_c2794f4d041cf5::t_9b6cd1a1416577 31
+e2e/analytics.spec.ts
+  s_c2794f4d041cf5::t_c19f9e92c534ab 2,8
+package-lock.json
+  s_c2794f4d041cf5::t_ba22a25ab27cb4 3,9,44-45,14339-14360
+.claude/commands/goal-from-plan.md
+  s_7ab199a22f5f43::t_a829fcf5b887ea 1-10
+.claude/commands/persona-improve-loop.md
+  s_7ab199a22f5f43::t_774c78a2c120b1 1-30
+.claude/commands/ux-test-report-only.md
+  s_7ab199a22f5f43::t_2d5e040c4bb3a4 1-21
+.claude/commands/ux-test.md
+  s_c2794f4d041cf5::t_e0b997f28018f7 1-136
+.claude/commands/ux-train-loop.md
+  s_c2794f4d041cf5::t_311b79a5e9d285 1-203
+.claude/commands/validate-training.md
+  s_c2794f4d041cf5::t_77e49c824eda4a 1-102
+AGENTS.md
+  s_06724f3c2067b8::t_370322a19a1bcf 1-74
+README.md
+  s_7ab199a22f5f43::t_2964c6c6789f97 36-38,41,100,115,152
+proxy/AGENTS.md
+  s_06724f3c2067b8::t_8b421201ae6bec 1-31
+proxy/wrangler.toml
+  s_c2794f4d041cf5::t_5a7b59f849582b 13-17
+src/main/chat/memory/embeddings.ts
+  s_7ab199a22f5f43::t_3bd9ce188b4001 1,15,17-37,39-41,43-44,46-54
+src/main/chat/personality-responses.ts
+  s_7ab199a22f5f43::t_23c9d821ce39fd 26-41,86-94,104,106-107,186-188,190-204
+test/cold-boot.test.ts
+  s_06724f3c2067b8::t_51249e707466f5 1-22,24-25,27-28,30-33,35-45,48-71,73-86,88-114,116-117,119-136,138-146
+MEMORY-LAYER-PLAN.md
+  s_c2794f4d041cf5::t_75e718622dc619 1-302
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3fe184a4d04e7666b1ade1da668a9e73e8b17b8e",
+  "prompts": {},
+  "sessions": {
+    "s_0667959126d732": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ad24c42-60e1-47c7-a14c-90b406e7f551",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_06724f3c2067b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f0b226d-c05b-4724-9ad2-1b4a6ab70f0d",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_3ebc833da42a00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1cf47e7-c708-40a0-b36e-0d8978cd4f68",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_45f41b35ba9637": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8529c683-3ce0-47eb-b232-15c9da8d7b59",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_7ab199a22f5f43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c3b35ac8-7092-4893-b100-9abda2664d15",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_7d13c99375f3a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "347cb43c-72d7-459f-9325-df86fe146a20",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
