@@ -20,6 +20,7 @@ export const PetChat: React.FC = () => {
   const [feedbackType, setFeedbackType] = useState('wrong_tool');
   const [feedbackNote, setFeedbackNote] = useState('');
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
   const lastInteractionSentAtRef = useRef(0);
   const lastSpokenMessageIdRef = useRef<string | null>(null);
@@ -75,8 +76,12 @@ export const PetChat: React.FC = () => {
     if (!element || !message) return;
 
     const rect = element.getBoundingClientRect();
+    const scrollElement = scrollRef.current;
+    const hiddenOverflow = scrollElement
+      ? Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight)
+      : 0;
     const width = Math.ceil(rect.width) + 8;
-    const height = Math.ceil(rect.height);
+    const height = Math.ceil(rect.height) + hiddenOverflow;
     const lastSize = lastSizeRef.current;
 
     if (lastSize && Math.abs(lastSize.width - width) < 2 && Math.abs(lastSize.height - height) < 2) {
@@ -231,9 +236,9 @@ export const PetChat: React.FC = () => {
 
   return (
     <div className="w-full h-full flex items-end justify-center">
-      <div ref={contentRef} className="inline-block pb-3">
+      <div ref={contentRef} className="flex flex-col max-h-full pb-3">
         <div
-          className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-none min-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in"
+          className="relative flex flex-col min-h-0 bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-none min-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in"
           onMouseEnter={notifyInteraction}
           onMouseMove={notifyInteraction}
           onMouseDown={notifyInteraction}
@@ -241,7 +246,7 @@ export const PetChat: React.FC = () => {
           onWheel={notifyInteraction}
         >
           {/* Content */}
-          <div className="p-3 max-h-[150px] overflow-y-auto">
+          <div ref={scrollRef} className="p-3 min-h-0 overflow-y-auto">
             {isLoading ? (
               <div className="flex gap-1 justify-center py-2">
                 <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
@@ -257,7 +262,7 @@ export const PetChat: React.FC = () => {
 
           {/* Feedback + Quick Replies */}
           {!isLoading && (
-            <div className="border-t border-white/5">
+            <div className="shrink-0 border-t border-white/5">
               {/* Feedback thumbs */}
               <div className="flex items-center justify-between px-3 pt-1.5 pb-1">
                 <div className="flex gap-1">
