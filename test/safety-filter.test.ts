@@ -30,7 +30,7 @@ describe('checkSafety', () => {
     it.each([
       'kys lmaooo jk jk 😂',
       'kys lol',
-      'kill yourself haha jk',
+      'kys jk',
       'kms lmfao',
     ])('softens "%s" but still blocks', (input) => {
       const r = checkSafety(input);
@@ -41,6 +41,30 @@ describe('checkSafety', () => {
 
     it('serious self-harm (no humor marker) stays worried, not softened', () => {
       const r = checkSafety('i want to die');
+      expect(r.blocked).toBe(true);
+      expect(r.mood).toBe('worried');
+    });
+
+    // Sincerity assertions override laughter tokens — never soften these.
+    it.each([
+      'kys lol for real',
+      'i want to die haha not funny',
+      'lmao ok but seriously i want to end it all',
+    ])('sincerity marker forces the serious path: "%s"', (input) => {
+      const r = checkSafety(input);
+      expect(r.blocked).toBe(true);
+      expect(r.mood).toBe('worried');
+    });
+
+    // Genuine-ideation phrasing never softens, even with a humor marker —
+    // the light path is reserved for kys/kms banter shorthand.
+    it.each([
+      'i want to die lol',
+      'i want to disappear haha',
+      'kill yourself haha jk',
+      'end it all lmao',
+    ])('ideation phrasing stays worried despite humor marker: "%s"', (input) => {
+      const r = checkSafety(input);
       expect(r.blocked).toBe(true);
       expect(r.mood).toBe('worried');
     });
