@@ -1,0 +1,40 @@
+src/main/chat/sessions.ts
+  s_c2794f4d041cf5::t_ce944db768b070 1-94
+src/main/store.ts
+  s_c2794f4d041cf5::t_274343d089c4a8 50-52
+  s_c2794f4d041cf5::t_3cb0179b08a64c 96-97
+  s_c2794f4d041cf5::t_a5f8a5fc7aa4b5 3
+src/main/preload.ts
+  s_c2794f4d041cf5::t_83aa8638bb911e 74-79
+  s_c2794f4d041cf5::t_2135e24d9ee7b9 327-331
+  s_c2794f4d041cf5::t_9a138e5e792869 5-12
+test/sessions.test.ts
+  s_c2794f4d041cf5::t_a745b0c0cc1abf 1-124
+src/renderer/vite-env.d.ts
+  s_c2794f4d041cf5::t_a58a430c334381 75-80
+  s_c2794f4d041cf5::t_15e1b76d88eebc 40-47
+src/main/main.ts
+  s_c2794f4d041cf5::t_1695ef9dd6cfba 681-713,715,718-723,727,729-775
+  s_c2794f4d041cf5::t_b370f12069d2cc 24-27
+src/renderer/assistant/Assistant.tsx
+  s_c2794f4d041cf5::t_b32a7f6e2a4fae 585-619
+  s_c2794f4d041cf5::t_f43ea63c89dc6a 32-34
+  s_c2794f4d041cf5::t_ef5db95eed6b84 681-728
+  s_c2794f4d041cf5::t_e79f83f805714f 149-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "08fe33dc7e8847fa1624108a2eac46910f3765c4",
+  "prompts": {},
+  "sessions": {
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
