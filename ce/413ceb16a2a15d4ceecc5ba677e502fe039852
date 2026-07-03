@@ -1,0 +1,19 @@
+src/main/windows.ts
+  s_fe3b7c1497b1ed::t_38a3d3e75f2944 27-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ce413ceb16a2a15d4ceecc5ba677e502fe039852",
+  "prompts": {},
+  "sessions": {
+    "s_fe3b7c1497b1ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e14600b7-6dbe-49dd-9798-8f4fa39be2fa",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
