@@ -1,0 +1,23 @@
+test/pet-chat-height.test.ts
+  s_f9fa52f71104e8::t_94093d537710c7 26
+  s_f9fa52f71104e8::t_8f2ac9fa118f6a 40-41,45-55
+src/main/windows.ts
+  s_f9fa52f71104e8::t_405cef9a526931 356,358
+  s_f9fa52f71104e8::t_8b219b3a30fafc 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "20d0b470fa4db3b4d6ecfa9972afc569f2e7326a",
+  "prompts": {},
+  "sessions": {
+    "s_f9fa52f71104e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58d6bebf-86ce-4cb5-82e1-09bbc1bfb936",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
