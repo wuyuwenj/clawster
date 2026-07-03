@@ -1,0 +1,23 @@
+src/main/chat/safety-filter.ts
+  s_3fb576170c53c7::t_e214035f7d9473 41-48,51-52
+  s_3fb576170c53c7::t_2db1b14a628d63 75-80
+test/safety-filter.test.ts
+  s_3fb576170c53c7::t_d43751d39a165b 33,48-70
+  s_3fb576170c53c7::t_a722ce68d1c69a 71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "17070dc99aca67d5c713a66496b4d6d638dfca74",
+  "prompts": {},
+  "sessions": {
+    "s_3fb576170c53c7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7afb6e3b-809a-47b8-9552-73e1cd7eab1c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
