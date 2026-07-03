@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"git show c7de7fa6 -- src/main/chat/tool-executor.ts | head -80; echo ====; git show c7de7fa6:test/open-url-safety.test.ts\",\"description\":\"Show the tool-executor diff and the new test file\"...",
+  "error": "Exit code 1\ncommit c7de7fa6d820eeab1ac93b702cf6edc14bddb0cf\nAuthor: JamesWU <wuyuwen0@gmail.com>\nDate:   Fri Jul 3 10:45:25 2026 -0700\n\n    fix(tools): open_url only launches http(s) — reject file:/javascript:/data:\n    \n    The handler prepended https:// only when the arg didn't start with \"http\", so\n    file:///etc/passwd was mangled to https://file://… and httpx:// slipped\n    through to shell.openExternal. Parse the URL and require an http/https\n    protocol; bare domains and host:port are s...",
+  "timestamp": "2026-07-03T17:57:00.280Z",
+  "retry_count": 1
+}

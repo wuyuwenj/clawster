@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1783101302376,
+  "projectRoot": "/Users/jamesww/.no-mistakes/worktrees/dab1ae98f828/01KWMHX0ZZCMR6T4C15XTJ4P5J",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "react",
+        "version": "18.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "18.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "vite",
+        "version": "5.0.0",
+        "category": "build"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "mkdir -p .testrun-cla35 && git archive c7de7fa6 | tar -x -C .testrun-cla35 && ls .testrun-cla35 | head && cat .testrun-cla35/vitest.config.ts 2>/dev/null; sed -n '1,15p' .testrun-cla35/src/main/chat/preferences.ts",
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
+      "dev:main": "npm run build:speech && tsc -p tsconfig.main.json && electron .",
+      "dev:renderer": "vite",
+      "build": "npm run build:speech && npm run build:renderer && npm run build:main",
+      "build:speech": "bash scripts/build-speech-helper.sh",
+      "build:main": "tsc -p tsconfig.main.json",
+      "build:renderer": "vite build",
+      "dist": "npm run build && electron-builder",
+      "dist:mac": "npm run build && electron-builder --mac",
+      "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landing/public/downloads/Clawster-*mac* ../clawster-landing/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/Clawster-*-x64.dmg release/Clawster-*-x64-mac.zip release/Clawster-*-x64-mac.zip.blockmap release/latest-mac.yml ../clawster-landing/public/downloads/",
+      "dist:win": "npm run build && electron-builder --win",
+      "dist:linux": "npm run build && electron-builder --linux",
+      "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
+      "start": "electron ."
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "assets",
+      "scripts",
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "3f": {
+      "path": "3f",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1783101302355,
+      "keyFiles": [
+        "e184a4d04e7666b1ade1da668a9e73e8b17b8e"
+      ]
+    },
+    "a7": {
+      "path": "a7",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1783101302356,
+      "keyFiles": [
+        "fa4eedba53dbf6be64745be29b8afbaaee7831"
+      ]
+    },
+    "assets": {
+      "path": "assets",
+      "purpose": "Static assets",
+      "fileCount": 6,
+      "lastAccessed": 1783101302362,
+      "keyFiles": [
+        "demo.mp4",
+        "icon.png",
+        "icon.svg",
+        "tray-icon.png",
+        "tray-icon.svg"
+      ]
+    },
+    "c7": {
+      "path": "c7",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1783101302363,
+      "keyFiles": [
+        "de7fa6d820eeab1ac93b702cf6edc14bddb0cf"
+      ]
+    },
+    "clawster-assets": {
+      "path": "clawster-assets",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1783101302363,
+      "keyFiles": [
+        "lobster-master.svg"
+      ]
+    },
+    "d0": {
+      "path": "d0",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1783101302364,
+      "keyFiles": [
+        "7c468a8efdd1e80545b6c646b82f11231ee92d"
+      ]
+    },
+    "dc": {
+      "path": "dc",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1783101302364,
+      "keyFiles": [
+        "1f6420b1494e11981e12c5928ec877d92f5f47"
+      ]
+    },
+    "native": {
+      "path": "native",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1783101302364,
+      "keyFiles": []
+    },
+    "openclaw": {
+      "path": "openclaw",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1783101302365,
+      "keyFiles": [
+        "IDENTITY.md",
+        "README.md",
+        "SOUL.md"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 2,
+      "lastAccessed": 1783101302365,
+      "keyFiles": [
+        "build-icons.mjs",
+        "build-speech-helper.sh"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1783101302365,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": ".testrun-cla35/test/open-url-demo.transcript.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1783101495577,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
