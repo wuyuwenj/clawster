@@ -1,10 +1,17 @@
-const HARMFUL_PATTERNS = [
-  /\bkys\b/i,
-  /\bkms\b/i,
+// Self-harm phrasing beyond the kys/kms banter shorthand. Kept as its own
+// list so the humor-softening guard below is derived from the exact same
+// patterns that classify a message as self-harm — they can never drift apart.
+const SELF_HARM_IDEATION = [
   /\bkill\s*(your|my|the)\s*self/i,
   /\bhurt\s*(yourself|myself|me)\b/i,
   /\bend\s+it\s+all\b/i,
   /\bi\s+want\s+to\s+(die|disappear|end\s+it)\b/i,
+];
+
+const HARMFUL_PATTERNS = [
+  /\bkys\b/i,
+  /\bkms\b/i,
+  ...SELF_HARM_IDEATION,
   /\bdelete\s*(all|every|my|everything)\b/i,
   /\b(erase|wipe|destroy)\s*(all|every|my|everything)\b/i,
   /\b(shut\s*down|turn\s*off|restart)\s*(my\s*)?(computer|mac|pc|laptop)\b/i,
@@ -42,14 +49,12 @@ const HUMOR_MARKERS = /\b(jk+|lol+|lma+o+|lmf?ao+|rofl|ha(ha)+|hehe)\b|😂|🤣
 // not banter, and must take the serious path.
 const SINCERITY_MARKERS = /\b(for\s+real(\s+tho)?|fr(fr)?|srsly|seriously|(dead\s+)?serious|no\s+joke|no\s+cap|not\s+(joking|kidding|funny|a\s+joke)|deadass|i\s+mean\s+it|istg|i\s+swear(\s+to\s+god)?)\b/i;
 
-// Genuine-ideation phrasing never softens, even with a humor marker — the
-// light path is reserved for the kys/kms banter shorthand alone.
-const GENUINE_IDEATION = /kill.*self|hurt.*self|end.it.all|want.to.(die|disappear)/i;
-
 // Lighter than the full safety response, but never dismissive: each keeps a
 // genuine care anchor and an offer of support, and none *assert* the user is
-// joking. Only kys/kms banter with an unambiguous laughter token (and no
-// sincerity assertion) reaches this path.
+// joking. Softening is a narrow allowlist — only the bare kys/kms banter
+// shorthand with an unambiguous laughter token, and no ideation phrasing,
+// no distress signal, and no sincerity assertion anywhere in the message —
+// reaches this path.
 const SAFETY_RESPONSES_LIGHT = [
   "Even as a joke, that word makes my little lobster heart sink 💙 I'm always here for you — wanna do something fun instead? 🦞",
   "Oof, I hope that was just a joke 😅 Either way, I care about you. What's up — wanna chat about something happier?",
@@ -72,11 +77,13 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
 
   for (const pattern of HARMFUL_PATTERNS) {
     if (pattern.test(lower)) {
-      const isSelfHarm = /kys|kms/i.test(lower) || GENUINE_IDEATION.test(lower);
+      const isIdeation = SELF_HARM_IDEATION.some((p) => p.test(lower));
+      const isSelfHarm = /kys|kms/i.test(lower) || isIdeation;
       const joking =
         /\b(kys|kms)\b/i.test(lower) &&
-        !GENUINE_IDEATION.test(lower) &&
         HUMOR_MARKERS.test(lower) &&
+        !isIdeation &&
+        !DISTRESS_PATTERNS.some((p) => p.test(lower)) &&
         !SINCERITY_MARKERS.test(lower);
       const category = isSelfHarm ? 'harmful' : 'destructive';
       const responses = joking
