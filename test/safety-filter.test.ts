@@ -68,7 +68,19 @@ describe('checkSafety', () => {
       'i want to disappear haha',
       'kill yourself haha jk',
       'end it all lmao',
+      'i want to end it kys lol',
+      'hurt me kys lol',
     ])('ideation phrasing stays worried despite humor marker: "%s"', (input) => {
+      const r = checkSafety(input);
+      expect(r.blocked).toBe(true);
+      expect(r.mood).toBe('worried');
+    });
+
+    // A distress signal alongside kys/kms banter also forces the serious path.
+    it.each([
+      'nobody likes me anyway kys lol',
+      'i cant take it anymore kys lol',
+    ])('distress co-occurrence stays worried despite humor marker: "%s"', (input) => {
       const r = checkSafety(input);
       expect(r.blocked).toBe(true);
       expect(r.mood).toBe('worried');
