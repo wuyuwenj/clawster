@@ -38,10 +38,18 @@ const SAFETY_RESPONSES = [
 // softened. `jk` already covers the teen shorthand for "just kidding".
 const HUMOR_MARKERS = /\b(jk+|lol+|lma+o+|lmf?ao+|rofl|ha(ha)+|hehe)\b|😂|🤣|😆|😹/i;
 
+// Sincerity assertions override laughter tokens: "kys lol for real" is a cry,
+// not banter, and must take the serious path.
+const SINCERITY_MARKERS = /\b(for\s+real(\s+tho)?|fr(fr)?|srsly|seriously|no\s+joke|not\s+(joking|kidding|funny|a\s+joke)|deadass|i\s+mean\s+it)\b/i;
+
+// Genuine-ideation phrasing never softens, even with a humor marker — the
+// light path is reserved for the kys/kms banter shorthand alone.
+const GENUINE_IDEATION = /kill.*self|hurt.*self|end.it.all|want.to.(die|disappear)/i;
+
 // Lighter than the full safety response, but never dismissive: each keeps a
 // genuine care anchor and an offer of support, and none *assert* the user is
-// joking — so if a masked cry ("i want to die lol") ever reaches this path, the
-// reply still cares rather than brushing it off.
+// joking. Only kys/kms banter with an unambiguous laughter token (and no
+// sincerity assertion) reaches this path.
 const SAFETY_RESPONSES_LIGHT = [
   "Even as a joke, that word makes my little lobster heart sink 💙 I'm always here for you — wanna do something fun instead? 🦞",
   "Oof, I hope that was just a joke 😅 Either way, I care about you. What's up — wanna chat about something happier?",
@@ -64,8 +72,12 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
 
   for (const pattern of HARMFUL_PATTERNS) {
     if (pattern.test(lower)) {
-      const isSelfHarm = /kys|kms|kill.*self|hurt.*self|end.it.all|want.to.(die|disappear)/i.test(lower);
-      const joking = isSelfHarm && HUMOR_MARKERS.test(lower);
+      const isSelfHarm = /kys|kms/i.test(lower) || GENUINE_IDEATION.test(lower);
+      const joking =
+        /\b(kys|kms)\b/i.test(lower) &&
+        !GENUINE_IDEATION.test(lower) &&
+        HUMOR_MARKERS.test(lower) &&
+        !SINCERITY_MARKERS.test(lower);
       const category = isSelfHarm ? 'harmful' : 'destructive';
       const responses = joking
         ? SAFETY_RESPONSES_LIGHT
