@@ -34,7 +34,7 @@ const PET_CHAT_VERTICAL_GAP = -2;
 // than 80% of the display. (CLA-16: the old fixed 420px cap kept the bubble
 // stuck low when the pet sat near the bottom.)
 export function computePetChatMaxHeight(petY: number, areaY: number, areaHeight: number): number {
-  const spaceAbovePet = petY - areaY + PET_CHAT_MIN_HEIGHT;
+  const spaceAbovePet = petY - areaY + PET_CHAT_VERTICAL_GAP;
   const ceiling = Math.round(areaHeight * 0.8);
   return Math.max(PET_CHAT_MAX_HEIGHT, Math.min(spaceAbovePet, ceiling));
 }
@@ -353,8 +353,9 @@ export function updatePetChatPosition() {
   const [cw, ch] = petChatWindow.getSize();
   const chatX = petX + (petWidth - cw) / 2;
   const chatY = petY - ch + PET_CHAT_VERTICAL_GAP;
+  const { y: areaY } = screen.getDisplayNearestPoint({ x: petX, y: petY }).workArea;
 
-  petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(0, Math.round(chatY)));
+  petChatWindow.setPosition(Math.max(0, Math.round(chatX)), Math.max(areaY, Math.round(chatY)));
 }
 
 // --- Assistant window ---
