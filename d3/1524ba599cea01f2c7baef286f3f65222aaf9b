@@ -1,0 +1,19 @@
+README.md
+  s_d946ecc26678c6::t_0078e2c9571780 148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d31524ba599cea01f2c7baef286f3f65222aaf9b",
+  "prompts": {},
+  "sessions": {
+    "s_d946ecc26678c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fc13ab00-3ab8-478e-97c5-2161ba4cd0be",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
