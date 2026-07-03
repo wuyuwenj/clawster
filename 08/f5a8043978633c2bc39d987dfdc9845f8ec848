@@ -1,0 +1,21 @@
+test/safety-filter.test.ts
+  s_18eb2b516147a0::t_276b343af62d13 53-57
+src/main/chat/safety-filter.ts
+  s_18eb2b516147a0::t_0b2535d1efcf23 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "08f5a8043978633c2bc39d987dfdc9845f8ec848",
+  "prompts": {},
+  "sessions": {
+    "s_18eb2b516147a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2fc37be-ac8d-4b2c-8645-6f554e99f572",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
