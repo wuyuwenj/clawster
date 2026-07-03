@@ -1,0 +1,23 @@
+src/renderer/pet-chat/PetChat.tsx
+  s_23846bbd315246::t_33ac2d25556cdb 265
+  s_23846bbd315246::t_aeeb734de6fbde 249
+  s_23846bbd315246::t_ea57cbd731afdb 23
+  s_23846bbd315246::t_6e13f14ca5f897 79-82,84
+  s_23846bbd315246::t_65546a9918a382 239,241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e106a5a4a7786bf231fc13d355c10af5852a5859",
+  "prompts": {},
+  "sessions": {
+    "s_23846bbd315246": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1bbc3abf-9be5-408e-9776-a51fdd1607f6",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
