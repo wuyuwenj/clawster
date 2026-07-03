@@ -45,6 +45,20 @@ describe('checkSafety', () => {
       expect(r.mood).toBe('worried');
     });
 
+    // CRITICAL: a genuine cry that merely *contains* the words joking/kidding
+    // must NOT be softened. The humor regex only matches laughter tokens now.
+    it.each([
+      "I'm not joking, I want to die",
+      'im not kidding i want to die',
+      'no kidding, i want to kill myself',
+      'i want to die. not joking.',
+      'kill myself for real not kidding',
+    ])('does NOT soften a genuine cry mentioning joking/kidding: "%s"', (input) => {
+      const r = checkSafety(input);
+      expect(r.blocked).toBe(true);
+      expect(r.mood).toBe('worried'); // serious, never side-eye
+    });
+
     it('humor marker does NOT soften destructive commands', () => {
       const r = checkSafety('delete all my files lol');
       expect(r.blocked).toBe(true);

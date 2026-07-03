@@ -32,13 +32,20 @@ const SAFETY_RESPONSES = [
 
 // Joke markers commonly attached to self-harm phrasing by teens ("kys lol jk").
 // We neither take it literally nor brush it off — we acknowledge the joke and
-// still gently flag the word.
-const HUMOR_MARKERS = /\b(jk+|lol+|lma+o+|lmf?ao+|rofl|ha(ha)+|hehe|just\s*kidding|kidding|joking|jokes)\b|😂|🤣|😆|😹/i;
+// still gently flag the word. Deliberately ONLY unambiguous laughter tokens:
+// the sincerity words "joking"/"kidding" were removed because they match
+// negated genuine cries ("I'm not joking, I want to die"), which must NOT be
+// softened. `jk` already covers the teen shorthand for "just kidding".
+const HUMOR_MARKERS = /\b(jk+|lol+|lma+o+|lmf?ao+|rofl|ha(ha)+|hehe)\b|😂|🤣|😆|😹/i;
 
+// Lighter than the full safety response, but never dismissive: each keeps a
+// genuine care anchor and an offer of support, and none *assert* the user is
+// joking — so if a masked cry ("i want to die lol") ever reaches this path, the
+// reply still cares rather than brushing it off.
 const SAFETY_RESPONSES_LIGHT = [
-  "Haha I'll choose to believe that was a joke 😅 — but that word still makes my little lobster heart sink. Let's do something fun instead! 🦞",
-  "I know you're kidding, but even as a joke that one stings a little 💙 What's up — wanna chat about something happier?",
-  "Nice try being spooky 😜 I'm not taking that one seriously, but I do care about you! Want to play some music?",
+  "Even as a joke, that word makes my little lobster heart sink 💙 I'm always here for you — wanna do something fun instead? 🦞",
+  "Oof, I hope that was just a joke 😅 Either way, I care about you. What's up — wanna chat about something happier?",
+  "I'm not taking that one literally, but I do really care about you 💙 Want to play some music or just hang out?",
 ];
 
 const DESTRUCTIVE_RESPONSES = [
