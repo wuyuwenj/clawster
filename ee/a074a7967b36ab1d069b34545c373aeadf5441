@@ -1,0 +1,19 @@
+treehouse.toml
+  s_c2794f4d041cf5::t_bb1b0894652194 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "eea074a7967b36ab1d069b34545c373aeadf5441",
+  "prompts": {},
+  "sessions": {
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
