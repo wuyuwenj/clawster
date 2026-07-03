@@ -1,0 +1,22 @@
+test/safety-filter.test.ts
+  s_c2794f4d041cf5::t_8b8f1eca500724 29-54
+src/main/chat/safety-filter.ts
+  s_c2794f4d041cf5::t_abae2b954580e5 33-43
+  s_c2794f4d041cf5::t_81647cf7d59466 61,63-65,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8e80932fb4d223e21d555192d33e7efd1eb5709d",
+  "prompts": {},
+  "sessions": {
+    "s_c2794f4d041cf5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa20498a-0e75-4985-b910-9d7be3aad52f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
