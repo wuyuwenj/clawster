@@ -27,6 +27,17 @@ const PET_CHAT_MIN_HEIGHT = 90;
 const PET_CHAT_MAX_HEIGHT = 420;
 const PET_CHAT_AUTO_HIDE_MS = 10000;
 const PET_CHAT_VERTICAL_GAP = -2;
+
+// Max height for the pet-chat bubble. The bubble grows upward from the pet, so
+// cap it to the space available *above* the pet — letting a long reply climb
+// toward the top of the screen. Never shorter than the base cap, never taller
+// than 80% of the display. (CLA-16: the old fixed 420px cap kept the bubble
+// stuck low when the pet sat near the bottom.)
+export function computePetChatMaxHeight(petY: number, areaY: number, areaHeight: number): number {
+  const spaceAbovePet = petY - areaY + PET_CHAT_MIN_HEIGHT;
+  const ceiling = Math.round(areaHeight * 0.8);
+  return Math.max(PET_CHAT_MAX_HEIGHT, Math.min(spaceAbovePet, ceiling));
+}
 const ASSISTANT_VERTICAL_GAP = -3;
 const PET_CONTEXT_MENU_WIDTH = 220;
 const PET_CONTEXT_MENU_HEIGHT = 342;
@@ -306,7 +317,14 @@ export function resizePetChatToContent(width: number, height: number) {
   if (!petChatWindow || petChatWindow.isDestroyed()) return;
 
   const nextWidth = Math.max(PET_CHAT_MIN_WIDTH, Math.min(Math.round(width), PET_CHAT_MAX_WIDTH));
-  const nextHeight = Math.max(PET_CHAT_MIN_HEIGHT, Math.min(Math.round(height), PET_CHAT_MAX_HEIGHT));
+
+  let maxHeight = PET_CHAT_MAX_HEIGHT;
+  if (petWindow && !petWindow.isDestroyed()) {
+    const [petX, petY] = petWindow.getPosition();
+    const { y: areaY, height: areaHeight } = screen.getDisplayNearestPoint({ x: petX, y: petY }).workArea;
+    maxHeight = computePetChatMaxHeight(petY, areaY, areaHeight);
+  }
+  const nextHeight = Math.max(PET_CHAT_MIN_HEIGHT, Math.min(Math.round(height), maxHeight));
   const [currentWidth, currentHeight] = petChatWindow.getSize();
 
   if (nextWidth !== currentWidth || nextHeight !== currentHeight) {
