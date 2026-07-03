@@ -21,6 +21,10 @@ import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, createProxyVision } from './chat';
 import { buildAuthHeaders } from './chat/hmac-auth';
+import {
+  migrateFlatHistory, resolveActiveId, newSession, withMessages, capSessions, toMeta,
+  type ChatMessage, type ChatSession,
+} from './chat/sessions';
 import { MemoryManager } from './chat/memory';
 import { runConsolidation } from './chat/memory/consolidation';
 import { requestPermission, setPermissionStore, getAllPermissionStatuses, openPermissionSettings, startPolling, stopPolling, checkPermission, needsRestart } from './permission-helper';
@@ -674,21 +678,101 @@ function setupIPC() {
     return store.store;
   });
 
-  // Get chat history
+  // ── Chat sessions (CLA-33) ────────────────────────────────────────────────
+  // Each session keeps its own history so conversations don't mix context.
+  // Legacy flat `chatHistory` is migrated into one session on first access.
+  function loadSessions(): ChatSession[] {
+    let sessions = (store.get('sessions') || []) as ChatSession[];
+    if (sessions.length === 0) {
+      const flat = (store.get('chatHistory') || []) as ChatMessage[];
+      const migrated = migrateFlatHistory(sessions, flat, Date.now(), randomUUID());
+      if (migrated !== sessions) {
+        sessions = migrated;
+        store.set('sessions', sessions);
+        store.set('activeSessionId', sessions[0]?.id ?? null);
+        store.set('chatHistory', []); // consumed by migration
+      }
+    }
+    return sessions;
+  }
+
+  function ensureActiveSession(): { sessions: ChatSession[]; active: ChatSession } {
+    let sessions = loadSessions();
+    let activeId = resolveActiveId(sessions, (store.get('activeSessionId') ?? null) as string | null);
+    if (!activeId) {
+      const s = newSession(Date.now(), randomUUID());
+      sessions = [s];
+      store.set('sessions', sessions);
+      activeId = s.id;
+    }
+    if (activeId !== store.get('activeSessionId')) store.set('activeSessionId', activeId);
+    const active = sessions.find((s) => s.id === activeId)!;
+    return { sessions, active };
+  }
+
+  // get-chat-history → the active session's messages
   ipcMain.handle('get-chat-history', () => {
-    return store.get('chatHistory') || [];
+    return ensureActiveSession().active.messages;
   });
 
-  // Save chat history
-  ipcMain.handle('save-chat-history', (_event, messages: unknown[]) => {
-    const trimmed = messages.slice(-100);
-    store.set('chatHistory', trimmed);
+  // save-chat-history → persist into the active session (title + updatedAt refreshed)
+  ipcMain.handle('save-chat-history', (_event, messages: ChatMessage[]) => {
+    const { sessions, active } = ensureActiveSession();
+    const trimmed = (messages || []).slice(-100);
+    const updated = withMessages(active, trimmed, Date.now());
+    store.set('sessions', capSessions(sessions.map((s) => (s.id === active.id ? updated : s))));
     return true;
   });
 
-  // Clear chat history
+  // clear-chat-history → empty the active session (keeps the session itself)
   ipcMain.handle('clear-chat-history', () => {
-    store.set('chatHistory', []);
+    const { sessions, active } = ensureActiveSession();
+    const cleared: ChatSession = { ...active, messages: [], updatedAt: Date.now() };
+    store.set('sessions', sessions.map((s) => (s.id === active.id ? cleared : s)));
+    return true;
+  });
+
+  // list-sessions → { sessions: meta[] (newest first), activeId }
+  ipcMain.handle('list-sessions', () => {
+    const { sessions, active } = ensureActiveSession();
+    return {
+      sessions: [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).map(toMeta),
+      activeId: active.id,
+    };
+  });
+
+  // create-session → new empty session, becomes active
+  ipcMain.handle('create-session', () => {
+    const sessions = loadSessions();
+    const s = newSession(Date.now(), randomUUID());
+    store.set('sessions', capSessions([s, ...sessions]));
+    store.set('activeSessionId', s.id);
+    return toMeta(s);
+  });
+
+  // switch-session → set active, return that session's messages
+  ipcMain.handle('switch-session', (_event, id: string) => {
+    const sessions = loadSessions();
+    const target = sessions.find((s) => s.id === id);
+    if (!target) return null;
+    store.set('activeSessionId', id);
+    return target.messages;
+  });
+
+  // delete-session → remove and resolve a valid active id (creates one if empty)
+  ipcMain.handle('delete-session', (_event, id: string) => {
+    const sessions = loadSessions().filter((s) => s.id !== id);
+    store.set('sessions', sessions);
+    store.set('activeSessionId', resolveActiveId(sessions, (store.get('activeSessionId') ?? null) as string | null));
+    return { activeId: ensureActiveSession().active.id };
+  });
+
+  // rename-session → set a custom title (persists across message updates)
+  ipcMain.handle('rename-session', (_event, id: string, title: string) => {
+    const sessions = loadSessions().map((s) =>
+      s.id === id ? { ...s, title: (title || '').trim().slice(0, 60) || s.title, updatedAt: Date.now() } : s,
+    );
+    store.set('sessions', sessions);
     return true;
   });
 

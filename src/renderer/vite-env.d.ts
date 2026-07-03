@@ -37,6 +37,14 @@ interface PersonalityPreset {
   blurb: string;
 }
 
+interface SessionMeta {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+}
+
 interface ClawsterAPI {
   toggleAssistant: () => void;
   openAssistant: () => void;
@@ -64,6 +72,12 @@ interface ClawsterAPI {
   getChatHistory: () => Promise<unknown[]>;
   saveChatHistory: (messages: unknown[]) => Promise<boolean>;
   clearChatHistory: () => Promise<boolean>;
+  // Chat sessions (CLA-33)
+  listSessions: () => Promise<{ sessions: SessionMeta[]; activeId: string }>;
+  createSession: () => Promise<SessionMeta>;
+  switchSession: (id: string) => Promise<unknown[] | null>;
+  deleteSession: (id: string) => Promise<{ activeId: string }>;
+  renameSession: (id: string, title: string) => Promise<boolean>;
   notifyChatSync: () => void;
   onUpdateStatus: (callback: (data: { state: string; version?: string; percent?: number }) => void) => () => void;
   installUpdate: () => Promise<void>;
