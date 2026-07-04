@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TutorialOverlay } from './TutorialOverlay';
+import {
+  EmoteTrigger,
+  pickEmoteMessage,
+  shouldShowEmoteBubble,
+  emoteBubbleDurationMs,
+  chatbarMoodTransition,
+} from './emote-bubbles';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'worried' | 'sad' | 'huff' | 'peek' | 'side-eye' | 'tap' | 'scoot';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
@@ -212,6 +219,8 @@ export const Pet: React.FC = () => {
   const [cameraSnapActive, setCameraSnapActive] = useState(false);
   const [cameraFlashActive, setCameraFlashActive] = useState(false);
   const [talkingMouth, setTalkingMouth] = useState<string | null>(null);
+  const [chatbarOpen, setChatbarOpen] = useState(false);
+  const [emoteBubble, setEmoteBubble] = useState<{ id: number; text: string; durationMs: number } | null>(null);
   const dragStart = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
@@ -220,6 +229,12 @@ export const Pet: React.FC = () => {
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sleepLockedRef = useRef(false);
+  const moodRef = useRef<Mood>('idle');
+  const talkingRef = useRef(false);
+  const uiVisibilityRef = useRef({ chatbarOpen: false, petChatOpen: false, assistantOpen: false });
+  const lastEmoteBubbleAtRef = useRef<number | null>(null);
+  const emoteBubbleIdRef = useRef(0);
+  const emoteBubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const setPetMood = useCallback((nextMood: Mood) => {
     const sleeping = isSleepMood(nextMood);
@@ -232,7 +247,37 @@ export const Pet: React.FC = () => {
       }
       setIdleBehavior(null);
     }
+    moodRef.current = nextMood;
     setMood(nextMood);
+  }, []);
+
+  // CLA-13: show a small speech bubble above the lobster, unless suppressed
+  // (talking, chat UI open) or rate-limited.
+  const maybeShowEmoteBubble = useCallback((trigger: EmoteTrigger) => {
+    const now = Date.now();
+    const suppression = {
+      talking: talkingRef.current,
+      petChatOpen: uiVisibilityRef.current.petChatOpen,
+      assistantOpen: uiVisibilityRef.current.assistantOpen,
+      chatbarOpen: uiVisibilityRef.current.chatbarOpen,
+    };
+    if (!shouldShowEmoteBubble({ trigger, suppression, lastBubbleAt: lastEmoteBubbleAtRef.current, now })) {
+      return;
+    }
+    const text = pickEmoteMessage(trigger);
+    if (!text) return;
+
+    lastEmoteBubbleAtRef.current = now;
+    const durationMs = emoteBubbleDurationMs();
+    emoteBubbleIdRef.current += 1;
+    setEmoteBubble({ id: emoteBubbleIdRef.current, text, durationMs });
+
+    if (emoteBubbleTimeoutRef.current) {
+      clearTimeout(emoteBubbleTimeoutRef.current);
+    }
+    emoteBubbleTimeoutRef.current = setTimeout(() => {
+      setEmoteBubble(null);
+    }, durationMs);
   }, []);
 
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
@@ -248,8 +293,8 @@ export const Pet: React.FC = () => {
     const PET_SIZE = 120;
 
     const interval = setInterval(async () => {
-      // Only track when idle
-      if (mood !== 'idle') {
+      // Track when idle, or while curious about the open chatbar (CLA-27)
+      if (mood !== 'idle' && !(mood === 'curious' && chatbarOpen)) {
         setPupilOffset(null);
         return;
       }
@@ -284,7 +329,7 @@ export const Pet: React.FC = () => {
     }, POLL_MS);
 
     return () => clearInterval(interval);
-  }, [mood]);
+  }, [mood, chatbarOpen]);
 
   // Handle mood updates from ClawBot
   useEffect(() => {
@@ -302,12 +347,39 @@ export const Pet: React.FC = () => {
     window.clawster.onClawbotMood((data: unknown) => {
       const moodData = data as { state: Mood; reason?: string };
       if (!canApplyMoodUpdate(moodData.state)) return;
+      const wasSleepLocked = sleepLockedRef.current;
       setPetMood(moodData.state);
+      if (wasSleepLocked && moodData.state === 'startle') {
+        maybeShowEmoteBubble({ kind: 'wake' });
+      } else if (!wasSleepLocked && isSleepMood(moodData.state)) {
+        maybeShowEmoteBubble({ kind: 'mood', mood: moodData.state });
+      } else if (moodData.reason === 'wants attention') {
+        maybeShowEmoteBubble({ kind: 'mood', mood: moodData.state });
+      }
     });
 
     // Mouth animation from Animalese voice
     window.clawster.onMouthShape((shape: string | null) => {
+      talkingRef.current = shape !== null;
       setTalkingMouth(shape);
+    });
+
+    // Companion-window visibility: chatbar drives the curious mood (CLA-27),
+    // and any open chat surface suppresses emote bubbles (CLA-13).
+    window.clawster.onPetUiVisibility((visibility) => {
+      const wasChatbarOpen = uiVisibilityRef.current.chatbarOpen;
+      uiVisibilityRef.current = visibility;
+      setChatbarOpen(visibility.chatbarOpen);
+      if (visibility.chatbarOpen !== wasChatbarOpen) {
+        const nextMood = chatbarMoodTransition(
+          visibility.chatbarOpen,
+          moodRef.current,
+          sleepLockedRef.current
+        );
+        if (nextMood) {
+          setPetMood(nextMood as Mood);
+        }
+      }
     });
 
     window.clawster.onPetTransparentSleepChanged((enabled: boolean) => {
@@ -432,6 +504,9 @@ export const Pet: React.FC = () => {
 
       // Set the idle behavior
       setIdleBehavior(idleData.type);
+      if (idleData.type) {
+        maybeShowEmoteBubble({ kind: 'behavior', behavior: idleData.type });
+      }
 
       // Duration varies by behavior type
       const durations: Record<string, number> = {
@@ -469,6 +544,9 @@ export const Pet: React.FC = () => {
       if (idleBehaviorTimeoutRef.current) {
         clearTimeout(idleBehaviorTimeoutRef.current);
       }
+      if (emoteBubbleTimeoutRef.current) {
+        clearTimeout(emoteBubbleTimeoutRef.current);
+      }
       if (cameraSnapEndTimeoutRef.current) {
         clearTimeout(cameraSnapEndTimeoutRef.current);
       }
@@ -480,7 +558,7 @@ export const Pet: React.FC = () => {
       }
       window.clawster.removeAllListeners();
     };
-  }, [canApplyMoodUpdate, setPetMood]);
+  }, [canApplyMoodUpdate, setPetMood, maybeShowEmoteBubble]);
 
   const isSleepTransparent = transparentWhenSleeping && (mood === 'sleeping' || mood === 'doze');
   const shouldShowModeOverlay = import.meta.env.DEV && showModeOverlay;
@@ -500,6 +578,9 @@ export const Pet: React.FC = () => {
       const deltaY = moveEvent.screenY - dragStart.current.y;
 
       if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        if (!didDragRef.current && !sleepLockedRef.current) {
+          maybeShowEmoteBubble({ kind: 'drag' });
+        }
         didDragRef.current = true;
       }
 
@@ -563,6 +644,7 @@ export const Pet: React.FC = () => {
 
     if (reaction.mood) {
       setPetMood(reaction.mood);
+      maybeShowEmoteBubble({ kind: 'mood', mood: reaction.mood });
       setTimeout(() => {
         if (!sleepLockedRef.current) {
           setPetMood('idle');
@@ -570,6 +652,7 @@ export const Pet: React.FC = () => {
       }, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
+      maybeShowEmoteBubble({ kind: 'behavior', behavior: reaction.behavior });
       setTimeout(() => {
         if (!sleepLockedRef.current) {
           setIdleBehavior(null);
@@ -579,7 +662,7 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [setPetMood, tutorialActive]);
+  }, [setPetMood, tutorialActive, maybeShowEmoteBubble]);
 
   // Right click = open custom context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -599,6 +682,18 @@ export const Pet: React.FC = () => {
     >
       {shouldShowModeOverlay && (
         <div className="pet-mode-overlay">{currentMode}</div>
+      )}
+
+      {/* Emote speech bubble (CLA-13) */}
+      {emoteBubble && (
+        <div
+          key={emoteBubble.id}
+          className="emote-bubble"
+          style={{ animationDuration: `${emoteBubble.durationMs}ms` }}
+          aria-hidden="true"
+        >
+          {emoteBubble.text}
+        </div>
       )}
 
       {/* Animated Lobster Pet */}
