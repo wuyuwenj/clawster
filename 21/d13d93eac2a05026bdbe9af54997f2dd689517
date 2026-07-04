@@ -1,0 +1,19 @@
+package-lock.json
+  s_5eb9022432c88d::t_4be04c891465f4 14093-14506,14534-14577
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "21d13d93eac2a05026bdbe9af54997f2dd689517",
+  "prompts": {},
+  "sessions": {
+    "s_5eb9022432c88d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "deff14bb-7510-4532-9c39-d99d3397ecf8",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
