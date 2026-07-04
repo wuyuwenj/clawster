@@ -81,12 +81,26 @@ export function capSessions(sessions: ChatSession[], max = MAX_SESSIONS): ChatSe
   return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
 }
 
-/** Replace a session's messages, refreshing its title (if still default) and updatedAt. */
+function sameMessages(a: ChatMessage[], b: ChatMessage[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((m, i) => {
+    const o = b[i];
+    return m.id === o.id && m.role === o.role && m.content === o.content && m.timestamp === o.timestamp;
+  });
+}
+
+/**
+ * Replace a session's messages, refreshing its title (if still default) and
+ * updatedAt. A save with content-identical messages (e.g. the redundant save
+ * fired on viewing/switching sessions, CLA-46) returns the session unchanged
+ * so updatedAt doesn't bump and the session list doesn't reorder.
+ */
 export function withMessages(
   session: ChatSession,
   messages: ChatMessage[],
   now: number,
 ): ChatSession {
+  if (sameMessages(session.messages, messages)) return session;
   const title =
     session.title === 'New chat' || session.title === ''
       ? deriveTitle(messages)
