@@ -1,0 +1,21 @@
+test/e2e-tool-executor.test.ts
+  s_2308d5a1c734e0::t_a845684830683a 326-328
+  s_2308d5a1c734e0::t_32cf7b470aaecf 61-64,66,71-72
+  s_2308d5a1c734e0::t_dd804ceebead42 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5859eb94e93cd6f6bbe37e83bda6d14423c550d0",
+  "prompts": {},
+  "sessions": {
+    "s_2308d5a1c734e0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "38223260-003d-4c93-80ca-3c60e529481a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
