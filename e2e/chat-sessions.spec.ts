@@ -143,6 +143,7 @@ test('deleting a session removes it and the remaining one stays active', async (
   await legacyRow.getByTitle('Delete chat').click();
   await expect(legacyRow.getByTitle('Confirm delete')).toHaveText('Delete?');
   await expect(dropdown.locator('.group')).toHaveCount(2);
+  await shot(assistant, '05b-delete-confirm-armed.png');
 
   // Closing the dropdown disarms the confirm — nothing was deleted.
   await assistant.locator('.fixed.inset-0.z-10').click();
