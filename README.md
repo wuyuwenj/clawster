@@ -29,6 +29,7 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Quick Chat** | Summon Clawster anywhere for context-aware help | `Cmd+Shift+Space` |
 | **Screenshot Questions** | Snap any part of your screen and ask about it | `Cmd+Shift+/` |
 | **Full Assistant Panel** | Open the full assistant for longer conversations | `Cmd+Shift+A` or right-click pet |
+| **Chat Sessions** | Keep conversations separate — create, switch, and delete chats from the assistant panel | — |
 | **14 Animated Moods** | Expressive animations that react to interactions | — |
 | **Screen Awareness** | Detects your active app and window for contextual help | — |
 | **Tool Calling** | Open apps, run commands, set timers, send messages, control volume | — |
@@ -162,7 +163,7 @@ clawster/
 ├── src/
 │   ├── main/              # Electron main process
 │   │   ├── main.ts        # App entry, windows, IPC handlers
-│   │   ├── chat/          # Chat system (router, providers, tools, memory)
+│   │   ├── chat/          # Chat system (router, providers, tools, memory, sessions)
 │   │   ├── analytics.ts   # PostHog analytics (opt-in)
 │   │   ├── emotion-engine.ts  # Valence/arousal mood model
 │   │   ├── pet-behaviors.ts   # Idle behaviors, attention seeking
