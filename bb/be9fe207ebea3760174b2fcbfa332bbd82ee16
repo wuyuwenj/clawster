@@ -1,0 +1,21 @@
+src/main/chat/sessions.ts
+  s_9a05ecdc3f4284::t_259736bc4994ad 84-97,103
+test/sessions.test.ts
+  s_9a05ecdc3f4284::t_628825503faeb9 120-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bbbe9fe207ebea3760174b2fcbfa332bbd82ee16",
+  "prompts": {},
+  "sessions": {
+    "s_9a05ecdc3f4284": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e60a3f2-87c3-4949-b4f6-ce2086fdcea5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
