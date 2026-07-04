@@ -146,6 +146,7 @@ rm ~/Library/Application\ Support/clawster/clawster-config.json
 - Conversations stored locally on your machine
 - Optional PostHog analytics (opt-out in settings)
 - Cloud proxy only forwards messages to OpenAI — no data stored server-side
+- Link opening is limited to web URLs (`http`/`https`) — `file:`, `javascript:`, and other schemes are refused
 
 ## Development
 
