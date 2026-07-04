@@ -1,0 +1,21 @@
+.github/CODEOWNERS
+  s_8431c1665081f2::t_4ca86d1a1b2972 1-5
+.github/workflows/ci.yml
+  s_8431c1665081f2::t_a375dbe904de2b 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1c5ec57312c89803464679315a28d48ee48666fc",
+  "prompts": {},
+  "sessions": {
+    "s_8431c1665081f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01046bee-2b97-48fd-8c2e-e98e96527f07",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
