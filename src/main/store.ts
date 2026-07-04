@@ -1,5 +1,6 @@
 import Store from 'electron-store';
 import { clawsterDataDir, isTestDataDir } from './paths';
+import type { ChatSession } from './chat/sessions';
 
 interface ChatMessage {
   id: string;
@@ -46,7 +47,9 @@ interface StoreSchema {
     captureScreen: string;
     openAssistant: string;
   };
-  chatHistory: ChatMessage[];
+  chatHistory: ChatMessage[]; // legacy — migrated into `sessions` on first access (CLA-33)
+  sessions: ChatSession[];
+  activeSessionId: string | null;
   onboarding: OnboardingState;
   personality: {
     preset: string;
@@ -90,6 +93,8 @@ const defaults: StoreSchema = {
     openAssistant: 'CommandOrControl+Shift+A',
   },
   chatHistory: [],
+  sessions: [],
+  activeSessionId: null,
   onboarding: {
     completed: false,
     skipped: false,

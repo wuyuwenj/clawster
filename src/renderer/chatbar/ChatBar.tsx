@@ -26,6 +26,7 @@ export const ChatBar: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
+  const pinnedSessionIdRef = useRef<string | null>(null);
   const activePetPopupIdRef = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const speechAutoSubmitTimeoutRef = useRef<number | null>(null);
@@ -139,11 +140,11 @@ export const ChatBar: React.FC = () => {
     };
   }, []);
 
-  // Helper to save messages to shared history
+  // Helper to save messages to shared history. Appends to the session that was
+  // active when the message was sent, so a session switch mid-response can't
+  // land this exchange in a different conversation.
   const saveMessageToHistory = async (userMsg: string, assistantMsg: string) => {
-    const history = (await window.clawster.getChatHistory()) as Message[];
     const newMessages: Message[] = [
-      ...history,
       {
         id: crypto.randomUUID(),
         role: 'user' as const,
@@ -157,8 +158,13 @@ export const ChatBar: React.FC = () => {
         timestamp: Date.now(),
       },
     ];
-    await window.clawster.saveChatHistory(newMessages);
-    window.clawster.notifyChatSync?.();
+    const saved = await window.clawster.appendChatMessages(
+      newMessages,
+      pinnedSessionIdRef.current ?? undefined
+    );
+    if (saved) {
+      window.clawster.notifyChatSync?.();
+    }
   };
 
   // Focus input on mount
@@ -290,6 +296,12 @@ export const ChatBar: React.FC = () => {
     setIsLoading(true);
     setResponse(null);
     let handedOffToStream = false;
+
+    try {
+      pinnedSessionIdRef.current = (await window.clawster.listSessions()).activeId;
+    } catch {
+      pinnedSessionIdRef.current = null;
+    }
 
     try {
       let result: { response?: string; text?: string; error?: string };
