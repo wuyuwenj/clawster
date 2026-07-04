@@ -1,0 +1,56 @@
+src/renderer/vite-env.d.ts
+  s_a88ce090261792::t_892b06ee012f6b 115
+src/renderer/pet/emote-bubbles.ts
+  s_a88ce090261792::t_3918e77808624b 1-115
+test/emote-bubbles.test.ts
+  s_a88ce090261792::t_9c34281ea3f8cd 1-207
+src/renderer/pet/Pet.tsx
+  s_a88ce090261792::t_f1ecb7603b98ec 561
+  s_a88ce090261792::t_df2a0c43f3188d 250,254-280
+  s_a88ce090261792::t_2fc1a54cbd5a37 350,352-358,363,367-382
+  s_a88ce090261792::t_420154db32aeb3 507-509
+  s_a88ce090261792::t_10188ad0f12f83 547-549
+  s_a88ce090261792::t_2ac7371308b7bc 581-583
+  s_a88ce090261792::t_783ce173d92c32 232-237
+  s_a88ce090261792::t_c9ac98152cdbad 296-297
+  s_a88ce090261792::t_287f146a1edc71 647,655
+  s_a88ce090261792::t_c9af3478b6d98e 3-9
+  s_a88ce090261792::t_f4a8929f18868b 222-223
+  s_a88ce090261792::t_ed867b9e0735e7 332
+  s_a88ce090261792::t_6f575c083749c0 665
+  s_a88ce090261792::t_f5cebc1086774d 687-698
+  s_a88ce090261792::t_f5d9fed81f9163 281-282
+  s_a88ce090261792::t_bdd8c2dc7a7c39 383-384
+src/renderer/pet/styles.css
+  s_a88ce090261792::t_6bfbc43daf57f5 44-95
+src/main/preload.ts
+  s_a88ce090261792::t_d07f57bba81abe 187-189
+  s_a88ce090261792::t_92928b80a2fa2f 375
+  s_a88ce090261792::t_df7759529a3143 260
+AGENTS.md
+  s_a88ce090261792::t_e45084d76acab8 52-53
+src/main/windows.ts
+  s_a88ce090261792::t_201461d99e2997 300
+  s_a88ce090261792::t_67b9fed7323bb2 484
+  s_a88ce090261792::t_e604f64342a2e9 504
+  s_a88ce090261792::t_cdc4936c528774 279
+  s_a88ce090261792::t_1dc3dd2335a21e 618
+  s_a88ce090261792::t_185706c7e7bf3a 108-125
+  s_a88ce090261792::t_cfe228a25294e5 634
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7a0eecc4cf4ef8f1291d0bf8a8fc1412da72e181",
+  "prompts": {},
+  "sessions": {
+    "s_a88ce090261792": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aced3687-c9ff-4200-8f87-2caf0d483bd3",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
