@@ -32,6 +32,7 @@ export const Assistant: React.FC = () => {
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [showSessions, setShowSessions] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeStreamMessageId, setActiveStreamMessageId] = useState<string | null>(null);
@@ -615,9 +616,17 @@ export const Assistant: React.FC = () => {
     setTimeout(() => scrollToBottom('auto'), 0);
   };
 
+  // Two-step inline confirm: the first click arms the button ("Delete?"),
+  // the second click actually deletes. A native confirm() here wedges
+  // Electron's window close on macOS, so we stay in the DOM.
   const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (isLoading) return;
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      return;
+    }
+    setConfirmDeleteId(null);
     const { activeId } = await window.clawster.deleteSession(id);
     const msgs = await window.clawster.switchSession(activeId);
     messagesSessionIdRef.current = activeId;
@@ -692,7 +701,7 @@ export const Assistant: React.FC = () => {
           {/* Session switcher (CLA-33) */}
           <div className="relative flex items-center gap-2 px-3 py-2 border-b border-white/5">
             <button
-              onClick={() => { reloadSessions(); setShowSessions((v) => !v); }}
+              onClick={() => { reloadSessions(); setConfirmDeleteId(null); setShowSessions((v) => !v); }}
               className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white max-w-[70%]"
               title="Switch chat"
             >
@@ -709,7 +718,7 @@ export const Assistant: React.FC = () => {
             </button>
             {showSessions && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowSessions(false)} />
+                <div className="fixed inset-0 z-10" onClick={() => { setConfirmDeleteId(null); setShowSessions(false); }} />
                 <div className="absolute left-3 top-full mt-1 z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] shadow-xl scrollbar-hide">
                   {sessions.length === 0 && (
                     <div className="px-3 py-2 text-xs text-neutral-500">No chats yet</div>
@@ -728,10 +737,14 @@ export const Assistant: React.FC = () => {
                       <button
                         onClick={(e) => handleDeleteSession(s.id, e)}
                         disabled={isLoading}
-                        className="opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400 text-sm px-1 shrink-0 disabled:cursor-not-allowed"
-                        title="Delete chat"
+                        className={`text-sm px-1 shrink-0 disabled:cursor-not-allowed ${
+                          confirmDeleteId === s.id
+                            ? 'opacity-100 text-red-400 text-[10px] font-medium'
+                            : 'opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400'
+                        }`}
+                        title={confirmDeleteId === s.id ? 'Confirm delete' : 'Delete chat'}
                       >
-                        ×
+                        {confirmDeleteId === s.id ? 'Delete?' : '×'}
                       </button>
                     </div>
                   ))}
