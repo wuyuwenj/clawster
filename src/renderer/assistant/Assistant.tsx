@@ -29,6 +29,10 @@ const SCROLL_TO_BOTTOM_THRESHOLD = 140;
 export const Assistant: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const [showSessions, setShowSessions] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeStreamMessageId, setActiveStreamMessageId] = useState<string | null>(null);
@@ -48,6 +52,7 @@ export const Assistant: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const activeStreamRequestIdRef = useRef<string | null>(null);
   const activeStreamMessageIdRef = useRef<string | null>(null);
+  const messagesSessionIdRef = useRef<string | null>(null);
   const chatScrollTopRef = useRef(0);
   const chatShouldAutoScrollRef = useRef(true);
   const hasInitializedChatScrollRef = useRef(false);
@@ -141,6 +146,12 @@ export const Assistant: React.FC = () => {
           updateScrollState();
         }, 0);
       }
+    });
+
+    window.clawster.listSessions().then(({ sessions: list, activeId }) => {
+      setSessions(list);
+      setActiveSessionId(activeId);
+      messagesSessionIdRef.current = activeId;
     });
 
     window.clawster.getClawbotStatus().then(setConnectionStatus);
@@ -323,7 +334,7 @@ export const Assistant: React.FC = () => {
 
   useEffect(() => {
     if (messages.length > 0) {
-      window.clawster.saveChatHistory(messages);
+      window.clawster.saveChatHistory(messages, messagesSessionIdRef.current ?? undefined);
     }
   }, [messages]);
 
@@ -574,6 +585,58 @@ export const Assistant: React.FC = () => {
     </svg>
   );
 
+  // ── Chat sessions (CLA-33) ──────────────────────────────────────────────
+  const reloadSessions = () => {
+    window.clawster.listSessions().then(({ sessions: list, activeId }) => {
+      setSessions(list);
+      setActiveSessionId(activeId);
+    });
+  };
+
+  // While a response is streaming, session changes are blocked: switching would
+  // drop the in-flight reply and leave the old session ending in a placeholder.
+  const handleNewSession = async () => {
+    if (isLoading) return;
+    const created = await window.clawster.createSession();
+    messagesSessionIdRef.current = created.id;
+    setMessages([]);
+    setShowSessions(false);
+    reloadSessions();
+  };
+
+  const handleSwitchSession = async (id: string) => {
+    if (isLoading) return;
+    if (id === activeSessionId) { setShowSessions(false); return; }
+    const msgs = await window.clawster.switchSession(id);
+    if (msgs === null) { reloadSessions(); setShowSessions(false); return; }
+    messagesSessionIdRef.current = id;
+    setMessages(Array.isArray(msgs) ? (msgs as Message[]) : []);
+    setActiveSessionId(id);
+    setShowSessions(false);
+    setTimeout(() => scrollToBottom('auto'), 0);
+  };
+
+  // Two-step inline confirm: the first click arms the button ("Delete?"),
+  // the second click actually deletes. A native confirm() here wedges
+  // Electron's window close on macOS, so we stay in the DOM.
+  const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isLoading) return;
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      return;
+    }
+    setConfirmDeleteId(null);
+    const { activeId } = await window.clawster.deleteSession(id);
+    const msgs = await window.clawster.switchSession(activeId);
+    messagesSessionIdRef.current = activeId;
+    setMessages(Array.isArray(msgs) ? (msgs as Message[]) : []);
+    setActiveSessionId(activeId);
+    reloadSessions();
+  };
+
+  const activeSessionTitle = sessions.find((s) => s.id === activeSessionId)?.title || 'New chat';
+
   return (
     <div className="flex flex-col h-screen bg-[#0f0f0f] text-neutral-200 overflow-hidden">
       {/* Header */}
@@ -635,6 +698,60 @@ export const Assistant: React.FC = () => {
       {/* CONTENT: Chat */}
       {activeTab === 'chat' && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {/* Session switcher (CLA-33) */}
+          <div className="relative flex items-center gap-2 px-3 py-2 border-b border-white/5">
+            <button
+              onClick={() => { reloadSessions(); setConfirmDeleteId(null); setShowSessions((v) => !v); }}
+              className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white max-w-[70%]"
+              title="Switch chat"
+            >
+              <span className="truncate">{activeSessionTitle}</span>
+              <span className="text-neutral-500">▾</span>
+            </button>
+            <button
+              onClick={handleNewSession}
+              disabled={isLoading}
+              className="ml-auto text-xs px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Start a new chat"
+            >
+              ＋ New
+            </button>
+            {showSessions && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => { setConfirmDeleteId(null); setShowSessions(false); }} />
+                <div className="absolute left-3 top-full mt-1 z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] shadow-xl scrollbar-hide">
+                  {sessions.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-neutral-500">No chats yet</div>
+                  )}
+                  {sessions.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => handleSwitchSession(s.id)}
+                      className={`group flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 ${s.id === activeSessionId ? 'bg-white/5' : ''}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-neutral-200 truncate">{s.title}</div>
+                        <div className="text-[10px] text-neutral-500">{s.messageCount} message{s.messageCount === 1 ? '' : 's'}</div>
+                      </div>
+                      {s.id === activeSessionId && <span className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] shrink-0" />}
+                      <button
+                        onClick={(e) => handleDeleteSession(s.id, e)}
+                        disabled={isLoading}
+                        className={`text-sm px-1 shrink-0 disabled:cursor-not-allowed ${
+                          confirmDeleteId === s.id
+                            ? 'opacity-100 text-red-400 text-[10px] font-medium'
+                            : 'opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400'
+                        }`}
+                        title={confirmDeleteId === s.id ? 'Confirm delete' : 'Delete chat'}
+                      >
+                        {confirmDeleteId === s.id ? 'Delete?' : '×'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           {/* Messages */}
           <div className="relative flex-1 min-h-0">
             <div

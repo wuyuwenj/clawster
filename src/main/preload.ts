@@ -2,6 +2,14 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 type ListenerCleanup = () => void;
 
+interface SessionMeta {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+}
+
 function onIpc<T>(channel: string, callback: (data: T) => void): ListenerCleanup {
   const listener = (_event: IpcRendererEvent, data: T) => callback(data);
   ipcRenderer.on(channel, listener);
@@ -61,8 +69,17 @@ contextBridge.exposeInMainWorld('clawster', {
 
   // Chat history
   getChatHistory: () => ipcRenderer.invoke('get-chat-history'),
-  saveChatHistory: (messages: unknown[]) => ipcRenderer.invoke('save-chat-history', messages),
+  saveChatHistory: (messages: unknown[], sessionId?: string) =>
+    ipcRenderer.invoke('save-chat-history', messages, sessionId),
+  appendChatMessages: (messages: unknown[], sessionId?: string) =>
+    ipcRenderer.invoke('append-chat-messages', messages, sessionId),
   clearChatHistory: () => ipcRenderer.invoke('clear-chat-history'),
+  // Chat sessions (CLA-33)
+  listSessions: () => ipcRenderer.invoke('list-sessions'),
+  createSession: () => ipcRenderer.invoke('create-session'),
+  switchSession: (id: string) => ipcRenderer.invoke('switch-session', id),
+  deleteSession: (id: string) => ipcRenderer.invoke('delete-session', id),
+  renameSession: (id: string, title: string) => ipcRenderer.invoke('rename-session', id, title),
   notifyChatSync: () => ipcRenderer.send('chat-sync'),
 
   // Permissions (inline panel APIs)
@@ -308,8 +325,14 @@ export interface ClawsterAPI {
   getSettings: () => Promise<unknown>;
   updateSettings: (key: string, value: unknown) => Promise<unknown>;
   getChatHistory: () => Promise<unknown[]>;
-  saveChatHistory: (messages: unknown[]) => Promise<boolean>;
+  saveChatHistory: (messages: unknown[], sessionId?: string) => Promise<boolean>;
+  appendChatMessages: (messages: unknown[], sessionId?: string) => Promise<boolean>;
   clearChatHistory: () => Promise<boolean>;
+  listSessions: () => Promise<{ sessions: SessionMeta[]; activeId: string }>;
+  createSession: () => Promise<SessionMeta>;
+  switchSession: (id: string) => Promise<unknown[] | null>;
+  deleteSession: (id: string) => Promise<{ activeId: string }>;
+  renameSession: (id: string, title: string) => Promise<boolean>;
   notifyChatSync: () => void;
   captureScreen: () => Promise<string | null>;
   captureScreenWithContext: () => Promise<ScreenContext | null>;
