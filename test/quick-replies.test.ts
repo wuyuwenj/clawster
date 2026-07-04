@@ -6,6 +6,19 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
 }));
 
+// CLA-43: mock the exec boundary so play_music never runs real osascript
+// against Music.app — the real call can stall under parallel test load.
+// Must be top-level vi.mock (hoisted); never vi.doMock — Vitest bug #4166
+// leaves exports undefined.
+vi.mock('child_process', () => {
+  const fake = (...callArgs: unknown[]) => {
+    const cb = callArgs[callArgs.length - 1] as (err: null, out: { stdout: string; stderr: string }) => void;
+    cb(null, { stdout: '', stderr: '' });
+  };
+  const mocked = { exec: vi.fn(fake), execFile: vi.fn(fake) };
+  return { ...mocked, default: mocked };
+});
+
 import { getQuickReplies } from '../src/main/chat/quick-replies';
 import { ChatRouter } from '../src/main/chat/chat-router';
 import type { LocalToolProvider } from '../src/main/chat/local-tool-provider';

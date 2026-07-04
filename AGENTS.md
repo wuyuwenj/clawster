@@ -61,6 +61,7 @@ User message
 
 ### Testing Gotchas
 - Use `vi.mock('electron')`, never `vi.doMock` — known Vitest bug (#4166) leaves exports undefined
+- Unit tests that route through `executeTool` (e.g. via `ChatRouter.chat`) must also `vi.mock('child_process')` — otherwise `tool-executor.ts` runs real `osascript` against macOS apps, which can stall under parallel test load (see `test/quick-replies.test.ts`)
 - Integration tests (`test/e2e-*.test.ts`) need Ollama running — they skip gracefully if unavailable
 - E2E tests use `CLAWSTER_DATA_DIR` env var to isolate test data from real user data
 
