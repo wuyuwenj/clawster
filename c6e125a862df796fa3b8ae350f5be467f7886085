@@ -1,0 +1,45 @@
+src/main/main.ts
+  s_cb2d5a7e35eb10::t_1f2aace083b4db 787
+  s_cb2d5a7e35eb10::t_8f982d05cac518 730
+  s_cb2d5a7e35eb10::t_bc429bd27ecc4f 718-719
+  s_cb2d5a7e35eb10::t_6946f187fd5ddb 859
+  s_cb2d5a7e35eb10::t_8c61965201c5fe 720,722-723,725-726,731-737,744
+  s_cb2d5a7e35eb10::t_2e69558f2b6006 727-729
+src/main/chat/sessions.ts
+  s_cb2d5a7e35eb10::t_5677f49998ca85 38-39
+src/main/preload.ts
+  s_cb2d5a7e35eb10::t_b83fcf6d8a91c7 328-329
+  s_cb2d5a7e35eb10::t_70597de0b9aea3 72-75
+src/renderer/chatbar/ChatBar.tsx
+  s_cb2d5a7e35eb10::t_487fa6f7cb89f8 301-305
+  s_cb2d5a7e35eb10::t_c3224e88cd94cf 29
+  s_cb2d5a7e35eb10::t_0d24f33ff33985 143-145,161-167
+  s_cb2d5a7e35eb10::t_ffa5901356b268 300
+src/renderer/assistant/Assistant.tsx
+  s_cb2d5a7e35eb10::t_084759c312a3dd 595-596,598-600,607,610-611,620,623
+  s_cb2d5a7e35eb10::t_560066a6ae43e4 54
+  s_cb2d5a7e35eb10::t_b95ab3c9bd31ab 704-705
+  s_cb2d5a7e35eb10::t_1c643c00f68cd2 730-731
+  s_cb2d5a7e35eb10::t_34b6f579e5d3bf 153
+  s_cb2d5a7e35eb10::t_5837c0766a4e75 336
+test/sessions.test.ts
+  s_cb2d5a7e35eb10::t_6b71b14ad75b58 42-49
+src/renderer/vite-env.d.ts
+  s_cb2d5a7e35eb10::t_3dd9729cefa28a 73-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c6e125a862df796fa3b8ae350f5be467f7886085",
+  "prompts": {},
+  "sessions": {
+    "s_cb2d5a7e35eb10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c24a3c01-2ab6-492c-9a8f-1a50ce107929",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
