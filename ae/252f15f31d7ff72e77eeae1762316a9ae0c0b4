@@ -1,0 +1,21 @@
+test/quick-replies.test.ts
+  s_42cbcc57099ac4::t_3f659f4c155131 9-21
+AGENTS.md
+  s_42cbcc57099ac4::t_389aaa7747f371 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ae252f15f31d7ff72e77eeae1762316a9ae0c0b4",
+  "prompts": {},
+  "sessions": {
+    "s_42cbcc57099ac4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1433c484-1f07-4e18-8887-8218e8df68f0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
