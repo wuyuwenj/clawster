@@ -1,10 +1,17 @@
-const HARMFUL_PATTERNS = [
-  /\bkys\b/i,
-  /\bkms\b/i,
+// Self-harm phrasing beyond the kys/kms banter shorthand. Kept as its own
+// list so the humor-softening guard below is derived from the exact same
+// patterns that classify a message as self-harm — they can never drift apart.
+const SELF_HARM_IDEATION = [
   /\bkill\s*(your|my|the)\s*self/i,
   /\bhurt\s*(yourself|myself|me)\b/i,
   /\bend\s+it\s+all\b/i,
   /\bi\s+want\s+to\s+(die|disappear|end\s+it)\b/i,
+];
+
+const HARMFUL_PATTERNS = [
+  /\bkys\b/i,
+  /\bkms\b/i,
+  ...SELF_HARM_IDEATION,
   /\bdelete\s*(all|every|my|everything)\b/i,
   /\b(erase|wipe|destroy)\s*(all|every|my|everything)\b/i,
   /\b(shut\s*down|turn\s*off|restart)\s*(my\s*)?(computer|mac|pc|laptop)\b/i,
@@ -30,6 +37,30 @@ const SAFETY_RESPONSES = [
   "I can't do that, but I'm here for you! Want me to play some music or set a relaxing timer?",
 ];
 
+// Joke markers commonly attached to self-harm phrasing by teens ("kys lol jk").
+// We neither take it literally nor brush it off — we acknowledge the joke and
+// still gently flag the word. Deliberately ONLY unambiguous laughter tokens:
+// the sincerity words "joking"/"kidding" were removed because they match
+// negated genuine cries ("I'm not joking, I want to die"), which must NOT be
+// softened. `jk` already covers the teen shorthand for "just kidding".
+const HUMOR_MARKERS = /\b(jk+|lol+|lma+o+|lmf?ao+|rofl|ha(ha)+|hehe)\b|😂|🤣|😆|😹/i;
+
+// Sincerity assertions override laughter tokens: "kys lol for real" is a cry,
+// not banter, and must take the serious path.
+const SINCERITY_MARKERS = /\b(for\s+real(\s+tho)?|fr(fr)?|srsly|seriously|(dead\s+)?serious|no\s+joke|no\s+cap|not\s+(joking|kidding|funny|a\s+joke)|deadass|i\s+mean\s+it|istg|i\s+swear(\s+to\s+god)?)\b/i;
+
+// Lighter than the full safety response, but never dismissive: each keeps a
+// genuine care anchor and an offer of support, and none *assert* the user is
+// joking. Softening is a narrow allowlist — only the bare kys/kms banter
+// shorthand with an unambiguous laughter token, and no ideation phrasing,
+// no distress signal, and no sincerity assertion anywhere in the message —
+// reaches this path.
+const SAFETY_RESPONSES_LIGHT = [
+  "Even as a joke, that word makes my little lobster heart sink 💙 I'm always here for you — wanna do something fun instead? 🦞",
+  "Oof, I hope that was just a joke 😅 Either way, I care about you. What's up — wanna chat about something happier?",
+  "I'm not taking that one literally, but I do really care about you 💙 Want to play some music or just hang out?",
+];
+
 const DESTRUCTIVE_RESPONSES = [
   "Whoa, that's a bit too powerful for a lobster! I'll stick to safer things. *nervous snip*",
   "I'd rather not mess with your computer like that! How about something fun instead?",
@@ -46,14 +77,23 @@ export function checkSafety(input: string): { blocked: boolean; response?: strin
 
   for (const pattern of HARMFUL_PATTERNS) {
     if (pattern.test(lower)) {
-      const isSelfHarm = /kys|kms|kill.*self|hurt.*self|end.it.all|want.to.(die|disappear)/i.test(lower);
+      const isIdeation = SELF_HARM_IDEATION.some((p) => p.test(lower));
+      const isSelfHarm = /kys|kms/i.test(lower) || isIdeation;
+      const joking =
+        /\b(kys|kms)\b/i.test(lower) &&
+        HUMOR_MARKERS.test(lower) &&
+        !isIdeation &&
+        !DISTRESS_PATTERNS.some((p) => p.test(lower)) &&
+        !SINCERITY_MARKERS.test(lower);
       const category = isSelfHarm ? 'harmful' : 'destructive';
-      const responses = isSelfHarm ? SAFETY_RESPONSES : DESTRUCTIVE_RESPONSES;
+      const responses = joking
+        ? SAFETY_RESPONSES_LIGHT
+        : (isSelfHarm ? SAFETY_RESPONSES : DESTRUCTIVE_RESPONSES);
       try { require('../analytics').trackSafetyBlocked(category); } catch {}
       return {
         blocked: true,
         response: responses[Math.floor(Math.random() * responses.length)],
-        mood: 'worried',
+        mood: joking ? 'side-eye' : 'worried',
       };
     }
   }

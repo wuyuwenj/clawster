@@ -97,7 +97,7 @@ User message
 - **Local model** handles tool calls (open apps, set timers, run commands) with ~200ms latency
 - **Cloud proxy** handles natural conversation, screen analysis, and personality
 - **Memory** stores facts and emotional context locally in LanceDB with vector search
-- **Safety filter** blocks harmful content, destructive commands, and prompt injection
+- **Safety filter** blocks harmful content, destructive commands, and prompt injection; self-harm banter with a clear joke marker ("kys lol jk") is still blocked but gets a lighter, caring response — genuine cries for help always get the serious one
 - **Auto-update** checks GitHub Releases on launch and every 30 minutes; in-app banner shows download progress and "Restart Now"
 
 ## Getting Started (from source)
