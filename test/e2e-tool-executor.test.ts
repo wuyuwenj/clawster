@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import { execFile } from 'child_process';
+import { mkdtempSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
@@ -55,14 +58,18 @@ describe('Tool executor E2E', () => {
     expect(result.response).toBeDefined();
   }, 10000);
 
+  // ~/Desktop only exists on macOS, so these use a temp dir that exists on any OS (incl. Linux CI).
+  const listDir = mkdtempSync(join(tmpdir(), 'clawster-e2e-'));
+  writeFileSync(join(listDir, 'note.txt'), 'hi');
+
   it('search_files with vague query redirects to list_files', async () => {
-    const result = await executeTool('search_files', { query: 'files', directory: '~/Desktop' });
+    const result = await executeTool('search_files', { query: 'files', directory: listDir });
     expect(result.handled).toBe(true);
     expect(result.response).toMatch(/Files in|empty/);
   });
 
-  it('list_files lists desktop contents', async () => {
-    const result = await executeTool('list_files', { directory: '~/Desktop' });
+  it('list_files lists directory contents', async () => {
+    const result = await executeTool('list_files', { directory: listDir });
     expect(result.handled).toBe(true);
     expect(result.response).toMatch(/Files in|empty/);
   });
@@ -316,7 +323,9 @@ describe('resolveFocusApps (focus mode app resolution)', () => {
   });
 });
 
-describe('clipboard tools', () => {
+// The clipboard tools shell out to pbpaste, which only exists on macOS —
+// skip on other platforms (e.g. Linux CI) where pbcopy/pbpaste are missing.
+describe.runIf(process.platform === 'darwin')('clipboard tools', () => {
   let original = '';
   beforeAll(async () => { original = await getClipboard(); });
   afterAll(async () => { await setClipboard(original); });
