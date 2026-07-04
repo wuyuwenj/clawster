@@ -1,0 +1,30 @@
+e2e/chat-sessions.spec.ts
+  s_8dc2fd02402cbc::t_b6499d18e03886 146
+README.md
+  s_6fa24d035bff41::t_48841a3c236787 32
+  s_6fa24d035bff41::t_7307ba34d24562 166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9a7ed0644d6b927e7901f05d41c020d7c8a8cf5d",
+  "prompts": {},
+  "sessions": {
+    "s_6fa24d035bff41": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d38b9fbb-cd1d-4cf2-a098-707f20086eb0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_8dc2fd02402cbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b7c5714-7516-437b-80df-d58cb3c56f8e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
