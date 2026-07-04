@@ -285,11 +285,28 @@ export async function executeTool(tool: string, args: Record<string, unknown>): 
     }
 
     case 'open_url': {
-      const url = args.url as string;
-      if (!url) return { handled: true, response: "What URL should I open?" };
-      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-      shell.openExternal(fullUrl);
-      return { handled: true, response: `Opening ${fullUrl}!` };
+      const rawUrl = ((args.url as string) || '').trim();
+      if (!rawUrl) return { handled: true, response: "What URL should I open?" };
+      // Only open real web pages. Reject file:/javascript:/data:/ftp: and friends —
+      // shell.openExternal on a file:// or javascript: URL is a security hole.
+      const declined = { handled: true, response: "I can only open web links (http/https) — that one's not safe for a little lobster! 🦞" };
+      let candidate: string;
+      if (/^https?:\/\//i.test(rawUrl)) {
+        candidate = rawUrl;                                   // already http(s)
+      } else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(rawUrl)) {
+        return declined;                                      // explicit non-web scheme (file://, ftp://, …)
+      } else if (/^(javascript|data|file|vbscript|blob|about|mailto|tel):/i.test(rawUrl)) {
+        return declined;                                      // non-hierarchical dangerous scheme
+      } else {
+        candidate = `https://${rawUrl}`;                      // bare domain / host:port / path
+      }
+      let parsed: URL | null = null;
+      try { parsed = new URL(candidate); } catch { parsed = null; }
+      if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+        return declined;
+      }
+      shell.openExternal(parsed.href);
+      return { handled: true, response: `Opening ${parsed.href}!` };
     }
 
     case 'take_screenshot':
