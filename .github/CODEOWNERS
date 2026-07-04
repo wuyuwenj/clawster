@@ -1,0 +1,5 @@
+# Child-safety layer: any change to the safety filter or its tests
+# requires the owner's eyes.
+/src/main/chat/safety-filter.ts @wuyuwenj
+/test/safety-filter.test.ts @wuyuwenj
+/test/open-url-safety.test.ts @wuyuwenj
