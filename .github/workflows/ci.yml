@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [staging]
+  push:
+    branches: [staging]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # Known-normal: ~25 memory tests skip on better-sqlite3 ABI mismatch,
+      # and Ollama-dependent integration tests skip when Ollama is absent.
+      - run: npm test
+
+  safety:
+    name: safety
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Child-safety suite gets its own check: safety-filter (42 tests) +
+      # open_url scheme restrictions (16 tests).
+      - run: npx vitest run test/safety-filter.test.ts test/open-url-safety.test.ts
