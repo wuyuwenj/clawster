@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-25 | Updated: 2026-06-25 -->
+<!-- Generated: 2026-06-25 | Updated: 2026-07-04 -->
 
 # Clawster
 
@@ -17,6 +17,7 @@ AI desktop pet for macOS — an animated lobster that lives on your screen, watc
 | `CLAUDE.md` | Project instructions for Claude Code |
 | `README.md` | User-facing documentation |
 | `tailwind.config.js` | Tailwind CSS config for renderer |
+| `.github/CODEOWNERS` | Safety filter + its tests require owner review |
 
 ## Subdirectories
 
@@ -31,7 +32,7 @@ AI desktop pet for macOS — an animated lobster that lives on your screen, watc
 | `clawster-assets/` | Lobster sprite parts for animation |
 | `personality/` | Default personality files (IDENTITY.md, SOUL.md) and presets |
 | `scripts/` | Build helper scripts (icon builder, speech helper) |
-| `.github/workflows/` | CI: `release.yml` (build + notarize), `update-landing.yml` |
+| `.github/workflows/` | CI: `ci.yml` (test + safety checks for staging), `release.yml` (build + notarize), `update-landing.yml` |
 
 ## For AI Agents
 
@@ -53,6 +54,7 @@ User message
 - `npm test` — Vitest unit tests (no external services needed)
 - `npm run test:e2e` — Playwright E2E (needs Vite dev server + optionally Ollama)
 - `npx tsc --noEmit` — Type checking
+- CI (`.github/workflows/ci.yml`) runs on PRs and pushes to `staging`: a `test` job (type check + full Vitest suite) and a separate `safety` job (child-safety tests: `test/safety-filter.test.ts`, `test/open-url-safety.test.ts`)
 
 ### Build & Release
 - `npm run dist:mac` — Build + notarize for macOS
