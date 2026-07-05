@@ -50,7 +50,7 @@ User message
 - HMAC authentication links the client and proxy (shared secret)
 - Local model requires Ollama running at `localhost:11434`
 - Renderer behavior that needs unit tests lives in pure logic modules (no React/Electron imports) next to the component, e.g. `src/renderer/pet/emote-bubbles.ts` — the Vitest suite runs in a node environment with no DOM
-- Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
+- Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)
