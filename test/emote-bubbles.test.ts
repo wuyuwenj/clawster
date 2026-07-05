@@ -36,9 +36,9 @@ describe('pickEmoteMessage (CLA-13)', () => {
 
   it('returns idle/sleep phrases for behaviors and sleep moods', () => {
     const first = () => 0;
-    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'yawn' }, first)).toBe('*yawn*');
-    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'stretch' }, first)).toBe('*stretch*');
-    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'look_around' }, first)).toBe('hmm...');
+    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'yawn', source: 'idle' }, first)).toBe('*yawn*');
+    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'stretch', source: 'idle' }, first)).toBe('*stretch*');
+    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'look_around', source: 'idle' }, first)).toBe('hmm...');
     expect(pickEmoteMessage({ kind: 'mood', mood: 'doze' }, first)).toBe('zzz');
     expect(pickEmoteMessage({ kind: 'mood', mood: 'sleeping' }, () => 0.99)).toBe('*snore*');
   });
@@ -51,7 +51,7 @@ describe('pickEmoteMessage (CLA-13)', () => {
   it('returns null for moods and behaviors with no phrases', () => {
     expect(pickEmoteMessage({ kind: 'mood', mood: 'thinking' }, () => 0)).toBeNull();
     expect(pickEmoteMessage({ kind: 'mood', mood: 'idle' }, () => 0)).toBeNull();
-    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'blink' }, () => 0)).toBeNull();
+    expect(pickEmoteMessage({ kind: 'behavior', behavior: 'blink', source: 'idle' }, () => 0)).toBeNull();
   });
 });
 
@@ -135,7 +135,7 @@ describe('shouldShowEmoteBubble rate limiting (CLA-13)', () => {
   });
 
   it('only sometimes bubbles idle behaviors (probability gate)', () => {
-    const behaviorTrigger = { kind: 'behavior', behavior: 'yawn' } as const;
+    const behaviorTrigger = { kind: 'behavior', behavior: 'yawn', source: 'idle' } as const;
     expect(
       shouldShowEmoteBubble({
         trigger: behaviorTrigger,
@@ -152,6 +152,41 @@ describe('shouldShowEmoteBubble rate limiting (CLA-13)', () => {
         lastBubbleAt: null,
         now: NOW,
         random: () => 0.99,
+      })
+    ).toBe(false);
+  });
+
+  it('always bubbles poke-sourced behaviors — a direct click is intentional interaction', () => {
+    const pokeTrigger = { kind: 'behavior', behavior: 'yawn', source: 'poke' } as const;
+    expect(
+      shouldShowEmoteBubble({
+        trigger: pokeTrigger,
+        suppression: noSuppression,
+        lastBubbleAt: null,
+        now: NOW,
+        random: () => 0.99,
+      })
+    ).toBe(true);
+  });
+
+  it('still rate-limits and suppresses poke-sourced behaviors', () => {
+    const pokeTrigger = { kind: 'behavior', behavior: 'yawn', source: 'poke' } as const;
+    expect(
+      shouldShowEmoteBubble({
+        trigger: pokeTrigger,
+        suppression: noSuppression,
+        lastBubbleAt: NOW - MIN_BUBBLE_GAP_MS + 1,
+        now: NOW,
+        random: () => 0,
+      })
+    ).toBe(false);
+    expect(
+      shouldShowEmoteBubble({
+        trigger: pokeTrigger,
+        suppression: { ...noSuppression, chatbarOpen: true },
+        lastBubbleAt: null,
+        now: NOW,
+        random: () => 0,
       })
     ).toBe(false);
   });

@@ -280,6 +280,13 @@ export const Pet: React.FC = () => {
     }, durationMs);
   }, []);
 
+  // CLA-27: timed reverts return to curious (not idle) while the chatbar is
+  // open, so the curious mood holds until the chatbar closes.
+  const revertMoodAfterReaction = useCallback(() => {
+    if (sleepLockedRef.current) return;
+    setPetMood(uiVisibilityRef.current.chatbarOpen ? 'curious' : 'idle');
+  }, [setPetMood]);
+
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
     if (!sleepLockedRef.current) return true;
     return nextMood === 'sleeping' || nextMood === 'doze' || nextMood === 'startle' || nextMood === 'idle';
@@ -422,11 +429,7 @@ export const Pet: React.FC = () => {
 
       if (reply === 'thanks') {
         setPetMood('happy');
-        setTimeout(() => {
-          if (!sleepLockedRef.current) {
-            setPetMood('idle');
-          }
-        }, 2000);
+        setTimeout(revertMoodAfterReaction, 2000);
       } else if (reply === 'thinking') {
         setPetMood('thinking');
       } else if (reply === 'curious') {
@@ -443,11 +446,7 @@ export const Pet: React.FC = () => {
       // React to activity - show curiosity briefly
       if (activityEvent.type === 'app_focus_changed') {
         setPetMood('curious');
-        setTimeout(() => {
-          if (!sleepLockedRef.current) {
-            setPetMood('idle');
-          }
-        }, 3000);
+        setTimeout(revertMoodAfterReaction, 3000);
       }
     });
 
@@ -505,7 +504,7 @@ export const Pet: React.FC = () => {
       // Set the idle behavior
       setIdleBehavior(idleData.type);
       if (idleData.type) {
-        maybeShowEmoteBubble({ kind: 'behavior', behavior: idleData.type });
+        maybeShowEmoteBubble({ kind: 'behavior', behavior: idleData.type, source: 'idle' });
       }
 
       // Duration varies by behavior type
@@ -558,7 +557,7 @@ export const Pet: React.FC = () => {
       }
       window.clawster.removeAllListeners();
     };
-  }, [canApplyMoodUpdate, setPetMood, maybeShowEmoteBubble]);
+  }, [canApplyMoodUpdate, setPetMood, maybeShowEmoteBubble, revertMoodAfterReaction]);
 
   const isSleepTransparent = transparentWhenSleeping && (mood === 'sleeping' || mood === 'doze');
   const shouldShowModeOverlay = import.meta.env.DEV && showModeOverlay;
@@ -645,14 +644,10 @@ export const Pet: React.FC = () => {
     if (reaction.mood) {
       setPetMood(reaction.mood);
       maybeShowEmoteBubble({ kind: 'mood', mood: reaction.mood });
-      setTimeout(() => {
-        if (!sleepLockedRef.current) {
-          setPetMood('idle');
-        }
-      }, reaction.duration);
+      setTimeout(revertMoodAfterReaction, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
-      maybeShowEmoteBubble({ kind: 'behavior', behavior: reaction.behavior });
+      maybeShowEmoteBubble({ kind: 'behavior', behavior: reaction.behavior, source: 'poke' });
       setTimeout(() => {
         if (!sleepLockedRef.current) {
           setIdleBehavior(null);
@@ -662,7 +657,7 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [setPetMood, tutorialActive, maybeShowEmoteBubble]);
+  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction]);
 
   // Right click = open custom context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {

@@ -4,7 +4,7 @@
 
 export type EmoteTrigger =
   | { kind: 'mood'; mood: string }
-  | { kind: 'behavior'; behavior: string }
+  | { kind: 'behavior'; behavior: string; source: 'idle' | 'poke' }
   | { kind: 'wake' }
   | { kind: 'drag' };
 
@@ -21,7 +21,7 @@ export interface EmoteSuppression {
 
 /** Minimum gap between bubbles so not every reaction produces one */
 export const MIN_BUBBLE_GAP_MS = 6000;
-/** Idle behaviors only sometimes show a bubble */
+/** Idle behaviors only sometimes show a bubble; poke-sourced ones always do */
 export const IDLE_BUBBLE_CHANCE = 0.35;
 export const BUBBLE_MIN_DURATION_MS = 1000;
 export const BUBBLE_MAX_DURATION_MS = 1500;
@@ -90,7 +90,9 @@ export function shouldShowEmoteBubble(options: {
 
   if (lastBubbleAt !== null && now - lastBubbleAt < MIN_BUBBLE_GAP_MS) return false;
 
-  if (trigger.kind === 'behavior' && random() >= IDLE_BUBBLE_CHANCE) return false;
+  if (trigger.kind === 'behavior' && trigger.source === 'idle' && random() >= IDLE_BUBBLE_CHANCE) {
+    return false;
+  }
 
   return true;
 }
