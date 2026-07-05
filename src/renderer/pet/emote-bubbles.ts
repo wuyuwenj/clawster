@@ -115,3 +115,17 @@ export function chatbarMoodTransition(
   if (chatbarOpen) return currentMood === 'curious' ? null : 'curious';
   return currentMood === 'curious' ? 'idle' : null;
 }
+
+// CLA-27: while the chatbar is open, an awake pet holds curious — any mood
+// transition that would land on idle lands on curious instead, regardless of
+// which path (timed revert, emotion engine, wake sequence, chat dismiss)
+// requested it. Sleep is never disturbed: a sleep-locked pet keeps its
+// requested mood untouched.
+export function applyChatbarCuriousHold(
+  nextMood: string,
+  chatbarOpen: boolean,
+  sleepLocked: boolean
+): string {
+  if (nextMood === 'idle' && chatbarOpen && !sleepLocked) return 'curious';
+  return nextMood;
+}

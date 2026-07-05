@@ -5,6 +5,7 @@ import {
   shouldShowEmoteBubble,
   emoteBubbleDurationMs,
   chatbarMoodTransition,
+  applyChatbarCuriousHold,
   MIN_BUBBLE_GAP_MS,
   BUBBLE_MIN_DURATION_MS,
   BUBBLE_MAX_DURATION_MS,
@@ -238,5 +239,33 @@ describe('chatbarMoodTransition (CLA-27)', () => {
   it('never disturbs a sleeping lobster', () => {
     expect(chatbarMoodTransition(true, 'sleeping', true)).toBeNull();
     expect(chatbarMoodTransition(false, 'sleeping', true)).toBeNull();
+  });
+});
+
+// CLA-27: any idle-landing mood transition holds curious while the chatbar
+// is open — covers emotion-engine pushes, the wake sequence's delayed idle,
+// and chat dismiss, not just the renderer's timed reverts.
+describe('applyChatbarCuriousHold (CLA-27)', () => {
+  it('maps idle to curious while the chatbar is open and the pet is awake', () => {
+    expect(applyChatbarCuriousHold('idle', true, false)).toBe('curious');
+  });
+
+  it('lands on idle as usual when the chatbar is closed', () => {
+    expect(applyChatbarCuriousHold('idle', false, false)).toBe('idle');
+  });
+
+  it('leaves non-idle moods untouched even while the chatbar is open', () => {
+    expect(applyChatbarCuriousHold('happy', true, false)).toBe('happy');
+    expect(applyChatbarCuriousHold('startle', true, false)).toBe('startle');
+    expect(applyChatbarCuriousHold('curious', true, false)).toBe('curious');
+  });
+
+  it('never rewrites sleep moods', () => {
+    expect(applyChatbarCuriousHold('sleeping', true, false)).toBe('sleeping');
+    expect(applyChatbarCuriousHold('doze', true, false)).toBe('doze');
+  });
+
+  it('does not hold curious for a sleep-locked pet', () => {
+    expect(applyChatbarCuriousHold('idle', true, true)).toBe('idle');
   });
 });

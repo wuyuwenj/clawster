@@ -6,6 +6,7 @@ import {
   shouldShowEmoteBubble,
   emoteBubbleDurationMs,
   chatbarMoodTransition,
+  applyChatbarCuriousHold,
 } from './emote-bubbles';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'worried' | 'sad' | 'huff' | 'peek' | 'side-eye' | 'tap' | 'scoot';
@@ -236,7 +237,12 @@ export const Pet: React.FC = () => {
   const emoteBubbleIdRef = useRef(0);
   const emoteBubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const setPetMood = useCallback((nextMood: Mood) => {
+  const setPetMood = useCallback((requestedMood: Mood) => {
+    const nextMood = applyChatbarCuriousHold(
+      requestedMood,
+      uiVisibilityRef.current.chatbarOpen,
+      sleepLockedRef.current
+    ) as Mood;
     const sleeping = isSleepMood(nextMood);
     sleepLockedRef.current = sleeping;
     if (sleeping) {
@@ -280,11 +286,11 @@ export const Pet: React.FC = () => {
     }, durationMs);
   }, []);
 
-  // CLA-27: timed reverts return to curious (not idle) while the chatbar is
-  // open, so the curious mood holds until the chatbar closes.
+  // CLA-27: setPetMood maps this back to curious while the chatbar is open,
+  // so the curious mood holds until the chatbar closes.
   const revertMoodAfterReaction = useCallback(() => {
     if (sleepLockedRef.current) return;
-    setPetMood(uiVisibilityRef.current.chatbarOpen ? 'curious' : 'idle');
+    setPetMood('idle');
   }, [setPetMood]);
 
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
