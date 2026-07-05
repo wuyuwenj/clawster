@@ -1,0 +1,40 @@
+src/renderer/pet/Pet.tsx
+  s_a0b11a170996d4::t_4bfc3da99e8939 283-289
+  s_a0b11a170996d4::t_217ab213fddb27 560
+  s_a0b11a170996d4::t_2f2bd6d5393acc 647,650
+  s_a0b11a170996d4::t_f52edbd455a0c4 507
+  s_a0b11a170996d4::t_68d06b12adbf79 660
+  s_a0b11a170996d4::t_ee20eb05fd063d 432
+  s_a0b11a170996d4::t_ff08423c000582 449
+src/renderer/pet/emote-bubbles.ts
+  s_a0b11a170996d4::t_31a8e5c05bf911 7
+  s_a0b11a170996d4::t_59d8dabd3dd032 24
+  s_a0b11a170996d4::t_8f29784fa8343e 93-95
+src/main/windows.ts
+  s_a0b11a170996d4::t_79b079821df7ff 201
+  s_a0b11a170996d4::t_d94b35bcc168dc 370
+  s_a0b11a170996d4::t_d099697faa7d59 318
+  s_a0b11a170996d4::t_825d2142483324 308
+  s_a0b11a170996d4::t_3c95c8ec872894 253
+test/emote-bubbles.test.ts
+  s_a0b11a170996d4::t_66b791bd4f1ba8 54
+  s_a0b11a170996d4::t_30820ccf5b4ed9 39-41
+  s_a0b11a170996d4::t_2bc3d4d838bb5f 138,159-192
+  s_a0b11a170996d4::t_0e474d6be25251 193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fa3e877a176aabd00c4eb28b72f7b0e3047e6546",
+  "prompts": {},
+  "sessions": {
+    "s_a0b11a170996d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02b06aae-49bd-44a9-be7c-c8ff0fbbaa6a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
