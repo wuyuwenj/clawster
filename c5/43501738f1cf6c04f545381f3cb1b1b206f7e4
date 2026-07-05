@@ -1,0 +1,22 @@
+AGENTS.md
+  s_0f8451785f2916::t_6268b4956845c5 53
+README.md
+  s_0f8451785f2916::t_f7f3fed94d6557 29
+  s_0f8451785f2916::t_a39edff273c94a 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c543501738f1cf6c04f545381f3cb1b1b206f7e4",
+  "prompts": {},
+  "sessions": {
+    "s_0f8451785f2916": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a465aeb5-bcdd-4066-80f5-0e4ed955cdc0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
