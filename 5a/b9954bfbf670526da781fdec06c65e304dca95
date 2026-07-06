@@ -1,0 +1,19 @@
+test/emote-bubbles.test.ts
+  s_a88ce090261792::t_5fe83fe6caac92 52-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5ab9954bfbf670526da781fdec06c65e304dca95",
+  "prompts": {},
+  "sessions": {
+    "s_a88ce090261792": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aced3687-c9ff-4200-8f87-2caf0d483bd3",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
