@@ -57,13 +57,24 @@ const rowTitles = (p: Page) => dropdown(p).locator('.text-neutral-200.truncate')
 
 async function openSwitcher(p: Page) {
   await p.getByTitle('Switch chat').click();
-  // reloadSessions() re-sorts rows async; give it a beat to settle
-  await p.waitForTimeout(600);
+  await expect(dropdown(p)).toBeVisible();
+  // The dropdown first renders from stale state, then reloadSessions() re-sorts
+  // it async; wait until two consecutive reads of the rows agree.
+  let prev = '';
+  await expect
+    .poll(async () => {
+      const cur = JSON.stringify(await rowTitles(p).allTextContents());
+      const stable = cur !== '[]' && cur === prev;
+      prev = cur;
+      return stable;
+    })
+    .toBe(true);
 }
 
 async function closeSwitcher(p: Page) {
-  await p.locator('.fixed.inset-0.z-10').click({ position: { x: 5, y: 400 } });
-  await p.waitForTimeout(200);
+  const overlay = p.locator('.fixed.inset-0.z-10');
+  await overlay.click({ position: { x: 5, y: 400 } });
+  await overlay.waitFor({ state: 'detached' });
 }
 
 test.beforeAll(async () => {
@@ -81,10 +92,10 @@ test.beforeAll(async () => {
   app = await launchApp({ dataDir });
   const first = await app.firstWindow();
   await first.waitForLoadState('domcontentloaded');
-  await first.waitForTimeout(4000);
+  await first.waitForFunction(() => Boolean((window as any).clawster?.openAssistant));
   await first.evaluate(() => (window as any).clawster.openAssistant());
   assistant = await findWindow(app, 'assistant');
-  await assistant.waitForTimeout(2500);
+  await assistant.getByTitle('Switch chat').waitFor({ state: 'visible' });
 });
 
 test.afterAll(async () => {
@@ -97,6 +108,8 @@ test('opening the app does not bump the active session (initial redundant save)'
   await expect(assistant.getByTitle('Switch chat').locator('span').first()).toHaveText(
     'Tell me a joke about lobsters',
   );
+  // History rendered means the mount-time save effect has already fired.
+  await expect(assistant.getByText('shellfish')).toBeVisible();
   const b = readSessions().find((s) => s.id === 'sess-b')!;
   expect(b.updatedAt).toBe(B_UPDATED);
 
@@ -111,10 +124,13 @@ test('opening the app does not bump the active session (initial redundant save)'
 test('switching to an older session does not reorder the list or bump updatedAt', async () => {
   // Click session A in the open dropdown → switch fires the redundant save.
   await dropdown(assistant).getByText('How do I care for a hermit crab?').click();
-  await assistant.waitForTimeout(1200);
+  // The switcher closes once the switch completes.
+  await assistant.locator('.fixed.inset-0.z-10').waitFor({ state: 'detached' });
   await expect(assistant.getByTitle('Switch chat').locator('span').first()).toHaveText(
     'How do I care for a hermit crab?',
   );
+  // Session A's history rendered means the redundant post-switch save has fired.
+  await expect(assistant.getByText('tank humid and cozy')).toBeVisible();
 
   // Re-view it once more for good measure (second redundant save).
   await openSwitcher(assistant);
@@ -141,7 +157,6 @@ test('a real new message still moves the session to the top', async () => {
     ),
   );
   expect(ok).toBe(true);
-  await assistant.waitForTimeout(500);
 
   await openSwitcher(assistant);
   await expect(rowTitles(assistant)).toHaveText([
