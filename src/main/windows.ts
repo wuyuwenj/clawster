@@ -250,7 +250,6 @@ export function showPetChat(message: { id: string; text: string; quickReplies?: 
       if (!pendingPetChatReveal || !petChatWindow || petChatWindow.isDestroyed()) return;
       petChatWindow.setOpacity(1);
       petChatWindow.showInactive();
-      sendPetUiVisibility();
       pendingPetChatReveal = false;
       petChatRevealTimeout = null;
     }, 250);
@@ -305,7 +304,6 @@ export function showPetChat(message: { id: string; text: string; quickReplies?: 
     petChatWindow.once('ready-to-show', () => {
       petChatWindow?.setOpacity(0);
       petChatWindow?.showInactive();
-      sendPetUiVisibility();
       petChatWindow?.webContents.send('chat-message', message);
       scheduleFallbackReveal();
       schedulePetChatAutoHide();
@@ -315,7 +313,6 @@ export function showPetChat(message: { id: string; text: string; quickReplies?: 
     petChatWindow.setOpacity(0);
     if (!petChatWindow.isVisible()) {
       petChatWindow.showInactive();
-      sendPetUiVisibility();
     }
     petChatWindow.webContents.send('chat-message', message);
     scheduleFallbackReveal();
@@ -367,7 +364,6 @@ export function resizePetChatToContent(width: number, height: number) {
     }
     petChatWindow.setOpacity(1);
     petChatWindow.showInactive();
-    sendPetUiVisibility();
     pendingPetChatReveal = false;
   }
 }

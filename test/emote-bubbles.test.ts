@@ -49,6 +49,16 @@ describe('pickEmoteMessage (CLA-13)', () => {
     expect(pickEmoteMessage({ kind: 'mood', mood: 'excited' }, () => 0.99)).toBe('Wheee!');
   });
 
+  it('returns wake phrases when waking from sleep', () => {
+    expect(pickEmoteMessage({ kind: 'wake' }, () => 0)).toBe('!');
+    expect(pickEmoteMessage({ kind: 'wake' }, () => 0.99)).toBe('*yawn*');
+  });
+
+  it('returns drag phrases when the lobster is dragged', () => {
+    expect(pickEmoteMessage({ kind: 'drag' }, () => 0)).toBe('Wheee!');
+    expect(pickEmoteMessage({ kind: 'drag' }, () => 0.99)).toBe('!');
+  });
+
   it('returns null for moods and behaviors with no phrases', () => {
     expect(pickEmoteMessage({ kind: 'mood', mood: 'thinking' }, () => 0)).toBeNull();
     expect(pickEmoteMessage({ kind: 'mood', mood: 'idle' }, () => 0)).toBeNull();
