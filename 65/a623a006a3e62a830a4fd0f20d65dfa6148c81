@@ -1,0 +1,22 @@
+e2e/cla46-reorder.spec.ts
+  s_9a05ecdc3f4284::t_8de49842651ec2 127-128,132-133
+  s_9a05ecdc3f4284::t_03f173332ac9e6 111-112
+  s_9a05ecdc3f4284::t_bba4cbacc425f6 60-71,75-77
+  s_9a05ecdc3f4284::t_9bad4ab5503b1a 95,98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "65a623a006a3e62a830a4fd0f20d65dfa6148c81",
+  "prompts": {},
+  "sessions": {
+    "s_9a05ecdc3f4284": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e60a3f2-87c3-4949-b4f6-ce2086fdcea5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
