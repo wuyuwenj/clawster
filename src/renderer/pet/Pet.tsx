@@ -310,7 +310,7 @@ export const Pet: React.FC = () => {
     // the chat". Consistent regardless of where the cursor is.
     const curiousAboutChatbar = mood === 'curious' && chatbarOpen;
     if (curiousAboutChatbar) {
-      setPupilOffset({ x: 0, y: -4 });
+      setPupilOffset({ x: 0, y: -2.5 });
       return;
     }
 

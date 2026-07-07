@@ -447,9 +447,10 @@
 }
 
 .lobster-container.state-snip .eye-open {
-  /* Big, wide, alert eyes held open — the strongest read. */
+  /* Eyes open a touch wider — alert, but natural and cute, not bug-eyed. The
+   * lean, raised claws, "oh" mouth and upward gaze carry the "curious" read. */
   animation: none;
-  transform: scale(1.4);
+  transform: scale(1.12);
   transform-origin: 64px 56px;
 }
 
