@@ -13,6 +13,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# onnxruntime-node (a transitive dep of @huggingface/transformers) downloads the
+# CUDA EP binaries from nuget.org during `npm ci` on Linux. That fetch is flaky in
+# CI (ETIMEDOUT) and isn't needed — the CPU binaries are bundled and CI has no GPU.
+# Skip it so `npm ci` is deterministic.
+env:
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   test:
     name: test
