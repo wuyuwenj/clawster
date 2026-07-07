@@ -160,6 +160,20 @@ describe('withMessages on unchanged messages (CLA-46)', () => {
     expect(out.updatedAt).toBe(200);
     expect(out.messages[0].content).toBe('hello edited');
   });
+
+  // Guard must compare messages by their FULL contents, not a fixed allowlist of
+  // id/role/content/timestamp. If ChatMessage ever gains a field, a save that
+  // changes only that field must still persist — else it's silent data loss.
+  it('still bumps when only a field outside id/role/content/timestamp changes', () => {
+    // simulate a future ChatMessage field (e.g. attachments/tool-call metadata)
+    const base = { ...msg('assistant', 'here you go'), reactions: [] as string[] };
+    const s: ChatSession = { ...session('a', 100), title: 'here you go', messages: [base] };
+    const changed = [{ ...base, reactions: ['👍'] }];
+    const out = withMessages(s, changed as unknown as ChatMessage[], 200);
+    expect(out).not.toBe(s);
+    expect(out.updatedAt).toBe(200);
+    expect((out.messages[0] as unknown as { reactions: string[] }).reactions).toEqual(['👍']);
+  });
 });
 
 describe('toMeta / newSession', () => {
