@@ -41,6 +41,30 @@ export function computePetChatMaxHeight(petY: number, areaY: number, areaHeight:
   const ceiling = Math.round(areaHeight * 0.8);
   return Math.max(PET_CHAT_MAX_HEIGHT, Math.min(spaceAbovePet, ceiling));
 }
+// The persisted pet.position can be absent (first run), null, or malformed —
+// a partial/NaN object from a corrupt write or a legacy migration. Feeding a
+// non-finite x/y into BrowserWindow makes getPosition() return non-finite values
+// later, which crashes the move animation via win.setPosition (CLA-56). Fall back
+// to the default bottom-right corner whenever the saved value is not two finite
+// numbers, so a poisoned store can never propagate into window geometry.
+export function resolvePetStartPosition(
+  saved: unknown,
+  screenWidth: number,
+  screenHeight: number,
+  petWidth: number,
+  petHeight: number,
+): { x: number; y: number } {
+  if (
+    saved !== null &&
+    typeof saved === 'object' &&
+    Number.isFinite((saved as { x?: unknown }).x) &&
+    Number.isFinite((saved as { y?: unknown }).y)
+  ) {
+    return { x: (saved as { x: number }).x, y: (saved as { y: number }).y };
+  }
+  return { x: screenWidth - petWidth - 20, y: screenHeight - petHeight - 20 };
+}
+
 const ASSISTANT_VERTICAL_GAP = -3;
 const PET_CONTEXT_MENU_WIDTH = 220;
 const PET_CONTEXT_MENU_HEIGHT = 342;
@@ -157,8 +181,13 @@ export function createPetWindow() {
   const petWindowHeight = PET_WINDOW_HEIGHT;
 
   const savedPosition = store.get('pet.position') as { x: number; y: number } | null;
-  const startX = savedPosition ? savedPosition.x : screenWidth - petWindowWidth - 20;
-  const startY = savedPosition ? savedPosition.y : screenHeight - petWindowHeight - 20;
+  const { x: startX, y: startY } = resolvePetStartPosition(
+    savedPosition,
+    screenWidth,
+    screenHeight,
+    petWindowWidth,
+    petWindowHeight,
+  );
 
   petWindow = new BrowserWindow({
     width: petWindowWidth,

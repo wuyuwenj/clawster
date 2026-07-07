@@ -49,6 +49,7 @@ User message
 - The proxy is a separate Cloudflare Worker in `proxy/` with its own `package.json`
 - HMAC authentication links the client and proxy (shared secret)
 - Local model requires Ollama running at `localhost:11434`
+- Electron's native `win.setPosition(x, y)` throws a hard `TypeError` on a non-finite arg. Any code that computes a window position (movement in `pet-behaviors.ts`, drag in `main.ts`, window creation in `windows.ts`) must validate coords with `Number.isFinite` before calling `setPosition` or persisting `pet.position` — a NaN saved to the store poisons the next launch's window geometry (CLA-56)
 
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)

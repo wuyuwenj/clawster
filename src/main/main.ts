@@ -1161,10 +1161,15 @@ function setupIPC() {
       const [x, y] = petWindow.getPosition();
       const newX = x + deltaX;
       const newY = y + deltaY;
-      petWindow.setPosition(newX, newY);
-      store.set('pet.position', { x: newX, y: newY });
-      updatePetChatPosition();
-      updateAssistantPosition();
+      // Never hand a non-finite position to the native setPosition (it throws) or
+      // persist it — a poisoned pet.position would crash the move animation on the
+      // next launch (CLA-56).
+      if (Number.isFinite(newX) && Number.isFinite(newY)) {
+        petWindow.setPosition(newX, newY);
+        store.set('pet.position', { x: newX, y: newY });
+        updatePetChatPosition();
+        updateAssistantPosition();
+      }
       getPetContextMenuWindow()?.hide();
       resetInteractionTimer();
     }

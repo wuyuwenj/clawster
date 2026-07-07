@@ -40,6 +40,13 @@ const IDLE_BEHAVIORS: { type: IdleBehavior; weight: number }[] = [
 
 const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
 
+// Electron's native win.setPosition throws a hard TypeError ("conversion failure
+// from") on a NaN/Infinity argument. Inside the move-animation timer that surfaces
+// as an uncaught-exception dialog — unacceptable in a kids' app (CLA-56). Any
+// non-finite coordinate (corrupt persisted position, display-reconfig / wake-from-
+// sleep bounds math, getPosition timing) is unusable, so treat it as a hard stop.
+export const areFiniteCoords = (...vals: number[]): boolean => vals.every(Number.isFinite);
+
 // Dependencies injected from main
 let _rawGetPetWindow: () => BrowserWindow | null = () => null;
 function getPetWindow(): BrowserWindow | null {
@@ -76,6 +83,16 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     if (moveAnimation) clearInterval(moveAnimation);
 
     const [startX, startY] = getPetWindow()?.getPosition() ?? [0, 0];
+
+    // Guard the sink: a non-finite start or target makes every Math.round below
+    // yield NaN, and win.setPosition then throws from inside the timer (CLA-56).
+    // Refuse to start rather than crash the main process.
+    if (!areFiniteCoords(startX, startY, targetX, targetY)) {
+      console.warn('[animateMoveTo] Refusing to move: non-finite coordinates', { startX, startY, targetX, targetY });
+      resolve();
+      return;
+    }
+
     const startTime = Date.now();
 
     // Notify renderer that movement started
@@ -96,6 +113,17 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
 
       const currentX = Math.round(startX + (targetX - startX) * eased);
       const currentY = Math.round(startY + (targetY - startY) * eased);
+
+      // Belt-and-suspenders: state can still mutate mid-flight (display reconfig,
+      // getPosition timing). Never let a tick hand NaN to the native setPosition.
+      if (!areFiniteCoords(currentX, currentY)) {
+        console.warn('[animateMoveTo] Aborting move: computed non-finite position', { currentX, currentY });
+        clearInterval(moveAnimation!);
+        moveAnimation = null;
+        getPetWindow()?.webContents.send('pet-moving', { moving: false });
+        resolve();
+        return;
+      }
 
       win.setPosition(currentX, currentY);
       updatePetChatPositionFn();
