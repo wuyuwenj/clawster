@@ -1,0 +1,30 @@
+test/pet-movement-crash.test.ts
+  s_6bc9795e5a68b5::t_0345e713bd4c83 1-139
+src/main/pet-behaviors.ts
+  s_6bc9795e5a68b5::t_ad5ce1314b5a04 86-95,117-126
+  s_6bc9795e5a68b5::t_93e8b612c44175 43-49
+  s_6bc9795e5a68b5::t_b668f56c8e3eb9 127
+AGENTS.md
+  s_6bc9795e5a68b5::t_34a6d28720e3bd 52
+src/main/main.ts
+  s_6bc9795e5a68b5::t_24f3561fa70bfa 1164-1172
+src/main/windows.ts
+  s_6bc9795e5a68b5::t_eb623afef99ec2 44-67
+  s_6bc9795e5a68b5::t_474db3cfe9837a 184-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f601ffca489946150e4884674244c38f927a09b5",
+  "prompts": {},
+  "sessions": {
+    "s_6bc9795e5a68b5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b565390f-d60c-4ae1-9cae-3b0b33623859",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
