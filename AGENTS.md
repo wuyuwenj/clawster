@@ -58,6 +58,7 @@ User message
 
 ### Build & Release
 - `npm run dist:mac` — Build + notarize for macOS
+- `npm run build:icons` regenerates app icons (`assets/icon.svg`) and tray icons (`assets/tray-icon.svg`). `tray-icon.svg` is a macOS menu-bar template image: pure black + alpha only, drawn pixel-aligned on a 16-unit grid with every negative-space feature (eyes, mouth, gaps) ≥2 units — smaller features anti-alias away at 16×16 and the glyph becomes a blob
 - Tag `vX.Y.Z` and push to trigger CI release via GitHub Actions
 - Auto-update via `electron-updater` checks GitHub Releases
 

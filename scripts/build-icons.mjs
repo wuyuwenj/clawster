@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const assetsDir = path.join(__dirname, '..', 'assets');
 const svgPath = path.join(assetsDir, 'icon.svg');
+const traySvgPath = path.join(assetsDir, 'tray-icon.svg');
 
 // Sizes needed for various platforms
 const sizes = [16, 32, 48, 64, 128, 256, 512, 1024];
@@ -36,6 +37,19 @@ async function buildIcons() {
     .png()
     .toFile(path.join(assetsDir, 'icon.png'));
   console.log('  Created icon.png (512x512)');
+
+  // Tray icons (macOS menu bar template image, 16x16 + @2x)
+  const traySvgBuffer = fs.readFileSync(traySvgPath);
+  await sharp(traySvgBuffer)
+    .resize(16, 16)
+    .png()
+    .toFile(path.join(assetsDir, 'tray-icon.png'));
+  console.log('  Created tray-icon.png (16x16)');
+  await sharp(traySvgBuffer, { density: 144 })
+    .resize(32, 32)
+    .png()
+    .toFile(path.join(assetsDir, 'tray-icon@2x.png'));
+  console.log('  Created tray-icon@2x.png (32x32)');
 
   console.log('\nPNG icons created successfully!');
   console.log('\nTo create .icns (macOS) and .ico (Windows):');
