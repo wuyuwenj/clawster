@@ -1,0 +1,21 @@
+src/renderer/pet/Pet.tsx
+  s_bcf93aaa24adb0::t_1477ee12686300 313
+src/renderer/pet/styles.css
+  s_bcf93aaa24adb0::t_b378aeb06b967d 450-451,453
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6186cf87ffb23fac8ef7d7195001906ea3badc9b",
+  "prompts": {},
+  "sessions": {
+    "s_bcf93aaa24adb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e7b7a7d-33ba-4cb8-93eb-de9d6449f78c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
