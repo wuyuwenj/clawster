@@ -256,26 +256,32 @@ describe('chatbarMoodTransition (CLA-27)', () => {
 // is open — covers emotion-engine pushes, the wake sequence's delayed idle,
 // and chat dismiss, not just the renderer's timed reverts.
 describe('applyChatbarCuriousHold (CLA-27)', () => {
-  it('maps idle to curious while the chatbar is open and the pet is awake', () => {
-    expect(applyChatbarCuriousHold('idle', true, false)).toBe('curious');
+  it('maps idle to curious while the chatbar is open', () => {
+    expect(applyChatbarCuriousHold('idle', true)).toBe('curious');
   });
 
   it('lands on idle as usual when the chatbar is closed', () => {
-    expect(applyChatbarCuriousHold('idle', false, false)).toBe('idle');
+    expect(applyChatbarCuriousHold('idle', false)).toBe('idle');
   });
 
   it('leaves non-idle moods untouched even while the chatbar is open', () => {
-    expect(applyChatbarCuriousHold('happy', true, false)).toBe('happy');
-    expect(applyChatbarCuriousHold('startle', true, false)).toBe('startle');
-    expect(applyChatbarCuriousHold('curious', true, false)).toBe('curious');
+    expect(applyChatbarCuriousHold('happy', true)).toBe('happy');
+    expect(applyChatbarCuriousHold('startle', true)).toBe('startle');
+    expect(applyChatbarCuriousHold('curious', true)).toBe('curious');
   });
 
-  it('never rewrites sleep moods', () => {
-    expect(applyChatbarCuriousHold('sleeping', true, false)).toBe('sleeping');
-    expect(applyChatbarCuriousHold('doze', true, false)).toBe('doze');
+  it('never rewrites sleep moods — sleep is never disturbed', () => {
+    // 'sleeping'/'doze' are not idle, so they pass through even with the
+    // chatbar open; the pet stays asleep.
+    expect(applyChatbarCuriousHold('sleeping', true)).toBe('sleeping');
+    expect(applyChatbarCuriousHold('doze', true)).toBe('doze');
   });
 
-  it('does not hold curious for a sleep-locked pet', () => {
-    expect(applyChatbarCuriousHold('idle', true, true)).toBe('idle');
+  it('holds curious when a clawbot idle push wakes the pet with the chatbar open', () => {
+    // The sleep-lock edge (Pet.tsx setPetMood): an 'idle' push arriving while
+    // the pet is still sleep-locked is itself a wake transition. It lands on
+    // curious (not idle) so the chatbar-open read is consistent — the pet wakes
+    // the same either way, only the visible mood differs.
+    expect(applyChatbarCuriousHold('idle', true)).toBe('curious');
   });
 });

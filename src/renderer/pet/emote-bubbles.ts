@@ -119,13 +119,18 @@ export function chatbarMoodTransition(
 // CLA-27: while the chatbar is open, an awake pet holds curious — any mood
 // transition that would land on idle lands on curious instead, regardless of
 // which path (timed revert, emotion engine, wake sequence, chat dismiss)
-// requested it. Sleep is never disturbed: a sleep-locked pet keeps its
-// requested mood untouched.
+// requested it.
+//
+// This does NOT disturb sleep. Sleep moods ('sleeping'/'doze') are never idle,
+// so they pass through untouched. The one case that reaches here while the pet
+// is still sleep-locked is a clawbot 'idle' push — and 'idle' is itself a wake
+// transition (it clears the sleep lock in setPetMood). Whether it lands on
+// 'idle' or 'curious', the pet wakes exactly the same; only the visible mood
+// differs, so honoring the chatbar hold here changes no sleep behavior.
 export function applyChatbarCuriousHold(
   nextMood: string,
-  chatbarOpen: boolean,
-  sleepLocked: boolean
+  chatbarOpen: boolean
 ): string {
-  if (nextMood === 'idle' && chatbarOpen && !sleepLocked) return 'curious';
+  if (nextMood === 'idle' && chatbarOpen) return 'curious';
   return nextMood;
 }

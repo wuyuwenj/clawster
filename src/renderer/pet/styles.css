@@ -432,13 +432,31 @@
   animation: drip 1.5s infinite;
 }
 
-/* SNIP STATE (curious) */
-.lobster-container.state-snip .right-claw {
-  animation: snip 0.3s ease-in-out infinite;
+/* SNIP STATE (curious) — the "noticed you" look when the chatbar opens (CLA-27).
+   Bubbles are suppressed while chat is open, so the sprite is the only cue: it
+   must read clearly vs idle at a glance. A gentle head tilt, alert widened eyes
+   held open, and a perked claw say "the lobster looked over and is paying
+   attention" — kept calm and cute for the 10–14 audience. The pupils are driven
+   toward the chat by the tracking-cursor gaze (see Pet.tsx). */
+.lobster-container.state-snip .body-group {
+  animation: curiousTilt 2.4s ease-in-out infinite;
 }
 
-.lobster-container.state-snip .body-group {
+.lobster-container.state-snip .eye-open {
+  /* Widen and hold the eyes open (alert), overriding the idle blink. */
   animation: none;
+  transform: scale(1.16);
+  transform-origin: 64px 55px;
+}
+
+.lobster-container.state-snip .left-claw {
+  /* Perk the left claw up — attentive, like an ear pricking up. */
+  transform: translateY(-7px) rotate(-14deg);
+}
+
+.lobster-container.state-snip .right-claw {
+  /* A slow, calm snip rather than a busy jitter. */
+  animation: snip 0.6s ease-in-out infinite;
 }
 
 /* WALKING STATE - when pet is moving */
@@ -544,6 +562,18 @@
   }
   50% {
     transform: rotate(-25deg) scale(1.1);
+  }
+}
+
+/* CLA-27: a gentle, curious head tilt — the lobster leans in to look at the
+   chatbar. Slow and small so it reads as calm interest, not a wobble. */
+@keyframes curiousTilt {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(7deg);
   }
 }
 

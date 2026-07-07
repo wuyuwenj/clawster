@@ -240,8 +240,7 @@ export const Pet: React.FC = () => {
   const setPetMood = useCallback((requestedMood: Mood) => {
     const nextMood = applyChatbarCuriousHold(
       requestedMood,
-      uiVisibilityRef.current.chatbarOpen,
-      sleepLockedRef.current
+      uiVisibilityRef.current.chatbarOpen
     ) as Mood;
     const sleeping = isSleepMood(nextMood);
     sleepLockedRef.current = sleeping;
@@ -301,16 +300,28 @@ export const Pet: React.FC = () => {
   // Cursor tracking for pupils
   useEffect(() => {
     const TRACKING_RANGE = 300;
-    const MAX_OFFSET = 3;
+    const IDLE_MAX_OFFSET = 3;
+    // CLA-27: while curious about the open chatbar, the gaze is pushed further
+    // so it reads clearly as "looking at the chat" rather than a subtle drift.
+    // Kept just under the eye radius so the pupil stays inside the eye.
+    const CURIOUS_MAX_OFFSET = 5;
     const POLL_MS = 100;
     const PET_SIZE = 120;
 
+    // The chatbar sits in the upper third of the screen; when curious with no
+    // cursor to lock onto, hold a clear upward gaze toward it so the "noticed
+    // you" read never drops out.
+    const curiousAboutChatbar = mood === 'curious' && chatbarOpen;
+    const curiousDefaultGaze = { x: 0, y: -CURIOUS_MAX_OFFSET };
+
     const interval = setInterval(async () => {
       // Track when idle, or while curious about the open chatbar (CLA-27)
-      if (mood !== 'idle' && !(mood === 'curious' && chatbarOpen)) {
+      if (mood !== 'idle' && !curiousAboutChatbar) {
         setPupilOffset(null);
         return;
       }
+
+      const maxOffset = curiousAboutChatbar ? CURIOUS_MAX_OFFSET : IDLE_MAX_OFFSET;
 
       try {
         const [cursor, petPos] = await Promise.all([
@@ -329,15 +340,15 @@ export const Pet: React.FC = () => {
           const nx = dx / distance;
           const ny = dy / distance;
           setPupilOffset({
-            x: Math.round(nx * MAX_OFFSET * 10) / 10,
-            y: Math.round(ny * MAX_OFFSET * 10) / 10,
+            x: Math.round(nx * maxOffset * 10) / 10,
+            y: Math.round(ny * maxOffset * 10) / 10,
           });
         } else {
-          setPupilOffset(null);
+          setPupilOffset(curiousAboutChatbar ? curiousDefaultGaze : null);
         }
       } catch {
-        // IPC failure — fall back to idle animation
-        setPupilOffset(null);
+        // IPC failure — hold the curious gaze, else fall back to idle animation
+        setPupilOffset(curiousAboutChatbar ? curiousDefaultGaze : null);
       }
     }, POLL_MS);
 
