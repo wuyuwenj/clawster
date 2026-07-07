@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-25 | Updated: 2026-07-04 -->
+<!-- Generated: 2026-06-25 | Updated: 2026-07-06 -->
 
 # Clawster
 
@@ -33,6 +33,7 @@ AI desktop pet for macOS — an animated lobster that lives on your screen, watc
 | `personality/` | Default personality files (IDENTITY.md, SOUL.md) and presets |
 | `scripts/` | Build helper scripts (icon builder, speech helper) |
 | `.github/workflows/` | CI: `ci.yml` (test + safety checks for staging), `release.yml` (build + notarize), `update-landing.yml` |
+| `.no-mistakes/evidence/` | Committed E2E evidence screenshots for PR review, grouped per issue (e.g. `cla50/`) |
 
 ## For AI Agents
 
@@ -66,6 +67,7 @@ User message
 - Unit tests that route through `executeTool` (e.g. via `ChatRouter.chat`) must also `vi.mock('child_process')` — otherwise `tool-executor.ts` runs real `osascript` against macOS apps, which can stall under parallel test load (see `test/quick-replies.test.ts`)
 - Integration tests (`test/e2e-*.test.ts`) need Ollama running — they skip gracefully if unavailable
 - E2E tests use `CLAWSTER_DATA_DIR` env var to isolate test data from real user data
+- E2E specs save screenshots when the `EVIDENCE_DIR` env var is set (skipped otherwise) — evidence for PR review is committed under `.no-mistakes/evidence/`
 
 ### Model Conversion Pipeline
 When fine-tuning a new local model:
