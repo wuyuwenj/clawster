@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_3ec7a72fb02636::t_7958e0d36f6d49 16-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0b352622c6779f5315ee678ce6122cdd9e48eba5",
+  "prompts": {},
+  "sessions": {
+    "s_3ec7a72fb02636": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24ad43a8-fc89-4541-8a4e-180518f61681",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
