@@ -1,0 +1,43 @@
+src/renderer/pet/Pet.tsx
+  s_bcf93aaa24adb0::t_35147f5f4ff375 243
+  s_bcf93aaa24adb0::t_f7d7dc7f960798 306-307
+  s_bcf93aaa24adb0::t_683cc791b43b7d 303-305,303,311-316,314,316,319,324-325,343-344,347,350-351
+src/renderer/pet/styles.css
+  s_bcf93aaa24adb0::t_a9f32387fa92c2 435-442,441,445-446,445,448-459,452,455-457
+  s_bcf93aaa24adb0::t_639d5e4a030029 568-579,570,577-579
+  s_bcf93aaa24adb0::t_486863dca23d0d 450-451
+  s_bcf93aaa24adb0::t_c1f46e239de6d6 571-572,574-575
+src/renderer/pet/emote-bubbles.ts
+  s_bcf93aaa24adb0::t_bf3f317c7c03f4 122-129,132,134
+e2e/chatbar-curious.spec.ts
+  s_bcf93aaa24adb0::t_c34332c8df4387 1-7,2,3-7,15-16,18-37,18-32,35-37,39-46,39-45,49-55,52-55,58,60-62,66-69,72-73
+  s_bcf93aaa24adb0::t_2d81dc27839b07 8-14,9-14,17,38,47-48,56-57,59,63-65,64-65,70-71
+  s_bcf93aaa24adb0::t_a6b61cc07fe25a 33,51
+  s_8c27d2f9197133::t_548ef8b40311a1 34
+test/emote-bubbles.test.ts
+  s_bcf93aaa24adb0::t_3f59689885bc40 259-260,264,268-270,273-277,280-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "73974539ef0163c024b74c6743ce720296ad282b",
+  "prompts": {},
+  "sessions": {
+    "s_8c27d2f9197133": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b90c5488-4ef9-4e23-818a-a6248bd81123",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_bcf93aaa24adb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e7b7a7d-33ba-4cb8-93eb-de9d6449f78c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
