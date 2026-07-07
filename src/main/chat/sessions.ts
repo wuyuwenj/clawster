@@ -81,12 +81,46 @@ export function capSessions(sessions: ChatSession[], max = MAX_SESSIONS): ChatSe
   return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
 }
 
-/** Replace a session's messages, refreshing its title (if still default) and updatedAt. */
+/**
+ * Structural deep equality. Used to compare messages by their full contents so
+ * the redundant-save guard stays correct if `ChatMessage` ever gains a field
+ * (attachments, tool-call metadata, …): a save that changes only a new field is
+ * no longer seen as "unchanged" and silently dropped. Key order is irrelevant.
+ */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => deepEqual(v, b[i]));
+  }
+  const ak = Object.keys(a as Record<string, unknown>);
+  const bk = Object.keys(b as Record<string, unknown>);
+  if (ak.length !== bk.length) return false;
+  return ak.every(
+    (k) =>
+      Object.prototype.hasOwnProperty.call(b, k) &&
+      deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
+  );
+}
+
+function sameMessages(a: ChatMessage[], b: ChatMessage[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((m, i) => deepEqual(m, b[i]));
+}
+
+/**
+ * Replace a session's messages, refreshing its title (if still default) and
+ * updatedAt. A save with content-identical messages (e.g. the redundant save
+ * fired on viewing/switching sessions, CLA-46) returns the session unchanged
+ * so updatedAt doesn't bump and the session list doesn't reorder.
+ */
 export function withMessages(
   session: ChatSession,
   messages: ChatMessage[],
   now: number,
 ): ChatSession {
+  if (sameMessages(session.messages, messages)) return session;
   const title =
     session.title === 'New chat' || session.title === ''
       ? deriveTitle(messages)

@@ -117,6 +117,65 @@ describe('withMessages', () => {
   });
 });
 
+// CLA-46: viewing/switching to a session fires a redundant save with identical
+// messages; that must not bump updatedAt or reorder the session list.
+describe('withMessages on unchanged messages (CLA-46)', () => {
+  const listOrder = (sessions: ChatSession[]) =>
+    [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).map((s) => s.id);
+
+  it('does not bump updatedAt when messages are content-identical', () => {
+    const messages = [msg('user', 'hello'), msg('assistant', 'hi', 1)];
+    const s: ChatSession = { ...session('a', 100), title: 'hello', messages };
+    // clone the messages so equality is by content, not reference
+    const out = withMessages(s, messages.map((m) => ({ ...m })), 999);
+    expect(out).toBe(s);
+    expect(out.updatedAt).toBe(100);
+  });
+
+  it('keeps session order stable across switch/re-view saves, while a new message still reorders', () => {
+    const a: ChatSession = { ...session('a', 100), title: 'in a', messages: [msg('user', 'in a')] };
+    const b: ChatSession = { ...session('b', 200), title: 'in b', messages: [msg('user', 'in b')] };
+    let sessions = [a, b];
+    expect(listOrder(sessions)).toEqual(['b', 'a']);
+
+    // switching to "a" then re-viewing it re-saves the same messages
+    sessions = sessions.map((s) => (s.id === 'a' ? withMessages(s, a.messages, 300) : s));
+    sessions = sessions.map((s) => (s.id === 'a' ? withMessages(s, a.messages, 400) : s));
+    expect(listOrder(sessions)).toEqual(['b', 'a']);
+    expect(sessions.find((s) => s.id === 'a')!.updatedAt).toBe(100);
+
+    // appending an actual message bumps updatedAt and moves "a" to the top
+    sessions = sessions.map((s) =>
+      s.id === 'a' ? withMessages(s, [...a.messages, msg('assistant', 'reply', 2)], 500) : s,
+    );
+    expect(listOrder(sessions)).toEqual(['a', 'b']);
+    expect(sessions.find((s) => s.id === 'a')!.updatedAt).toBe(500);
+  });
+
+  it('still bumps when a message is edited in place (same ids, different content)', () => {
+    const messages = [msg('user', 'hello')];
+    const s: ChatSession = { ...session('a', 100), title: 'hello', messages };
+    const edited = [{ ...messages[0], content: 'hello edited' }];
+    const out = withMessages(s, edited, 200);
+    expect(out.updatedAt).toBe(200);
+    expect(out.messages[0].content).toBe('hello edited');
+  });
+
+  // Guard must compare messages by their FULL contents, not a fixed allowlist of
+  // id/role/content/timestamp. If ChatMessage ever gains a field, a save that
+  // changes only that field must still persist — else it's silent data loss.
+  it('still bumps when only a field outside id/role/content/timestamp changes', () => {
+    // simulate a future ChatMessage field (e.g. attachments/tool-call metadata)
+    const base = { ...msg('assistant', 'here you go'), reactions: [] as string[] };
+    const s: ChatSession = { ...session('a', 100), title: 'here you go', messages: [base] };
+    const changed = [{ ...base, reactions: ['👍'] }];
+    const out = withMessages(s, changed as unknown as ChatMessage[], 200);
+    expect(out).not.toBe(s);
+    expect(out.updatedAt).toBe(200);
+    expect((out.messages[0] as unknown as { reactions: string[] }).reactions).toEqual(['👍']);
+  });
+});
+
 describe('toMeta / newSession', () => {
   it('newSession starts empty with a default title', () => {
     const s = newSession(42, 'id1');
