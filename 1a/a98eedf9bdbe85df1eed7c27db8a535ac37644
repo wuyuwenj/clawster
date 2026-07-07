@@ -1,0 +1,24 @@
+scripts/build-icons.mjs
+  s_5fe6fa1e8a1afe::t_8532e62cd3aa7a 9
+  s_5fe6fa1e8a1afe::t_5368419b118f60 41-53
+assets/tray-icon.svg
+  s_5fe6fa1e8a1afe::t_5b770eb0c53a77 1,3-8,10-11,13-22,25-31
+AGENTS.md
+  s_5fe6fa1e8a1afe::t_9340b864a0a244 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1aa98eedf9bdbe85df1eed7c27db8a535ac37644",
+  "prompts": {},
+  "sessions": {
+    "s_5fe6fa1e8a1afe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1bb14778-0668-4581-b0f4-c8b97d866bc7",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
