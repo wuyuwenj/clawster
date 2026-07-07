@@ -1,0 +1,20 @@
+assets/tray-icon.svg
+  s_1f5937a94ac9ef::t_555e6cc43420b1 1-2,26
+  s_1f5937a94ac9ef::t_19a0e5a504201c 3-25,27-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c69b6c8e903dfb43c090b1b1e8c8a416dd0f70a0",
+  "prompts": {},
+  "sessions": {
+    "s_1f5937a94ac9ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3b70-4128-7070-80c9-6c17867c09e7",
+        "model": "gpt-5.5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
