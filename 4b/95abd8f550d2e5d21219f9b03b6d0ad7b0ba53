@@ -1,0 +1,28 @@
+src/renderer/utils/animalese.ts
+  s_d4f2b1cccd6ea6::t_773eb0d0d8de9e 133
+  s_d4f2b1cccd6ea6::t_46fa6dfdcaf908 59-65,102,110-122,165-177,192,226
+  s_d4f2b1cccd6ea6::t_5d71ac9d7a6930 123
+src/renderer/assistant/Assistant.tsx
+  s_d4f2b1cccd6ea6::t_55eda25897f68d 1102-1121
+src/main/store.ts
+  s_d4f2b1cccd6ea6::t_ca228b12cb2eac 40,86
+test/mute-toggle.test.ts
+  s_d4f2b1cccd6ea6::t_d3c12a7f574d1b 130
+  s_d4f2b1cccd6ea6::t_93f8394e8bdce2 1-129,131-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4b95abd8f550d2e5d21219f9b03b6d0ad7b0ba53",
+  "prompts": {},
+  "sessions": {
+    "s_d4f2b1cccd6ea6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3f45-313f-7ef1-b77d-f193f0905187",
+        "model": "gpt-5.5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
