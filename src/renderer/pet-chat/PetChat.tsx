@@ -12,6 +12,24 @@ interface ChatMessage {
 
 const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
 
+// Tidepool (CLA-58): quick replies are solid candy chips and the primary
+// reply must read as the "yes" button. Dismissive replies stay muted; the
+// first non-dismissive reply is primary (solid coral); the rest are
+// secondary. Exported for unit testing.
+export type ChipVariant = 'primary' | 'secondary' | 'muted';
+export function chipVariant(replies: string[], reply: string): ChipVariant {
+  const isDismissive = (r: string) => r === 'Not now';
+  if (isDismissive(reply)) return 'muted';
+  const firstAffirmative = replies.find((r) => !isDismissive(r));
+  return reply === firstAffirmative ? 'primary' : 'secondary';
+}
+
+const CHIP_CLASSES: Record<ChipVariant, string> = {
+  primary: 'bg-[var(--tp-coral)] text-[var(--tp-text-ink)]',
+  secondary: 'bg-[var(--tp-coral-tint)] text-[var(--tp-text-ink)]',
+  muted: 'bg-[var(--tp-shell-deep)] text-[var(--tp-driftwood)]',
+};
+
 // The pet-chat window is driven by the `chat-message` IPC. While a response is
 // still loading or streaming, the bubble holds the '...' placeholder that
 // ChatBar opens the popup with (see ChatBar submit flow), and the real text is
@@ -281,133 +299,151 @@ export const PetChat: React.FC = () => {
   const responseComplete = isResponseComplete({ isLoading, text: message.text });
 
   return (
-    <div className="w-full h-full flex items-end justify-center">
-      <div ref={contentRef} className="flex flex-col max-h-full pb-3">
-        <div
-          className="relative flex flex-col min-h-0 bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-none min-w-[200px] max-w-[300px] w-max overflow-hidden animate-popup-in"
-          onMouseEnter={notifyInteraction}
-          onMouseMove={notifyInteraction}
-          onMouseDown={notifyInteraction}
-          onTouchStart={notifyInteraction}
-          onWheel={notifyInteraction}
-        >
-          {/* Content */}
-          <div ref={scrollRef} className="p-3 min-h-0 overflow-y-auto">
-            {isLoading ? (
-              <div className="flex gap-1 justify-center py-2">
-                <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
-                <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
-                <span className="w-2 h-2 rounded-full bg-[#FF8C69] loading-dot"></span>
-              </div>
-            ) : (
-              <div className="text-sm text-neutral-200 leading-relaxed break-words select-text cursor-text">
-                <MarkdownMessage content={message.text} />
-              </div>
-            )}
-          </div>
+    <div className="w-full h-full flex items-end justify-center tp-surface">
+      {/* Bottom padding reserves room for the outlined tail + sticker shadow */}
+      <div ref={contentRef} className="flex flex-col max-h-full px-2 pt-1 pb-[26px]">
+        {/* Squash-and-stretch in from the pet — transform origin at the tail */}
+        <div className="relative flex flex-col min-h-0 animate-popup-in">
+          <div
+            data-tidepool="bubble"
+            className="tp-bubble relative flex flex-col min-h-0 min-w-[200px] max-w-[300px] w-max overflow-hidden"
+            onMouseEnter={notifyInteraction}
+            onMouseMove={notifyInteraction}
+            onMouseDown={notifyInteraction}
+            onTouchStart={notifyInteraction}
+            onWheel={notifyInteraction}
+          >
+            {/* Content — Clawster speaks in the rounded face */}
+            <div ref={scrollRef} className="p-3.5 pb-3 min-h-0 overflow-y-auto">
+              {isLoading ? (
+                <div className="flex gap-1 justify-center py-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--tp-coral)] loading-dot"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--tp-coral)] loading-dot"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--tp-coral)] loading-dot"></span>
+                </div>
+              ) : (
+                <div className="tp-font-round text-[15px] font-semibold leading-[1.55] text-[var(--tp-text-ink)] break-words select-text cursor-text">
+                  <MarkdownMessage content={message.text} />
+                </div>
+              )}
+            </div>
 
-          {/* Feedback + Quick Replies */}
-          {responseComplete && (
-            <div className="shrink-0 border-t border-white/5">
-              {/* Feedback thumbs */}
-              <div className="flex items-center justify-between px-3 pt-1.5 pb-1">
-                <div className="flex gap-1">
+            {/* Quick replies lead; feedback shrinks to a corner below them */}
+            {responseComplete && (
+              <div className="shrink-0 px-3 pb-2">
+                {/* Quick replies — solid candy chips, primary reads as "yes" */}
+                {message.quickReplies && !showFeedbackModal && (
+                  <div className="flex gap-2 pt-0.5 flex-wrap justify-center">
+                    {message.quickReplies.map((reply) => (
+                      <button
+                        key={reply}
+                        onClick={() => handleQuickReply(reply)}
+                        className={`tp-candy px-3.5 py-1.5 rounded-full text-[13px] tp-font-round font-bold ${
+                          CHIP_CLASSES[chipVariant(message.quickReplies!, reply)]
+                        }`}
+                      >
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Feedback modal */}
+                {showFeedbackModal && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[11px] tp-font-round font-bold text-[var(--tp-text-ink)]">What went wrong?</p>
+                    <div className="flex flex-col gap-1">
+                      {[
+                        ['wrong_tool', 'Wrong action'],
+                        ['bad_response', 'Bad response'],
+                        ['other', 'Other'],
+                      ].map(([val, label]) => (
+                        <label key={val} className="flex items-center gap-2 text-[11px] text-[var(--tp-text-ink)] cursor-pointer">
+                          <input
+                            type="radio"
+                            name="feedbackType"
+                            value={val}
+                            checked={feedbackType === val}
+                            onChange={() => setFeedbackType(val)}
+                            className="accent-[var(--tp-coral-deep)] w-3 h-3"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="What should it have done?"
+                      value={feedbackNote}
+                      onChange={(e) => setFeedbackNote(e.target.value)}
+                      className="w-full px-2 py-1 bg-[var(--tp-shell-deep)] border-2 border-[var(--tp-ink)] rounded-lg text-[11px] text-[var(--tp-text-ink)] placeholder:text-[var(--tp-driftwood)] outline-none focus:border-[var(--tp-teal)]"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={submitFeedback}
+                        className="tp-candy flex-1 px-2 py-1 bg-[var(--tp-coral)] rounded-lg text-[11px] tp-font-round font-bold text-[var(--tp-text-ink)]"
+                      >Send</button>
+                      <button
+                        onClick={() => setShowFeedbackModal(false)}
+                        className="tp-candy px-2 py-1 bg-[var(--tp-shell-deep)] rounded-lg text-[11px] tp-font-round font-bold text-[var(--tp-driftwood)]"
+                      >Cancel</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Feedback thumbs — desaturated corner, quieter than the chips */}
+                <div className="flex items-center justify-end gap-0.5 pt-1">
+                  {feedbackSent && (
+                    <span className="text-[11px] text-[var(--tp-driftwood)] mr-1">
+                      {feedbackSent === 'positive' ? 'Thanks!' : 'Sent to developer'}
+                    </span>
+                  )}
                   <button
                     onClick={() => handleFeedback('positive')}
                     disabled={!!feedbackSent}
-                    className={`p-1 rounded text-xs transition-all ${
+                    className={`p-0.5 rounded text-[11px] transition-all ${
                       feedbackSent === 'positive'
-                        ? 'text-green-400'
-                        : feedbackSent ? 'text-neutral-600 cursor-default'
-                        : 'text-neutral-500 hover:text-green-400 hover:bg-white/5'
+                        ? 'opacity-100'
+                        : feedbackSent ? 'grayscale opacity-30 cursor-default'
+                        : 'grayscale opacity-40 hover:grayscale-0 hover:opacity-100'
                     }`}
                     title="Good response"
                   >👍</button>
                   <button
                     onClick={() => handleFeedback('negative')}
                     disabled={!!feedbackSent}
-                    className={`p-1 rounded text-xs transition-all ${
+                    className={`p-0.5 rounded text-[11px] transition-all ${
                       feedbackSent === 'negative'
-                        ? 'text-red-400'
-                        : feedbackSent ? 'text-neutral-600 cursor-default'
-                        : 'text-neutral-500 hover:text-red-400 hover:bg-white/5'
+                        ? 'opacity-100'
+                        : feedbackSent ? 'grayscale opacity-30 cursor-default'
+                        : 'grayscale opacity-40 hover:grayscale-0 hover:opacity-100'
                     }`}
                     title="Wrong response"
                   >👎</button>
                 </div>
-                {feedbackSent && (
-                  <span className="text-[10px] text-neutral-500">
-                    {feedbackSent === 'positive' ? 'Thanks!' : 'Sent to developer'}
-                  </span>
-                )}
               </div>
+            )}
+          </div>
 
-              {/* Feedback modal */}
-              {showFeedbackModal && (
-                <div className="px-3 pb-2 space-y-2">
-                  <p className="text-[11px] text-neutral-400">What went wrong?</p>
-                  <div className="flex flex-col gap-1">
-                    {[
-                      ['wrong_tool', 'Wrong action'],
-                      ['bad_response', 'Bad response'],
-                      ['other', 'Other'],
-                    ].map(([val, label]) => (
-                      <label key={val} className="flex items-center gap-2 text-[11px] text-neutral-300 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="feedbackType"
-                          value={val}
-                          checked={feedbackType === val}
-                          onChange={() => setFeedbackType(val)}
-                          className="accent-[#FF8C69] w-3 h-3"
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="What should it have done?"
-                    value={feedbackNote}
-                    onChange={(e) => setFeedbackNote(e.target.value)}
-                    className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-[11px] text-neutral-200 placeholder-neutral-500 outline-none focus:border-[#FF8C69]/40"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={submitFeedback}
-                      className="flex-1 px-2 py-1 bg-[#FF8C69]/20 border border-[#FF8C69]/30 rounded text-[11px] text-[#FF8C69] hover:bg-[#FF8C69]/30"
-                    >Send</button>
-                    <button
-                      onClick={() => setShowFeedbackModal(false)}
-                      className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[11px] text-neutral-400 hover:bg-white/10"
-                    >Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Quick replies */}
-              {message.quickReplies && !showFeedbackModal && (
-                <div className="flex gap-2 px-3 pb-2 pt-1 flex-wrap justify-center">
-                  {message.quickReplies.map((reply) => (
-                    <button
-                      key={reply}
-                      onClick={() => handleQuickReply(reply)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                        reply === 'Not now'
-                          ? 'bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:text-neutral-300'
-                          : 'bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[#FF8C69] hover:bg-[#FF8C69]/20 hover:border-[#FF8C69]/40'
-                      }`}
-                    >
-                      {reply}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Arrow pointing down to Clawster */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-[#0f0f0f]" />
+          {/* Chunky outlined comic tail pointing down to Clawster. The open
+              path strokes only the two sides; its fill covers the bubble's
+              bottom border so bubble and tail read as one shape. */}
+          <svg
+            className="absolute left-1/2 -translate-x-1/2 -bottom-[13px] pointer-events-none"
+            width="36"
+            height="16"
+            viewBox="0 0 36 16"
+            aria-hidden="true"
+          >
+            <path
+              d="M 2 0 L 18 13.5 L 34 0"
+              fill="var(--tp-shell)"
+              stroke="var(--tp-ink)"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          </svg>
         </div>
       </div>
     </div>

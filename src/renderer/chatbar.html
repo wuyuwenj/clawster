@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link href="https://fonts.cdnfonts.com/css/satoshi" rel="stylesheet">
     <title>Clawster Chat</title>
     <style>
       * {
@@ -15,9 +14,12 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: transparent;
+        /* Opaque shell-cream mat: the chatbar window itself is opaque, so the
+           whole window must read as one warm Tidepool surface over any
+           wallpaper — never translucent, never near-black. */
+        background: #FFF9F2;
         user-select: none;
-        font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
     </style>
   </head>

@@ -28,6 +28,7 @@
     "eval:holdout": "npx tsx eval/runner.ts --holdout"
   },
   "dependencies": {
+    "@fontsource/nunito": "^5.2.7",
     "@huggingface/transformers": "^4.2.0",
     "@iconify/react": "^6.0.2",
     "active-win": "^8.1.0",
