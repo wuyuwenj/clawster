@@ -59,6 +59,11 @@ describe('pickEmoteMessage (CLA-13)', () => {
     expect(pickEmoteMessage({ kind: 'drag' }, () => 0.99)).toBe('!');
   });
 
+  it('returns irritation phrases for rapid repeated clicks', () => {
+    expect(pickEmoteMessage({ kind: 'irritation', level: 'mildly-annoyed' }, () => 0)).toBe('Hmph!');
+    expect(pickEmoteMessage({ kind: 'irritation', level: 'very-annoyed' }, () => 0)).toBe('Hey!');
+  });
+
   it('returns null for moods and behaviors with no phrases', () => {
     expect(pickEmoteMessage({ kind: 'mood', mood: 'thinking' }, () => 0)).toBeNull();
     expect(pickEmoteMessage({ kind: 'mood', mood: 'idle' }, () => 0)).toBeNull();
@@ -210,6 +215,17 @@ describe('shouldShowEmoteBubble rate limiting (CLA-13)', () => {
         lastBubbleAt: null,
         now: NOW,
         random: () => 0.99,
+      })
+    ).toBe(true);
+  });
+
+  it('lets direct irritation escalations through the generic rate limit', () => {
+    expect(
+      shouldShowEmoteBubble({
+        trigger: { kind: 'irritation', level: 'very-annoyed' },
+        suppression: noSuppression,
+        lastBubbleAt: NOW - 100,
+        now: NOW,
       })
     ).toBe(true);
   });

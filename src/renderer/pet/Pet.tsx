@@ -8,6 +8,20 @@ import {
   chatbarMoodTransition,
   applyChatbarCuriousHold,
 } from './emote-bubbles';
+import {
+  DragReactionVariant,
+  DragResistanceState,
+  pickDragReactionVariant,
+  startDragResistance,
+  updateDragResistance,
+} from './drag-interactions';
+import {
+  ClickIrritationState,
+  INITIAL_CLICK_IRRITATION_STATE,
+  IrritationEscalationLevel,
+  coolDownClickIrritation,
+  recordPetClick,
+} from './click-irritation';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'worried' | 'sad' | 'huff' | 'peek' | 'side-eye' | 'tap' | 'scoot';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
@@ -18,6 +32,12 @@ interface ChatMessage {
   content?: string;
   trigger?: 'app_switch' | 'idle' | 'proactive' | 'suggestion';
   quickReplies?: string[];
+}
+
+interface DragVisualState {
+  dragging: boolean;
+  resisting: boolean;
+  reaction: DragReactionVariant | null;
 }
 
 const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
@@ -206,6 +226,11 @@ const LobsterSvg: React.FC<LobsterSvgProps> = ({ pupilOffset, talkingMouth }) =>
     <g className="fx-sweat">
       <path d="M 35 35 Q 30 45 35 50 Q 40 45 35 35 Z" fill="#87CEFA" opacity="0.8" />
     </g>
+    <g className="fx-question">
+      <text x="92" y="42" fill="white" stroke="var(--dark-red)" strokeWidth="0.8" fontWeight="bold" fontSize="16">
+        ?
+      </text>
+    </g>
   </svg>
 );
 
@@ -222,9 +247,16 @@ export const Pet: React.FC = () => {
   const [talkingMouth, setTalkingMouth] = useState<string | null>(null);
   const [chatbarOpen, setChatbarOpen] = useState(false);
   const [emoteBubble, setEmoteBubble] = useState<{ id: number; text: string; durationMs: number } | null>(null);
+  const [dragVisual, setDragVisual] = useState<DragVisualState>({ dragging: false, resisting: false, reaction: null });
   const dragStart = useRef({ x: 0, y: 0 });
+  const dragInitialStart = useRef({ x: 0, y: 0, at: 0 });
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
+  const isWalkingRef = useRef(false);
+  const dragResistanceRef = useRef<DragResistanceState | null>(null);
+  const dragReactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clickIrritationRef = useRef<ClickIrritationState>(INITIAL_CLICK_IRRITATION_STATE);
+  const clickIrritationCooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraSnapEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -285,12 +317,46 @@ export const Pet: React.FC = () => {
     }, durationMs);
   }, []);
 
+  const startDragReaction = useCallback((variant: DragReactionVariant) => {
+    if (sleepLockedRef.current) return;
+    if (dragReactionTimeoutRef.current) {
+      clearTimeout(dragReactionTimeoutRef.current);
+    }
+
+    setDragVisual((current) => ({ ...current, reaction: variant }));
+    maybeShowEmoteBubble({ kind: 'drag' });
+
+    dragReactionTimeoutRef.current = setTimeout(() => {
+      setDragVisual((current) => ({ ...current, reaction: null }));
+    }, 650);
+  }, [maybeShowEmoteBubble]);
+
   // CLA-27: setPetMood maps this back to curious while the chatbar is open,
   // so the curious mood holds until the chatbar closes.
   const revertMoodAfterReaction = useCallback(() => {
     if (sleepLockedRef.current) return;
     setPetMood('idle');
   }, [setPetMood]);
+
+  const applyIrritationReaction = useCallback((level: IrritationEscalationLevel) => {
+    if (sleepLockedRef.current) return;
+    if (level === 'mildly-annoyed') {
+      setPetMood('huff');
+      maybeShowEmoteBubble({ kind: 'irritation', level });
+      setTimeout(revertMoodAfterReaction, 1300);
+      return;
+    }
+
+    setPetMood('mad');
+    maybeShowEmoteBubble({ kind: 'irritation', level });
+    setIdleBehavior('snip_claws');
+    setTimeout(() => {
+      if (!sleepLockedRef.current) {
+        setIdleBehavior(null);
+      }
+    }, 1000);
+    setTimeout(revertMoodAfterReaction, 1700);
+  }, [maybeShowEmoteBubble, revertMoodAfterReaction, setPetMood]);
 
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
     if (!sleepLockedRef.current) return true;
@@ -468,9 +534,11 @@ export const Pet: React.FC = () => {
     // Listen for pet movement events
     window.clawster.onPetMoving((data) => {
       if (sleepLockedRef.current) {
+        isWalkingRef.current = false;
         setIsWalking(false);
         return;
       }
+      isWalkingRef.current = data.moving;
       setIsWalking(data.moving);
     });
 
@@ -561,6 +629,12 @@ export const Pet: React.FC = () => {
       if (emoteBubbleTimeoutRef.current) {
         clearTimeout(emoteBubbleTimeoutRef.current);
       }
+      if (dragReactionTimeoutRef.current) {
+        clearTimeout(dragReactionTimeoutRef.current);
+      }
+      if (clickIrritationCooldownTimeoutRef.current) {
+        clearTimeout(clickIrritationCooldownTimeoutRef.current);
+      }
       if (cameraSnapEndTimeoutRef.current) {
         clearTimeout(cameraSnapEndTimeoutRef.current);
       }
@@ -581,38 +655,78 @@ export const Pet: React.FC = () => {
   // Handle dragging - use document-level events to track fast mouse movements
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    const now = Date.now();
     isDraggingRef.current = true;
     didDragRef.current = false;
+    setDragVisual({ dragging: true, resisting: isWalkingRef.current, reaction: null });
     dragStart.current = { x: e.screenX, y: e.screenY };
+    dragInitialStart.current = { x: e.screenX, y: e.screenY, at: now };
+    dragResistanceRef.current = startDragResistance({
+      movingAutonomously: isWalkingRef.current,
+      startX: e.screenX,
+      startY: e.screenY,
+      now,
+    });
 
     const handleDocumentMouseMove = (moveEvent: MouseEvent) => {
       if (!isDraggingRef.current) return;
 
       const deltaX = moveEvent.screenX - dragStart.current.x;
       const deltaY = moveEvent.screenY - dragStart.current.y;
+      const dragDistancePx = Math.hypot(
+        moveEvent.screenX - dragInitialStart.current.x,
+        moveEvent.screenY - dragInitialStart.current.y
+      );
+      const elapsedMs = Math.max(1, Date.now() - dragInitialStart.current.at);
 
       if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
         if (!didDragRef.current && !sleepLockedRef.current) {
-          maybeShowEmoteBubble({ kind: 'drag' });
+          const resistance = dragResistanceRef.current;
+          if (!resistance?.active) {
+            startDragReaction(pickDragReactionVariant({ dragDistancePx, elapsedMs }));
+          }
         }
         didDragRef.current = true;
       }
 
       if (didDragRef.current) {
-        window.clawster.dragPet(deltaX, deltaY);
+        const resistanceStep = dragResistanceRef.current
+          ? updateDragResistance(dragResistanceRef.current, {
+              currentX: moveEvent.screenX,
+              currentY: moveEvent.screenY,
+              now: Date.now(),
+            })
+          : null;
+        if (resistanceStep) {
+          dragResistanceRef.current = resistanceStep.state;
+          setDragVisual((current) => ({ ...current, resisting: resistanceStep.state.active && !resistanceStep.state.won }));
+          if (resistanceStep.wonNow && !sleepLockedRef.current) {
+            isWalkingRef.current = false;
+            setIsWalking(false);
+            startDragReaction(pickDragReactionVariant({
+              dragDistancePx: resistanceStep.displacementPx,
+              elapsedMs: Math.max(1, Date.now() - dragInitialStart.current.at),
+            }));
+          }
+        }
+
+        const responseScale = resistanceStep?.responseScale ?? 1;
+        window.clawster.dragPet(deltaX * responseScale, deltaY * responseScale);
         dragStart.current = { x: moveEvent.screenX, y: moveEvent.screenY };
       }
     };
 
     const handleDocumentMouseUp = () => {
       isDraggingRef.current = false;
+      dragResistanceRef.current = null;
+      setDragVisual({ dragging: false, resisting: false, reaction: null });
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
 
     document.addEventListener('mousemove', handleDocumentMouseMove);
     document.addEventListener('mouseup', handleDocumentMouseUp);
-  }, []);
+  }, [startDragReaction]);
 
   // Poke reactions - random animations when clicked
   const pokeReactions: Array<{ mood?: Mood; behavior?: IdleBehavior; duration: number }> = [
@@ -653,6 +767,21 @@ export const Pet: React.FC = () => {
       return;
     }
 
+    const irritation = recordPetClick(clickIrritationRef.current, Date.now());
+    clickIrritationRef.current = irritation.state;
+    if (clickIrritationCooldownTimeoutRef.current) {
+      clearTimeout(clickIrritationCooldownTimeoutRef.current);
+    }
+    clickIrritationCooldownTimeoutRef.current = setTimeout(() => {
+      clickIrritationRef.current = coolDownClickIrritation(clickIrritationRef.current, Date.now());
+    }, 10050);
+
+    if (irritation.changedTo) {
+      applyIrritationReaction(irritation.changedTo);
+      window.clawster.petClicked?.();
+      return;
+    }
+
     // Pick a random reaction
     const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
 
@@ -672,7 +801,7 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction]);
+  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction, applyIrritationReaction]);
 
   // Right click = open custom context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -708,7 +837,7 @@ export const Pet: React.FC = () => {
 
       {/* Animated Lobster Pet */}
       <div
-        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''} ${isSleepTransparent ? 'sleep-transparent' : ''} ${cameraSnapActive ? 'action-camera-snap' : ''}`}
+        className={`lobster-container ${moodToState(mood)} ${isWalking ? 'state-walking' : ''} ${idleBehavior ? `idle-${idleBehavior}` : ''} ${pupilOffset ? 'tracking-cursor' : ''} ${isSleepTransparent ? 'sleep-transparent' : ''} ${cameraSnapActive ? 'action-camera-snap' : ''} ${dragVisual.dragging ? 'state-dragging' : ''} ${dragVisual.resisting ? 'state-drag-resisting' : ''} ${dragVisual.reaction ? `drag-reaction-${dragVisual.reaction}` : ''}`}
       >
         <LobsterSvg pupilOffset={pupilOffset} talkingMouth={talkingMouth} />
         <div className="camera-prop" aria-hidden="true">
