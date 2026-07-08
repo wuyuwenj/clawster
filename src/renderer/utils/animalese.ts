@@ -56,7 +56,13 @@ interface AnimaleseOptions {
 
 type VisemeCallback = (mouth: MouthShape | null) => void;
 
-class AnimaleseEngine {
+type RendererSettings = {
+  pet?: {
+    muted?: boolean;
+  };
+};
+
+export class AnimaleseEngine {
   private audioCtx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
   private isPlaying = false;
@@ -93,16 +99,27 @@ class AnimaleseEngine {
     }
   }
 
-  private playCharSound(char: string, time: number): number {
-    const ctx = this.getAudioContext();
-    if (!this.gainNode) return 0;
-
+  private getCharDelay(char: string): number {
     const lower = char.toLowerCase();
 
     // Skip non-letter characters (silence)
     if (!/[a-z]/.test(lower)) {
       return lower === ' ' ? this.speed * 0.5 : this.speed * 0.3;
     }
+
+    return this.speed;
+  }
+
+  private playCharSound(char: string): number {
+    const lower = char.toLowerCase();
+    const delay = this.getCharDelay(char);
+
+    if (!/[a-z]/.test(lower)) {
+      return delay;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!this.gainNode) return 0;
 
     const isVowel = 'aeiou'.includes(lower);
     const baseFreq = isVowel ? VOWEL_FREQS[lower] : CONSONANT_BASE;
@@ -113,6 +130,7 @@ class AnimaleseEngine {
     const freq = (baseFreq + offset) * this.pitch * randomPitch;
 
     const duration = isVowel ? this.speed / 1000 * 1.2 : this.speed / 1000 * 0.8;
+    const time = ctx.currentTime + 0.01;
 
     // Main oscillator (square wave for that digital/retro feel)
     const osc = ctx.createOscillator();
@@ -144,7 +162,19 @@ class AnimaleseEngine {
     osc.start(time);
     osc.stop(time + duration + 0.01);
 
-    return this.speed;
+    return delay;
+  }
+
+  private async isMuted(): Promise<boolean> {
+    try {
+      if (typeof window === 'undefined' || !window.clawster?.getSettings) {
+        return false;
+      }
+      const settings = await window.clawster.getSettings() as RendererSettings;
+      return Boolean(settings.pet?.muted);
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -159,6 +189,7 @@ class AnimaleseEngine {
 
     this.isPlaying = true;
     const playbackToken = ++this.playbackToken;
+    const muted = await this.isMuted();
 
     const chars = Array.from(text);
     let charIndex = 0;
@@ -192,8 +223,7 @@ class AnimaleseEngine {
         }
 
         // Play audio for this character
-        const ctx = this.getAudioContext();
-        const delay = this.playCharSound(char, ctx.currentTime + 0.01);
+        const delay = muted ? this.getCharDelay(char) : this.playCharSound(char);
 
         // Schedule next character
         this.pendingTimeout = window.setTimeout(playNext, delay);

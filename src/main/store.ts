@@ -37,6 +37,7 @@ interface StoreSchema {
     mood: string;
     attentionSeeker: boolean;
     transparentWhenSleeping: boolean;
+    muted: boolean;
   };
   screenCapture: {
     enabled: boolean;
@@ -82,6 +83,7 @@ const defaults: StoreSchema = {
     mood: 'idle',
     attentionSeeker: true,
     transparentWhenSleeping: false,
+    muted: false,
   },
   screenCapture: {
     enabled: false,
