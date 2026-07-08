@@ -1,0 +1,86 @@
+/* Tidepool design tokens (CLA-58) — the UI drawn in Clawster's own art
+ * language: warm shell-cream surfaces outlined in the lobster's ink, coral and
+ * teal as real surface colors, sticker-style offset shadows, springy motion.
+ * Shared by the summon chatbar and the pet-chat speech bubble.
+ *
+ * Proportion rules: cream ~80% of any surface, ink outlines give structure,
+ * coral only for "acting/chosen", teal only for utility/status/links. */
+:root {
+  /* Coral — primary / selected / acting */
+  --tp-coral: #FF8C69;
+  --tp-coral-deep: #F4744C;
+  --tp-coral-tint: #FFE3D7;
+
+  /* Ink — outlines and body text (warm, never pure black) */
+  --tp-ink: #8B3A3A;
+  --tp-text-ink: #4A2B26;
+
+  /* Shell — surfaces */
+  --tp-shell: #FFF9F2;
+  --tp-shell-deep: #FFF1E4;
+
+  /* Teal — utility / status / links */
+  --tp-teal: #0E8A8A;
+  --tp-teal-deep: #096B6B;
+
+  /* Driftwood — secondary text / placeholders */
+  --tp-driftwood: #A3766B;
+
+  /* Sticker shadow: hard ink offset + soft warm ambient */
+  --tp-sticker-shadow: 0 4px 0 rgba(139, 58, 58, 0.3);
+  --tp-ambient-shadow: 0 6px 14px -4px rgba(74, 43, 38, 0.25);
+
+  /* One spring for everything that moves (150–450ms) */
+  --tp-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Rounded UI face for things Clawster says / the user presses (Nunito is
+   * bundled via @fontsource — no runtime font fetch); system sans for long
+   * message bodies. */
+  --tp-font-round: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.tp-font-round {
+  font-family: var(--tp-font-round);
+}
+
+.tp-font-body {
+  font-family: var(--tp-font-body);
+}
+
+/* Outlined chip: the shared shape for small controls (camera / mic / esc).
+ * Cream surface, 2px ink outline, springy squish on press. */
+.tp-chip {
+  background: var(--tp-shell);
+  border: 2px solid var(--tp-ink);
+  color: var(--tp-teal);
+  transition: transform 150ms var(--tp-spring), background-color 150ms ease;
+}
+
+.tp-chip:hover:not(:disabled) {
+  background: var(--tp-coral-tint);
+}
+
+.tp-chip:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+/* Candy chip: solid quick-reply buttons with a sticker edge that squishes
+ * 2.5px on press (the shadow collapses as the chip sits down). */
+.tp-candy {
+  border: 2px solid var(--tp-ink);
+  box-shadow: 0 2.5px 0 var(--tp-ink);
+  transition: transform 150ms var(--tp-spring), box-shadow 150ms var(--tp-spring), background-color 150ms ease;
+}
+
+.tp-candy:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 0 0 var(--tp-ink);
+}
+
+/* Warm selection + scrollbar shared by both surfaces */
+.tp-surface ::selection,
+.tp-surface::selection {
+  background-color: var(--tp-coral-tint);
+  color: inherit;
+}

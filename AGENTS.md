@@ -54,6 +54,8 @@ User message
 - Renderer behavior that needs unit tests lives in pure logic modules (no React/Electron imports) next to the component, e.g. `src/renderer/pet/emote-bubbles.ts` — the Vitest suite runs in a node environment with no DOM
 - Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 - The `pet.muted` setting (Assistant panel toggle) silences both of Clawster's sound sources (CLA-52). Main pushes changes to the **pet-chat** window on the `pet-muted-changed` channel — that window owns the Animalese engine, so sending to the pet window would never gate the voice — and `main.ts` calls `setMutedProvider` so `chat/tool-executor.ts` can raise notifications with `silent: true`. The engine seeds itself from persisted settings on the first utterance and applies later changes mid-utterance; character timing is unchanged when muted
+- The chatbar and pet-chat surfaces use the **Tidepool** design tokens in `src/renderer/styles/tidepool.css` (CSS variables: shell cream, ink outline, coral = acting/chosen, teal = utility, one spring easing) with Nunito bundled via `@fontsource/nunito` — no runtime font fetches (CLA-58)
+- The chatbar `BrowserWindow` is opaque (`transparent: false`, fixed 650×300, no renderer resize IPC) — the renderer must paint the entire window an opaque surface; the pet-chat window IS transparent and self-resizes via `resize-pet-chat`
 
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)
