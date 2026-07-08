@@ -105,6 +105,24 @@ export function getPetContextMenuWindow(): BrowserWindow | null {
   return petContextMenuWindow;
 }
 
+// --- Pet UI visibility (CLA-27 / CLA-13) ---
+// The pet reacts to companion-window visibility: chatbar open → curious mood,
+// and any open chat surface suppresses emote speech bubbles.
+
+function sendPetUiVisibility() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  petWindow.webContents.send('pet-ui-visibility', {
+    chatbarOpen: Boolean(chatbarWindow && !chatbarWindow.isDestroyed() && chatbarWindow.isVisible()),
+    petChatOpen: Boolean(petChatWindow && !petChatWindow.isDestroyed() && petChatWindow.isVisible()),
+    assistantOpen: Boolean(assistantWindow && !assistantWindow.isDestroyed() && assistantWindow.isVisible()),
+  });
+}
+
+function wirePetUiVisibility(window: BrowserWindow) {
+  window.on('show', sendPetUiVisibility);
+  window.on('hide', sendPetUiVisibility);
+}
+
 // --- Debug border functions ---
 
 export function shouldShowDebugWindowBorders(): boolean {
@@ -180,6 +198,7 @@ export function createPetWindow() {
     },
   });
   wireDebugWindowBorder(petWindow);
+  petWindow.webContents.on('did-finish-load', sendPetUiVisibility);
 
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   petWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -258,6 +277,7 @@ export function showPetChat(message: { id: string; text: string; quickReplies?: 
       },
     });
     wireDebugWindowBorder(petChatWindow);
+    wirePetUiVisibility(petChatWindow);
 
     petChatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -278,6 +298,7 @@ export function showPetChat(message: { id: string; text: string; quickReplies?: 
         clearTimeout(petChatAutoHideTimeout);
         petChatAutoHideTimeout = null;
       }
+      sendPetUiVisibility();
     });
 
     petChatWindow.once('ready-to-show', () => {
@@ -461,6 +482,7 @@ export function createAssistantWindow() {
     },
   });
   wireDebugWindowBorder(assistantWindow);
+  wirePetUiVisibility(assistantWindow);
   if (process.platform === 'darwin' || process.platform === 'linux') {
     assistantWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   }
@@ -480,6 +502,7 @@ export function createAssistantWindow() {
 
   assistantWindow.on('closed', () => {
     assistantWindow = null;
+    sendPetUiVisibility();
   });
 }
 
@@ -593,6 +616,7 @@ export function createChatbarWindow() {
     },
   });
   wireDebugWindowBorder(chatbarWindow);
+  wirePetUiVisibility(chatbarWindow);
 
   chatbarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -608,6 +632,7 @@ export function createChatbarWindow() {
 
   chatbarWindow.on('closed', () => {
     chatbarWindow = null;
+    sendPetUiVisibility();
   });
 }
 

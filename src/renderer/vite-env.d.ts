@@ -112,6 +112,7 @@ interface ClawsterAPI {
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
+  onPetUiVisibility: (callback: (data: { chatbarOpen: boolean; petChatOpen: boolean; assistantOpen: boolean }) => void) => void;
   onChatSync: (callback: () => void) => ListenerCleanup;
   onSwitchToChat: (callback: () => void) => ListenerCleanup;
   onSwitchToSettings: (callback: () => void) => ListenerCleanup;
