@@ -1,0 +1,28 @@
+src/renderer/pet-chat/PetChat.tsx
+  s_8c27d2f9197133::t_28a339e8432a1d 191-193
+  s_8c27d2f9197133::t_be0f70b03487e7 15-60
+  s_8c27d2f9197133::t_27861917c4f239 179
+  s_8c27d2f9197133::t_0d0a3bd7359901 271-275
+  s_8c27d2f9197133::t_69864d8a126989 303
+e2e/cla50-feedback-thumbs-timing.spec.ts
+  s_8c27d2f9197133::t_3025ae09bfdc36 1-93,96-97,99-100
+  s_8c27d2f9197133::t_32672c84162286 94-95,98
+test/pet-chat-feedback.test.ts
+  s_8c27d2f9197133::t_5b1d3b906e8ebd 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5c76ed0ad280643aa931306f20b39e419d6e8da5",
+  "prompts": {},
+  "sessions": {
+    "s_8c27d2f9197133": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b90c5488-4ef9-4e23-818a-a6248bd81123",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
