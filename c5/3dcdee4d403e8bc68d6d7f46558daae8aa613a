@@ -1,0 +1,21 @@
+scripts/build-icons.mjs
+  s_1f5937a94ac9ef::t_f26b830cb20bc3 40-41,46
+assets/tray-icon.svg
+  s_1f5937a94ac9ef::t_e64e52beeb0984 1-9,11-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c53dcdee4d403e8bc68d6d7f46558daae8aa613a",
+  "prompts": {},
+  "sessions": {
+    "s_1f5937a94ac9ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3b70-4128-7070-80c9-6c17867c09e7",
+        "model": "gpt-5.5"
+      },
+      "human_author": null
+    }
+  }
+}
