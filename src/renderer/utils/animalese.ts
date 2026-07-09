@@ -72,6 +72,8 @@ export class AnimaleseEngine {
   private pitch = 1.25; // Slightly pitched up for Clawster's cute digital vibe
   private speed = 60; // ms per character
   private visemeCallback: VisemeCallback | null = null;
+  private muted = false;
+  private mutedInitialized = false;
 
   private getAudioContext(): AudioContext {
     if (!this.audioCtx || this.audioCtx.state === 'closed') {
@@ -110,16 +112,13 @@ export class AnimaleseEngine {
     return this.speed;
   }
 
-  private playCharSound(char: string): number {
+  private playCharSound(char: string): void {
     const lower = char.toLowerCase();
-    const delay = this.getCharDelay(char);
 
-    if (!/[a-z]/.test(lower)) {
-      return delay;
-    }
+    if (!/[a-z]/.test(lower)) return;
 
     const ctx = this.getAudioContext();
-    if (!this.gainNode) return 0;
+    if (!this.gainNode) return;
 
     const isVowel = 'aeiou'.includes(lower);
     const baseFreq = isVowel ? VOWEL_FREQS[lower] : CONSONANT_BASE;
@@ -161,19 +160,27 @@ export class AnimaleseEngine {
 
     osc.start(time);
     osc.stop(time + duration + 0.01);
-
-    return delay;
   }
 
-  private async isMuted(): Promise<boolean> {
+  /**
+   * Live mute state. Pushed from the main process so muting takes effect
+   * mid-utterance rather than on the next message.
+   */
+  setMuted(muted: boolean) {
+    this.muted = muted;
+    this.mutedInitialized = true;
+  }
+
+  /** Seed mute state from persisted settings until the first live update arrives. */
+  private async syncMutedFromSettings(): Promise<void> {
+    if (this.mutedInitialized) return;
     try {
-      if (typeof window === 'undefined' || !window.clawster?.getSettings) {
-        return false;
-      }
+      if (typeof window === 'undefined' || !window.clawster?.getSettings) return;
       const settings = await window.clawster.getSettings() as RendererSettings;
-      return Boolean(settings.pet?.muted);
+      this.muted = Boolean(settings.pet?.muted);
+      this.mutedInitialized = true;
     } catch {
-      return false;
+      // Leave the default (unmuted) in place and retry on the next utterance.
     }
   }
 
@@ -189,7 +196,7 @@ export class AnimaleseEngine {
 
     this.isPlaying = true;
     const playbackToken = ++this.playbackToken;
-    const muted = await this.isMuted();
+    await this.syncMutedFromSettings();
 
     const chars = Array.from(text);
     let charIndex = 0;
@@ -223,7 +230,10 @@ export class AnimaleseEngine {
         }
 
         // Play audio for this character
-        const delay = muted ? this.getCharDelay(char) : this.playCharSound(char);
+        const delay = this.getCharDelay(char);
+        if (!this.muted) {
+          this.playCharSound(char);
+        }
 
         // Schedule next character
         this.pendingTimeout = window.setTimeout(playNext, delay);

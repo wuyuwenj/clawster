@@ -17,6 +17,22 @@ export function setNotifyCallback(cb: (title: string, body: string) => void): vo
   notifyCallback = cb;
 }
 
+// Supplies the current `pet.muted` setting. The store lives in main.ts, so it is
+// injected here rather than imported. Unset (tests, early startup) means unmuted.
+let mutedProvider: (() => boolean) | null = null;
+
+export function setMutedProvider(fn: (() => boolean) | null): void {
+  mutedProvider = fn;
+}
+
+function isMuted(): boolean {
+  try {
+    return Boolean(mutedProvider?.());
+  } catch {
+    return false;
+  }
+}
+
 // Confirmation gate for safety-critical tools (run_shell, send_message, …).
 // Returns true only when the user explicitly approves. When no callback is
 // registered (e.g. in tests, or before the UI is ready) the safe default is to
@@ -61,7 +77,7 @@ function automationDeniedResponse(tool: string): ToolResult {
 
 function notify(title: string, body: string): void {
   try {
-    const n = new Notification({ title, body });
+    const n = new Notification({ title, body, silent: isMuted() });
     n.show();
   } catch { /* notifications may not work in dev mode */ }
   notifyCallback?.(title, body);

@@ -3,7 +3,7 @@ export { CloudChatProvider, createProxyVision } from './cloud-provider';
 export type { VisionProvider } from './cloud-provider';
 export { LocalToolProvider } from './local-tool-provider';
 export { ChatRouter } from './chat-router';
-export { executeTool, setNotifyCallback, setConfirmCallback, setMemoryDB } from './tool-executor';
+export { executeTool, setNotifyCallback, setConfirmCallback, setMemoryDB, setMutedProvider } from './tool-executor';
 export { parseActionFromResponse } from './parse-action';
 export { buildAuthHeaders, signRequest } from './hmac-auth';
 export { SYSTEM_PROMPT } from './system-prompt';

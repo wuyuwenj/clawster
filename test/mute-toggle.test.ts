@@ -2,8 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+
+vi.mock('electron', () => ({
+  shell: { openExternal: vi.fn() },
+  Notification: vi.fn().mockImplementation(() => ({ show: vi.fn() })),
+  BrowserWindow: vi.fn(),
+}));
+
+vi.mock('child_process', () => ({
+  exec: vi.fn(),
+  execFile: vi.fn(),
+}));
+
+import { Notification } from 'electron';
 import { AnimaleseEngine } from '../src/renderer/utils/animalese';
 import { createStore } from '../src/main/store';
+import { executeTool, setMutedProvider } from '../src/main/chat/tool-executor';
 
 class MockAudioContext {
   static instances: MockAudioContext[] = [];
@@ -140,5 +154,125 @@ describe('Animalese mute gate', () => {
 
     expect(MockAudioContext.instances).toHaveLength(1);
     expect(MockAudioContext.oscillatorStarts).toBe(2);
+  });
+
+  it('goes quiet mid-utterance when mute is pushed from the main process', async () => {
+    getSettings.mockResolvedValue({ pet: { muted: false } });
+    const engine = new AnimaleseEngine();
+    engine.configure({ speed: 1 });
+
+    const speaking = engine.speak('abcdefghij');
+    await vi.advanceTimersByTimeAsync(3);
+
+    const startsBeforeMute = MockAudioContext.oscillatorStarts;
+    expect(startsBeforeMute).toBeGreaterThan(0);
+    expect(startsBeforeMute).toBeLessThan(10);
+
+    engine.setMuted(true);
+    await finishSpeech(speaking);
+
+    expect(MockAudioContext.oscillatorStarts).toBe(startsBeforeMute);
+  });
+
+  it('resumes audio mid-utterance when unmuted', async () => {
+    getSettings.mockResolvedValue({ pet: { muted: true } });
+    const engine = new AnimaleseEngine();
+    engine.configure({ speed: 1 });
+
+    const speaking = engine.speak('abcdefghij');
+    await vi.advanceTimersByTimeAsync(3);
+    expect(MockAudioContext.oscillatorStarts).toBe(0);
+
+    engine.setMuted(false);
+    await finishSpeech(speaking);
+
+    expect(MockAudioContext.oscillatorStarts).toBeGreaterThan(0);
+  });
+
+  it('keeps character timing intact while muted', async () => {
+    getSettings.mockResolvedValue({ pet: { muted: true } });
+    const engine = new AnimaleseEngine();
+    engine.configure({ speed: 100 });
+    const visemes: Array<string | null> = [];
+    engine.onViseme((shape) => visemes.push(shape));
+
+    const speaking = engine.speak('ab');
+    await vi.advanceTimersByTimeAsync(50);
+
+    // A muted letter must still hold the full per-character delay, not race ahead.
+    expect(visemes).toEqual([null, 'happy']);
+
+    await finishSpeech(speaking);
+    expect(visemes).toEqual([null, 'happy', 'mad', null]);
+  });
+
+  it('prefers the live mute state over stale persisted settings', async () => {
+    getSettings.mockResolvedValue({ pet: { muted: false } });
+    const engine = new AnimaleseEngine();
+    engine.configure({ speed: 1 });
+    engine.setMuted(true);
+
+    const speaking = engine.speak('ab');
+    await finishSpeech(speaking);
+
+    expect(getSettings).not.toHaveBeenCalled();
+    expect(MockAudioContext.oscillatorStarts).toBe(0);
+  });
+});
+
+describe('notification mute gate', () => {
+  const NotificationMock = vi.mocked(Notification);
+
+  beforeEach(() => {
+    NotificationMock.mockClear();
+    NotificationMock.mockImplementation(
+      () => ({ show: vi.fn() }) as unknown as Notification
+    );
+  });
+
+  afterEach(() => {
+    setMutedProvider(null);
+  });
+
+  it('sends notifications silently while muted', async () => {
+    setMutedProvider(() => true);
+
+    await executeTool('send_notification', { title: 'Hi', body: 'There' });
+
+    expect(NotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Hi', body: 'There', silent: true })
+    );
+  });
+
+  it('lets notifications make sound while unmuted', async () => {
+    setMutedProvider(() => false);
+
+    await executeTool('send_notification', { title: 'Hi', body: 'There' });
+
+    expect(NotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: false })
+    );
+  });
+
+  it('defaults to audible when no mute provider is registered', async () => {
+    setMutedProvider(null);
+
+    await executeTool('send_notification', { title: 'Hi', body: 'There' });
+
+    expect(NotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: false })
+    );
+  });
+
+  it('defaults to audible when the mute provider throws', async () => {
+    setMutedProvider(() => {
+      throw new Error('store unavailable');
+    });
+
+    await executeTool('send_notification', { title: 'Hi', body: 'There' });
+
+    expect(NotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: false })
+    );
   });
 });

@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
-import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, createProxyVision } from './chat';
+import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, setMutedProvider, createProxyVision } from './chat';
 import { buildAuthHeaders } from './chat/hmac-auth';
 import {
   migrateFlatHistory, resolveActiveId, newSession, withMessages, capSessions, toMeta,
@@ -394,6 +394,8 @@ function startMainApp() {
   // Wire chat router to feed mood signals to emotion engine
   chatProvider.setEmotionEngine(emotionEngine);
 
+  setMutedProvider(() => Boolean(store.get('pet.muted')));
+
   setNotifyCallback((title, body) => {
     showPetChat({
       id: randomUUID(),
@@ -666,6 +668,12 @@ function setupIPC() {
 
     if (key === 'pet.transparentWhenSleeping') {
       getPetWindow()?.webContents.send('pet-transparent-sleep-changed', Boolean(value));
+    }
+
+    // The Animalese engine lives in the pet-chat window, so mute must reach it
+    // there — sending only to the pet window would never gate the voice.
+    if (key === 'pet.muted') {
+      getPetChatWindow()?.webContents.send('pet-muted-changed', Boolean(value));
     }
 
     if (key === 'dev.windowBorders') {
