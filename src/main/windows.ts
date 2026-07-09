@@ -644,7 +644,7 @@ export function createChatbarWindow() {
     y: Math.round(screenHeight / 3),
     frame: false,
     transparent: false,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#FFF9F2',
     alwaysOnTop: true,
     resizable: true,
     movable: true,

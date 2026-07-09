@@ -152,13 +152,13 @@ test('pet-chat bubble wears the Tidepool look and visibly differs from the old p
   if (BASELINE_MODE) return;
 
   // Hierarchy fix: quick replies must lead; the feedback thumbs shrink to a
-  // corner BELOW them. Compare vertical positions of the primary reply chip
-  // and the 👍 button.
-  const primaryChip = petChat.getByRole('button', { name: 'Thanks!' });
+  // corner BELOW them. Compare vertical positions of a reply chip and the 👍
+  // button.
+  const replyChip = petChat.getByRole('button', { name: 'Thanks!' });
   const goodThumb = petChat.getByTitle('Good response');
-  await expect(primaryChip).toBeVisible();
+  await expect(replyChip).toBeVisible();
   await expect(goodThumb).toBeVisible();
-  const chipBox = await primaryChip.boundingBox();
+  const chipBox = await replyChip.boundingBox();
   const thumbBox = await goodThumb.boundingBox();
   expect(chipBox && thumbBox && chipBox.y < thumbBox.y).toBe(true);
 

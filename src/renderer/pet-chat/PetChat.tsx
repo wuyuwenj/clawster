@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { animalese } from '../utils/animalese';
+import { buildFeedbackPayload } from './feedback-payload';
+import { isResponseComplete, STREAM_PLACEHOLDER } from './response-state';
+import {
+  chipVariant,
+  ChipVariant,
+  DEFAULT_QUICK_REPLIES,
+  REPLY_GOT_IT,
+  REPLY_NOT_NOW,
+  REPLY_OPEN_SETTINGS,
+  REPLY_TELL_ME_MORE,
+  REPLY_THANKS,
+} from './quick-replies';
 
 interface ChatMessage {
   id: string;
@@ -10,71 +22,11 @@ interface ChatMessage {
   userInput?: string;
 }
 
-const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
-
-// Tidepool (CLA-58): quick replies are solid candy chips and the primary
-// reply must read as the "yes" button. Dismissive replies stay muted; the
-// first non-dismissive reply is primary (solid coral); the rest are
-// secondary. Exported for unit testing.
-export type ChipVariant = 'primary' | 'secondary' | 'muted';
-export function chipVariant(replies: string[], reply: string): ChipVariant {
-  const isDismissive = (r: string) => r === 'Not now';
-  if (isDismissive(reply)) return 'muted';
-  const firstAffirmative = replies.find((r) => !isDismissive(r));
-  return reply === firstAffirmative ? 'primary' : 'secondary';
-}
-
 const CHIP_CLASSES: Record<ChipVariant, string> = {
   primary: 'bg-[var(--tp-coral)] text-[var(--tp-text-ink)]',
   secondary: 'bg-[var(--tp-coral-tint)] text-[var(--tp-text-ink)]',
   muted: 'bg-[var(--tp-shell-deep)] text-[var(--tp-driftwood)]',
 };
-
-// The pet-chat window is driven by the `chat-message` IPC. While a response is
-// still loading or streaming, the bubble holds the '...' placeholder that
-// ChatBar opens the popup with (see ChatBar submit flow), and the real text is
-// only committed at stream end. During that window `isLoading` is false, so the
-// feedback thumbs must not gate on `!isLoading` alone or they flash over the
-// placeholder. A response is "complete" only once loading has ended AND the
-// final message text has been committed (matches the animalese guard that skips
-// speaking the '...' placeholder). Exported for unit testing.
-export function isResponseComplete(state: { isLoading: boolean; text?: string | null }): boolean {
-  return !state.isLoading && !!state.text && state.text !== '...';
-}
-
-interface FeedbackMessage {
-  text: string;
-  userInput?: string;
-  toolCall?: { tool: string | null; args?: Record<string, unknown> };
-}
-
-// Serializes the thumbs feedback exactly as the pet chat sends it to Clawbot.
-// Exported so the feedback payload stays verifiable without a DOM.
-export function buildFeedbackPayload(
-  type: 'positive' | 'negative',
-  message: FeedbackMessage,
-  detail?: { category?: string; note?: string },
-): string {
-  return JSON.stringify(
-    type === 'negative'
-      ? {
-          __feedback: true,
-          type,
-          category: detail?.category,
-          note: detail?.note,
-          userInput: message.userInput,
-          modelOutput: message.text,
-          toolCall: message.toolCall,
-        }
-      : {
-          __feedback: true,
-          type,
-          userInput: message.userInput,
-          modelOutput: message.text,
-          toolCall: message.toolCall,
-        },
-  );
-}
 
 export const PetChat: React.FC = () => {
   const [message, setMessage] = useState<ChatMessage | null>(null);
@@ -135,7 +87,7 @@ export const PetChat: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!message || isLoading || !message.text || message.text === '...') return;
+    if (!message || isLoading || !message.text || message.text === STREAM_PLACEHOLDER) return;
     if (message.id === lastSpokenMessageIdRef.current) return;
 
     lastSpokenMessageIdRef.current = message.id;
@@ -223,14 +175,14 @@ export const PetChat: React.FC = () => {
   const handleQuickReply = useCallback(async (reply: string) => {
     if (!message) return;
 
-    if (reply === 'Not now') {
+    if (reply === REPLY_NOT_NOW) {
       animalese.stop();
       window.clawster.petChatReply('dismiss');
       window.clawster.hidePetChat();
       return;
     }
 
-    if (reply === 'Tell me more') {
+    if (reply === REPLY_TELL_ME_MORE) {
       animalese.stop();
       // Check connection first
       const status = await window.clawster.getClawbotStatus();
@@ -238,7 +190,7 @@ export const PetChat: React.FC = () => {
         setMessage({
           id: crypto.randomUUID(),
           text: 'I can\'t reach my brain right now. Check your internet connection!',
-          quickReplies: ['Got it', 'Not now'],
+          quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
         });
         return;
       }
@@ -254,7 +206,7 @@ export const PetChat: React.FC = () => {
           setMessage({
             id: crypto.randomUUID(),
             text: response.text,
-            quickReplies: ['Thanks!', 'Not now'],
+            quickReplies: [REPLY_THANKS, REPLY_NOT_NOW],
           });
           window.clawster.petChatReply('curious');
         }
@@ -262,7 +214,7 @@ export const PetChat: React.FC = () => {
         setMessage({
           id: crypto.randomUUID(),
           text: 'Couldn\'t connect to gateway. Make sure it\'s running.',
-          quickReplies: ['Got it', 'Not now'],
+          quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
         });
       } finally {
         setIsLoading(false);
@@ -270,7 +222,7 @@ export const PetChat: React.FC = () => {
       return;
     }
 
-    if (reply === 'Open Settings') {
+    if (reply === REPLY_OPEN_SETTINGS) {
       animalese.stop();
       window.clawster.openAssistant();
       window.clawster.hidePetChat();
@@ -278,7 +230,7 @@ export const PetChat: React.FC = () => {
     }
 
     // "Got it" - just close
-    if (reply === 'Got it') {
+    if (reply === REPLY_GOT_IT) {
       animalese.stop();
       window.clawster.petChatReply('dismiss');
       window.clawster.hidePetChat();
