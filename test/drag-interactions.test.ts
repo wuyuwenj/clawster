@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -168,5 +170,33 @@ describe('drag reaction variant selection (CLA-6)', () => {
         random: () => FAST_DRAG_STARTLED_CHANCE,
       })
     ).toBe('confused-accepts');
+  });
+});
+
+describe('carried drag pose stylesheet ordering (CLA-6)', () => {
+  const css = readFileSync(new URL('../src/renderer/pet/styles.css', import.meta.url), 'utf8');
+
+  // state-dragging is applied *alongside* the mood and idle-behavior classes,
+  // and main can push a new mood at any moment mid-drag. Equal specificity means
+  // the carried pose only wins by being declared last.
+  it('declares the drag rules after every mood and idle-behavior rule', () => {
+    const dragBlockStart = css.indexOf('.lobster-container.state-dragging {');
+    expect(dragBlockStart).toBeGreaterThan(-1);
+
+    const overridable = [...css.matchAll(/^\.lobster-container\.(state-[\w-]+|idle-[\w-]+)/gm)].filter(
+      (match) => !match[1].startsWith('state-drag')
+    );
+    expect(overridable.length).toBeGreaterThan(0);
+
+    const lastOverridable = overridable[overridable.length - 1];
+    expect(dragBlockStart).toBeGreaterThan(lastOverridable.index!);
+  });
+
+  it('stops the mood claw animations so the carried pose renders', () => {
+    const leftClaw = css.slice(css.indexOf('.lobster-container.state-dragging .left-claw'));
+    const rightClaw = css.slice(css.indexOf('.lobster-container.state-dragging .right-claw'));
+
+    expect(leftClaw.slice(0, leftClaw.indexOf('}'))).toContain('animation: none');
+    expect(rightClaw.slice(0, rightClaw.indexOf('}'))).toContain('animation: none');
   });
 });

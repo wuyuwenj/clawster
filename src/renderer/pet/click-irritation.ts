@@ -4,7 +4,8 @@ export type IrritationEscalationLevel = Exclude<IrritationLevel, 'calm'>;
 export interface ClickIrritationState {
   level: IrritationLevel;
   recentClickTimes: number[];
-  lastEscalationAt: number | null;
+  /** Time of the most recent click that landed inside a rapid burst */
+  lastRapidClickAt: number | null;
 }
 
 export interface ClickIrritationResult {
@@ -20,7 +21,7 @@ export const IRRITATION_COOLDOWN_MS = 10000;
 export const INITIAL_CLICK_IRRITATION_STATE: ClickIrritationState = {
   level: 'calm',
   recentClickTimes: [],
-  lastEscalationAt: null,
+  lastRapidClickAt: null,
 };
 
 export function recordPetClick(
@@ -28,11 +29,19 @@ export function recordPetClick(
   now: number
 ): ClickIrritationResult {
   // Irritation builds from rapid clicking and cools once the rapid clicking
-  // stops, so the cooldown is measured from the last escalation rather than
-  // the last click — otherwise slow, isolated poking would hold the tantrum
-  // open forever.
+  // stops, so the cooldown runs from the last click that was itself part of a
+  // rapid burst. Measuring from the last click of any kind would let slow,
+  // isolated poking hold the tantrum open forever; measuring from the last
+  // escalation would let it expire mid-burst, because escalation stops once
+  // the level tops out.
+  const previousClickAt =
+    state.recentClickTimes.length > 0
+      ? state.recentClickTimes[state.recentClickTimes.length - 1]
+      : null;
+  const isRapidClick = previousClickAt !== null && now - previousClickAt <= IRRITATION_WINDOW_MS;
+
   const cooledDown =
-    state.lastEscalationAt !== null && now - state.lastEscalationAt >= IRRITATION_COOLDOWN_MS;
+    state.lastRapidClickAt !== null && now - state.lastRapidClickAt >= IRRITATION_COOLDOWN_MS;
   const baseState = cooledDown ? INITIAL_CLICK_IRRITATION_STATE : state;
   const recentClickTimes = [
     ...baseState.recentClickTimes.filter((clickAt) => now - clickAt <= IRRITATION_WINDOW_MS),
@@ -56,7 +65,7 @@ export function recordPetClick(
     state: {
       level,
       recentClickTimes,
-      lastEscalationAt: changedTo !== null ? now : baseState.lastEscalationAt,
+      lastRapidClickAt: isRapidClick ? now : baseState.lastRapidClickAt,
     },
     changedTo,
     reaction: level === 'calm' ? null : level,

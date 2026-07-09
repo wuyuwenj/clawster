@@ -61,7 +61,7 @@ describe('click irritation state machine (CLA-8)', () => {
     expect(result.changedTo).toBeNull();
   });
 
-  it('fully resets on the first click 10 seconds after the last escalation', () => {
+  it('fully resets on the first click 10 seconds after the last rapid click', () => {
     let state = INITIAL_CLICK_IRRITATION_STATE;
 
     for (let i = 0; i < IRRITATION_CLICK_THRESHOLD + 1; i += 1) {
@@ -70,7 +70,7 @@ describe('click irritation state machine (CLA-8)', () => {
 
     expect(state.level).toBe('very-annoyed');
 
-    const result = recordPetClick(state, state.lastEscalationAt! + IRRITATION_COOLDOWN_MS);
+    const result = recordPetClick(state, state.lastRapidClickAt! + IRRITATION_COOLDOWN_MS);
 
     expect(result.state.level).toBe('calm');
     expect(result.reaction).toBeNull();
@@ -86,10 +86,31 @@ describe('click irritation state machine (CLA-8)', () => {
 
     expect(state.level).toBe('very-annoyed');
 
-    const result = recordPetClick(state, state.lastEscalationAt! + 300);
+    const result = recordPetClick(state, state.lastRapidClickAt! + 300);
 
     expect(result.changedTo).toBeNull();
     expect(result.reaction).toBe('very-annoyed');
+  });
+
+  it('never cools off mid-tantrum while the rapid clicking continues', () => {
+    let state = INITIAL_CLICK_IRRITATION_STATE;
+    let now = 1000;
+
+    // Sustained spam well past the 10s cooldown: the level must never drop back
+    // to calm, which is what would let the cheerful poke table run again.
+    for (let i = 0; i < 200; i += 1) {
+      const result = recordPetClick(state, now);
+      state = result.state;
+      now += 300;
+
+      if (i >= IRRITATION_CLICK_THRESHOLD - 1) {
+        expect(state.level).not.toBe('calm');
+        expect(result.reaction).not.toBeNull();
+      }
+    }
+
+    expect(now - 1000).toBeGreaterThan(IRRITATION_COOLDOWN_MS * 5);
+    expect(state.level).toBe('very-annoyed');
   });
 
   it('only reports changedTo on the click that escalates the level', () => {
@@ -117,17 +138,17 @@ describe('click irritation state machine (CLA-8)', () => {
     }
 
     expect(state.level).toBe('very-annoyed');
-    const escalatedAt = state.lastEscalationAt!;
+    const lastRapidAt = state.lastRapidClickAt!;
 
-    // A lone click 9s after the escalation is still inside the cooldown.
-    const stillAnnoyed = recordPetClick(state, escalatedAt + 9000);
+    // A lone click 9s after the burst is still inside the cooldown.
+    const stillAnnoyed = recordPetClick(state, lastRapidAt + 9000);
     expect(stillAnnoyed.reaction).toBe('very-annoyed');
-    expect(stillAnnoyed.state.lastEscalationAt).toBe(escalatedAt);
+    expect(stillAnnoyed.state.lastRapidClickAt).toBe(lastRapidAt);
     state = stillAnnoyed.state;
 
-    // The next lone click is past the cooldown measured from the escalation,
-    // so poking slowly does not hold the tantrum open forever.
-    const calmed = recordPetClick(state, escalatedAt + 18000);
+    // The next lone click is past the cooldown measured from the last rapid
+    // click, so poking slowly does not hold the tantrum open forever.
+    const calmed = recordPetClick(state, lastRapidAt + 18000);
     expect(calmed.state.level).toBe('calm');
     expect(calmed.reaction).toBeNull();
   });

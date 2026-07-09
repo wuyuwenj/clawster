@@ -24,6 +24,7 @@ import {
   IrritationEscalationLevel,
   recordPetClick,
 } from './click-irritation';
+import { PokeReactionTimers } from './poke-reaction-timers';
 
 type Mood = 'idle' | 'happy' | 'curious' | 'sleeping' | 'thinking' | 'excited' | 'doze' | 'startle' | 'proud' | 'mad' | 'spin' | 'mouth_o' | 'worried' | 'sad' | 'huff' | 'peek' | 'side-eye' | 'tap' | 'scoot';
 type IdleBehavior = 'blink' | 'look_around' | 'snip_claws' | 'yawn' | 'stretch' | 'wiggle' | 'wander' | null;
@@ -261,7 +262,7 @@ export const Pet: React.FC = () => {
   const clickIrritationRef = useRef<ClickIrritationState>(INITIAL_CLICK_IRRITATION_STATE);
   const irritationBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const irritationRevertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pokeReactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pokeTimersRef = useRef(new PokeReactionTimers());
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraSnapEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -360,10 +361,7 @@ export const Pet: React.FC = () => {
       clearTimeout(irritationRevertTimeoutRef.current);
       irritationRevertTimeoutRef.current = null;
     }
-    if (pokeReactionTimeoutRef.current) {
-      clearTimeout(pokeReactionTimeoutRef.current);
-      pokeReactionTimeoutRef.current = null;
-    }
+    pokeTimersRef.current.clear();
     if (idleBehaviorTimeoutRef.current) {
       clearTimeout(idleBehaviorTimeoutRef.current);
       idleBehaviorTimeoutRef.current = null;
@@ -668,9 +666,7 @@ export const Pet: React.FC = () => {
       if (irritationRevertTimeoutRef.current) {
         clearTimeout(irritationRevertTimeoutRef.current);
       }
-      if (pokeReactionTimeoutRef.current) {
-        clearTimeout(pokeReactionTimeoutRef.current);
-      }
+      pokeTimersRef.current.clear();
       if (cameraSnapEndTimeoutRef.current) {
         clearTimeout(cameraSnapEndTimeoutRef.current);
       }
@@ -833,19 +829,14 @@ export const Pet: React.FC = () => {
     // Pick a random reaction
     const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
 
-    if (pokeReactionTimeoutRef.current) {
-      clearTimeout(pokeReactionTimeoutRef.current);
-      pokeReactionTimeoutRef.current = null;
-    }
-
     if (reaction.mood) {
       setPetMood(reaction.mood);
       maybeShowEmoteBubble({ kind: 'mood', mood: reaction.mood });
-      pokeReactionTimeoutRef.current = setTimeout(revertMoodAfterReaction, reaction.duration);
+      pokeTimersRef.current.scheduleMoodRevert(revertMoodAfterReaction, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
       maybeShowEmoteBubble({ kind: 'behavior', behavior: reaction.behavior, source: 'poke' });
-      pokeReactionTimeoutRef.current = setTimeout(() => {
+      pokeTimersRef.current.scheduleBehaviorClear(() => {
         if (!sleepLockedRef.current) {
           setIdleBehavior(null);
         }
