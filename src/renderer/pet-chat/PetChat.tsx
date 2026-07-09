@@ -63,6 +63,13 @@ export const PetChat: React.FC = () => {
     };
   }, []);
 
+  // Mute takes effect on the next character, even mid-utterance
+  useEffect(() => {
+    window.clawster.onPetMutedChanged((muted) => {
+      animalese.setMuted(muted);
+    });
+  }, []);
+
   useEffect(() => {
     if (!message || isLoading || !message.text || message.text === '...') return;
     if (message.id === lastSpokenMessageIdRef.current) return;
