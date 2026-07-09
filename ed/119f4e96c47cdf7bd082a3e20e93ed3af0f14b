@@ -1,0 +1,19 @@
+src/renderer/chatbar/ChatBar.tsx
+  s_1c11e951226eda::t_a88c27dc3321af 518
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ed119f4e96c47cdf7bd082a3e20e93ed3af0f14b",
+  "prompts": {},
+  "sessions": {
+    "s_1c11e951226eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce4b4b63-d8f9-43c0-a6ab-8ce8cae7df4f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
