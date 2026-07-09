@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { MarkdownMessage } from '../components/MarkdownMessage';
+import { REPLY_THANKS, REPLY_NOT_NOW, REPLY_GOT_IT } from '../pet-chat/quick-replies';
 
 interface Message {
   id: string;
@@ -89,7 +90,7 @@ export const ChatBar: React.FC = () => {
         window.clawster.showPetChat({
           id: activePetPopupIdRef.current,
           text: finalText,
-          quickReplies: ['Thanks!', 'Not now'],
+          quickReplies: [REPLY_THANKS, REPLY_NOT_NOW],
         });
       }
 
@@ -113,7 +114,7 @@ export const ChatBar: React.FC = () => {
         window.clawster.showPetChat({
           id: activePetPopupIdRef.current,
           text: errorMsg,
-          quickReplies: ['Got it', 'Not now'],
+          quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
         });
       }
 
@@ -358,7 +359,7 @@ export const ChatBar: React.FC = () => {
           window.clawster.showPetChat({
             id: activePetPopupIdRef.current,
             text: fallbackText || 'No response',
-            quickReplies: ['Thanks!', 'Not now'],
+            quickReplies: [REPLY_THANKS, REPLY_NOT_NOW],
           });
         }
       }
@@ -384,7 +385,7 @@ export const ChatBar: React.FC = () => {
         window.clawster.showPetChat({
           id: activePetPopupIdRef.current,
           text: errorMsg,
-          quickReplies: ['Got it', 'Not now'],
+          quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
         });
       }
       await saveMessageToHistory(message, errorMsg);

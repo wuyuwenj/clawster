@@ -28,7 +28,6 @@
     "eval:holdout": "npx tsx eval/runner.ts --holdout"
   },
   "dependencies": {
-    "@fontsource/nunito": "^5.2.7",
     "@huggingface/transformers": "^4.2.0",
     "@iconify/react": "^6.0.2",
     "active-win": "^8.1.0",
@@ -43,6 +42,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@fontsource/nunito": "^5.2.7",
     "@playwright/test": "^1.61.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
