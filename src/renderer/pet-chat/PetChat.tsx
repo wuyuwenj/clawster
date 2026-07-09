@@ -6,7 +6,9 @@ import { isResponseComplete, STREAM_PLACEHOLDER } from './response-state';
 import {
   chipVariant,
   ChipVariant,
+  closingReaction,
   DEFAULT_QUICK_REPLIES,
+  isClosingReply,
   REPLY_GOT_IT,
   REPLY_NOT_NOW,
   REPLY_OPEN_SETTINGS,
@@ -174,73 +176,56 @@ export const PetChat: React.FC = () => {
 
   const handleQuickReply = useCallback(async (reply: string) => {
     if (!message) return;
+    animalese.stop();
 
-    if (reply === REPLY_NOT_NOW) {
-      animalese.stop();
-      window.clawster.petChatReply('dismiss');
+    // Every non-engaging reply — "Not now", "Thanks!", "Got it", and anything
+    // this renderer doesn't recognize — closes the bubble.
+    if (isClosingReply(reply)) {
+      window.clawster.petChatReply(closingReaction(reply));
       window.clawster.hidePetChat();
       return;
     }
 
-    if (reply === REPLY_TELL_ME_MORE) {
-      animalese.stop();
-      // Check connection first
-      const status = await window.clawster.getClawbotStatus();
-      if (!status.connected) {
-        setMessage({
-          id: crypto.randomUUID(),
-          text: 'I can\'t reach my brain right now. Check your internet connection!',
-          quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
-        });
-        return;
-      }
-
-      setIsLoading(true);
-      window.clawster.petChatReply('thinking');
-      try {
-        const response = await window.clawster.sendToClawbot(
-          `Tell me more about: ${message.text}`
-        ) as { text?: string };
-
-        if (response.text) {
-          setMessage({
-            id: crypto.randomUUID(),
-            text: response.text,
-            quickReplies: [REPLY_THANKS, REPLY_NOT_NOW],
-          });
-          window.clawster.petChatReply('curious');
-        }
-      } catch {
-        setMessage({
-          id: crypto.randomUUID(),
-          text: 'Couldn\'t connect to gateway. Make sure it\'s running.',
-          quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
-        });
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
     if (reply === REPLY_OPEN_SETTINGS) {
-      animalese.stop();
       window.clawster.openAssistant();
       window.clawster.hidePetChat();
       return;
     }
 
-    // "Got it" - just close
-    if (reply === REPLY_GOT_IT) {
-      animalese.stop();
-      window.clawster.petChatReply('dismiss');
-      window.clawster.hidePetChat();
+    // Check connection first
+    const status = await window.clawster.getClawbotStatus();
+    if (!status.connected) {
+      setMessage({
+        id: crypto.randomUUID(),
+        text: 'I can\'t reach my brain right now. Check your internet connection!',
+        quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
+      });
       return;
     }
 
-    // "Thanks!" - close with happy reaction
-    animalese.stop();
-    window.clawster.petChatReply('thanks');
-    window.clawster.hidePetChat();
+    setIsLoading(true);
+    window.clawster.petChatReply('thinking');
+    try {
+      const prompt = reply === REPLY_TELL_ME_MORE ? `Tell me more about: ${message.text}` : reply;
+      const response = await window.clawster.sendToClawbot(prompt) as { text?: string };
+
+      if (response.text) {
+        setMessage({
+          id: crypto.randomUUID(),
+          text: response.text,
+          quickReplies: [REPLY_THANKS, REPLY_NOT_NOW],
+        });
+        window.clawster.petChatReply('curious');
+      }
+    } catch {
+      setMessage({
+        id: crypto.randomUUID(),
+        text: 'Couldn\'t connect to gateway. Make sure it\'s running.',
+        quickReplies: [REPLY_GOT_IT, REPLY_NOT_NOW],
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [message]);
 
   if (!message) return null;

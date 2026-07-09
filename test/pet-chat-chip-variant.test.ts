@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { chipVariant } from '../src/renderer/pet-chat/quick-replies';
+import {
+  chipVariant,
+  closingReaction,
+  isClosingReply,
+  isEngagingReply,
+} from '../src/renderer/pet-chat/quick-replies';
+import { getQuickReplies } from '../src/main/chat/quick-replies';
 
 // CLA-58 (Tidepool): quick replies are solid candy chips. Coral means
 // "acting/chosen", so the primary chip is the reply that CONTINUES the
@@ -35,5 +41,73 @@ describe('chipVariant — candy chip hierarchy (CLA-58)', () => {
     expect(chipVariant(replies, 'Tell me more')).toBe('primary');
     expect(chipVariant(replies, 'Open Settings')).toBe('secondary');
     expect(replies.filter((r) => chipVariant(replies, r) === 'primary')).toHaveLength(1);
+  });
+
+  it('never gives coral to a reply the renderer would just close on', () => {
+    // 'Cool!' / 'Haha!' / 'Pause' / 'Goodnight' all fall through to the close
+    // path, so none of them may look like the call to action.
+    for (const replies of [
+      ['Cool!', 'Not now'],
+      ['Haha!', 'Thanks!'],
+      ['Nice one!', 'Thanks!'],
+      ["I'm okay", 'Thanks'],
+      ['Pause', 'Thanks!'],
+      ['Goodnight', 'Thanks!'],
+    ]) {
+      expect(replies.map((r) => chipVariant(replies, r))).not.toContain('primary');
+    }
+  });
+
+  it('promotes the engaging reply in each real main-process reply set', () => {
+    const tools: [string, string][] = [
+      ['play_music', 'Next song'],
+      ['set_timer', 'Set another'],
+      ['create_reminder', 'Remind me again'],
+      ['get_weather', 'Anywhere else?'],
+      ['get_calendar_events', "What's next?"],
+      ['list_files', 'Search them'],
+      ['block_apps', 'How much time left?'],
+      ['run_shell', 'Run another'],
+      ['what_time', 'Set a timer'],
+    ];
+    for (const [tool, engaging] of tools) {
+      const replies = getQuickReplies(tool);
+      expect(replies).toContain(engaging);
+      expect(chipVariant(replies, engaging)).toBe('primary');
+      expect(replies.filter((r) => chipVariant(replies, r) === 'primary')).toHaveLength(1);
+    }
+
+    const doze = getQuickReplies(null, 'doze');
+    expect(chipVariant(doze, 'Wake up!')).toBe('primary');
+    expect(chipVariant(doze, 'Goodnight')).toBe('secondary');
+
+    const hint = ['What can you do?', 'Got it!'];
+    expect(chipVariant(hint, 'What can you do?')).toBe('primary');
+    expect(chipVariant(hint, 'Got it!')).toBe('secondary');
+  });
+});
+
+// The chip and the click handler read the same classifier, so a coral chip is
+// a promise the handler keeps: coral never closes the bubble.
+describe('reply classification drives both the chip and the handler', () => {
+  it('treats every unrecognized reply as a close', () => {
+    expect(isEngagingReply('Sure, whatever')).toBe(false);
+    expect(isClosingReply('Sure, whatever')).toBe(true);
+  });
+
+  it('closes on exactly the replies that never take coral', () => {
+    const replies = ['Next song', 'Pause', 'Not now', 'Thanks!'];
+    for (const reply of replies) {
+      const coral = chipVariant(replies, reply) === 'primary';
+      expect(coral).toBe(!isClosingReply(reply));
+    }
+  });
+
+  it('shrugs off dismissals and thanks the friendly exits', () => {
+    expect(closingReaction('Not now')).toBe('dismiss');
+    expect(closingReaction('Got it')).toBe('dismiss');
+    expect(closingReaction('Got it!')).toBe('dismiss');
+    expect(closingReaction('Thanks!')).toBe('thanks');
+    expect(closingReaction('Goodnight')).toBe('thanks');
   });
 });
