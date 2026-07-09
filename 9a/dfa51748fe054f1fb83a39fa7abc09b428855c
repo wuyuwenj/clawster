@@ -1,0 +1,19 @@
+src/renderer/styles/tidepool.css
+  s_4e542942e90a84::t_ba3ba69449f9a1 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9adfa51748fe054f1fb83a39fa7abc09b428855c",
+  "prompts": {},
+  "sessions": {
+    "s_4e542942e90a84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0126d620-2d8e-42c5-b8f4-5e2a22587ad3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
