@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
   chipVariant,
   closingReaction,
-  isClosingReply,
   isEngagingReply,
 } from '../src/renderer/pet-chat/quick-replies';
 import { getQuickReplies } from '../src/main/chat/quick-replies';
 
 // CLA-58 (Tidepool): quick replies are solid candy chips. Coral means
-// "acting/chosen", so the primary chip is the reply that CONTINUES the
-// conversation. Replies that close the bubble never take coral: "Not now" is
-// muted, and the closing acknowledgements "Thanks!" / "Got it" take the tint.
+// "acting/chosen", so the primary chip is the reply on the engaging allowlist —
+// the one that reads as "keep going". Everything off the allowlist stays quiet:
+// "Not now" is muted, and acknowledgements like "Thanks!" / "Got it" take the
+// tint. This is a colour rule only; it does not decide what a tap does.
 describe('chipVariant — candy chip hierarchy (CLA-58)', () => {
   it('makes the conversation-continuing reply primary in the default set', () => {
     const replies = ['Thanks!', 'Tell me more', 'Not now'];
@@ -19,8 +19,8 @@ describe('chipVariant — candy chip hierarchy (CLA-58)', () => {
     expect(chipVariant(replies, 'Not now')).toBe('muted');
   });
 
-  it('never makes a bubble-closing reply primary, even when listed first', () => {
-    // Every handler here calls hidePetChat(), so nothing earns coral.
+  it('never makes an acknowledgement primary, even when listed first', () => {
+    // Nothing here reads as "keep going", so nothing earns coral.
     const replies = ['Got it', 'Not now'];
     expect(chipVariant(replies, 'Got it')).toBe('secondary');
     expect(chipVariant(replies, 'Not now')).toBe('muted');
@@ -43,9 +43,9 @@ describe('chipVariant — candy chip hierarchy (CLA-58)', () => {
     expect(replies.filter((r) => chipVariant(replies, r) === 'primary')).toHaveLength(1);
   });
 
-  it('never gives coral to a reply the renderer would just close on', () => {
-    // 'Cool!' / 'Haha!' / 'Pause' / 'Goodnight' all fall through to the close
-    // path, so none of them may look like the call to action.
+  it('never gives coral to a reply that reads as an acknowledgement', () => {
+    // 'Cool!' / 'Haha!' / 'Pause' / 'Goodnight' all wrap the exchange up, so
+    // none of them may look like the call to action.
     for (const replies of [
       ['Cool!', 'Not now'],
       ['Haha!', 'Thanks!'],
@@ -87,27 +87,30 @@ describe('chipVariant — candy chip hierarchy (CLA-58)', () => {
   });
 });
 
-// The chip and the click handler read the same classifier, so a coral chip is
-// a promise the handler keeps: coral never closes the bubble.
-describe('reply classification drives both the chip and the handler', () => {
-  it('treats every unrecognized reply as a close', () => {
+// The allowlist decides colour and nothing else. A reply the renderer has never
+// heard of is quiet by default rather than loudly inviting a tap.
+describe('engaging allowlist governs coral eligibility', () => {
+  it('leaves an unrecognized reply off the allowlist', () => {
     expect(isEngagingReply('Sure, whatever')).toBe(false);
-    expect(isClosingReply('Sure, whatever')).toBe(true);
+    expect(chipVariant(['Sure, whatever', 'Thanks!'], 'Sure, whatever')).toBe('secondary');
   });
 
-  it('closes on exactly the replies that never take coral', () => {
+  it('gives coral to exactly the engaging replies', () => {
     const replies = ['Next song', 'Pause', 'Not now', 'Thanks!'];
     for (const reply of replies) {
       const coral = chipVariant(replies, reply) === 'primary';
-      expect(coral).toBe(!isClosingReply(reply));
+      expect(coral).toBe(isEngagingReply(reply));
     }
   });
+});
 
+// closingReaction picks the pet's mood on the way out, independent of colour.
+describe('closingReaction', () => {
   it('shrugs off dismissals and thanks the friendly exits', () => {
     expect(closingReaction('Not now')).toBe('dismiss');
     expect(closingReaction('Got it')).toBe('dismiss');
-    expect(closingReaction('Got it!')).toBe('dismiss');
     expect(closingReaction('Thanks!')).toBe('thanks');
+    expect(closingReaction('Got it!')).toBe('thanks');
     expect(closingReaction('Goodnight')).toBe('thanks');
   });
 });

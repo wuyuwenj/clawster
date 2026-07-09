@@ -8,7 +8,6 @@ import {
   ChipVariant,
   closingReaction,
   DEFAULT_QUICK_REPLIES,
-  isClosingReply,
   REPLY_GOT_IT,
   REPLY_NOT_NOW,
   REPLY_OPEN_SETTINGS,
@@ -178,16 +177,17 @@ export const PetChat: React.FC = () => {
     if (!message) return;
     animalese.stop();
 
-    // Every non-engaging reply — "Not now", "Thanks!", "Got it", and anything
-    // this renderer doesn't recognize — closes the bubble.
-    if (isClosingReply(reply)) {
-      window.clawster.petChatReply(closingReaction(reply));
+    if (reply === REPLY_OPEN_SETTINGS) {
+      window.clawster.openAssistant();
       window.clawster.hidePetChat();
       return;
     }
 
-    if (reply === REPLY_OPEN_SETTINGS) {
-      window.clawster.openAssistant();
+    // "Tell me more" is the only reply that asks Clawster for a follow-up.
+    // Everything else — "Not now", "Thanks!", "Got it", and every tool-specific
+    // reply the main process offers — closes the bubble.
+    if (reply !== REPLY_TELL_ME_MORE) {
+      window.clawster.petChatReply(closingReaction(reply));
       window.clawster.hidePetChat();
       return;
     }
@@ -206,8 +206,9 @@ export const PetChat: React.FC = () => {
     setIsLoading(true);
     window.clawster.petChatReply('thinking');
     try {
-      const prompt = reply === REPLY_TELL_ME_MORE ? `Tell me more about: ${message.text}` : reply;
-      const response = await window.clawster.sendToClawbot(prompt) as { text?: string };
+      const response = await window.clawster.sendToClawbot(
+        `Tell me more about: ${message.text}`
+      ) as { text?: string };
 
       if (response.text) {
         setMessage({
