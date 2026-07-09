@@ -176,16 +176,16 @@ describe('drag reaction variant selection (CLA-6)', () => {
 describe('carried drag pose stylesheet ordering (CLA-6)', () => {
   const css = readFileSync(new URL('../src/renderer/pet/styles.css', import.meta.url), 'utf8');
 
-  // state-dragging is applied *alongside* the mood and idle-behavior classes,
-  // and main can push a new mood at any moment mid-drag. Equal specificity means
-  // the carried pose only wins by being declared last.
-  it('declares the drag rules after every mood and idle-behavior rule', () => {
+  // state-dragging is applied *alongside* the mood, idle-behavior, and action
+  // classes, and main can push a new mood or action at any moment mid-drag.
+  // Equal specificity means the carried pose only wins by being declared last.
+  it('declares the drag rules after every mood, idle-behavior, and action rule', () => {
     const dragBlockStart = css.indexOf('.lobster-container.state-dragging {');
     expect(dragBlockStart).toBeGreaterThan(-1);
 
-    const overridable = [...css.matchAll(/^\.lobster-container\.(state-[\w-]+|idle-[\w-]+)/gm)].filter(
-      (match) => !match[1].startsWith('state-drag')
-    );
+    const overridable = [
+      ...css.matchAll(/^\.lobster-container\.(state-[\w-]+|idle-[\w-]+|action-[\w-]+)/gm),
+    ].filter((match) => !match[1].startsWith('state-drag'));
     expect(overridable.length).toBeGreaterThan(0);
 
     const lastOverridable = overridable[overridable.length - 1];
@@ -198,5 +198,42 @@ describe('carried drag pose stylesheet ordering (CLA-6)', () => {
 
     expect(leftClaw.slice(0, leftClaw.indexOf('}'))).toContain('animation: none');
     expect(rightClaw.slice(0, rightClaw.indexOf('}'))).toContain('animation: none');
+  });
+});
+
+describe('drag visuals are suppressed while sleeping (CLA-6)', () => {
+  // The Vitest suite runs without a DOM, so the guard is asserted against the
+  // component source. A sleeping Clawster must keep its tucked-claw sleep pose:
+  // state-dragging carries `animation: none` plus the awake carried transform,
+  // and nothing about a drag wakes the pet.
+  const pet = readFileSync(new URL('../src/renderer/pet/Pet.tsx', import.meta.url), 'utf8');
+
+  const guardsSleep = (source: string, marker: string): boolean => {
+    const markerAt = source.indexOf(marker);
+    expect(markerAt).toBeGreaterThan(-1);
+    const guardAt = source.lastIndexOf('if (!sleepLockedRef.current) {', markerAt);
+    if (guardAt === -1) return false;
+    // The guard still has to be open at the marker.
+    return !source.slice(guardAt + 'if (!sleepLockedRef.current) {'.length, markerAt).includes('}');
+  };
+
+  it('never applies the carried pose to a sleeping pet', () => {
+    expect(guardsSleep(pet, 'dragging: true')).toBe(true);
+  });
+
+  it('never applies the resist tug to a sleeping pet', () => {
+    const resistingAt = pet.indexOf('const resisting =');
+    expect(resistingAt).toBeGreaterThan(-1);
+
+    const expression = pet.slice(resistingAt, pet.indexOf(';', resistingAt));
+    expect(expression).toContain('!sleepLockedRef.current');
+  });
+
+  it('never starts a drag reaction or its bubble while sleeping', () => {
+    const reactionAt = pet.indexOf('const startDragReaction = useCallback(');
+    expect(reactionAt).toBeGreaterThan(-1);
+
+    const body = pet.slice(reactionAt, pet.indexOf('}, [maybeShowEmoteBubble]);', reactionAt));
+    expect(body).toContain('if (sleepLockedRef.current) return;');
   });
 });

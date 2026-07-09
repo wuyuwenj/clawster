@@ -1317,78 +1317,6 @@
   }
 }
 
-/* DRAGGING STATE - shared carried body motion for all drag reactions.
-   Declared after every mood and idle-behavior rule: state-dragging is applied
-   alongside those classes, so the carried pose only wins by coming last. */
-.lobster-container.state-dragging {
-  animation: carriedFloat 1.6s ease-in-out infinite;
-}
-
-.lobster-container.state-dragging .body-group {
-  animation: carriedBodyTilt 1.6s ease-in-out infinite;
-}
-
-.lobster-container.state-dragging .left-claw {
-  animation: none;
-  transform: translateY(-8px) rotate(-16deg);
-}
-
-.lobster-container.state-dragging .right-claw {
-  animation: none;
-  transform: translateY(-8px) rotate(16deg);
-}
-
-.lobster-container.state-drag-resisting .body-group {
-  animation: resistTug 0.22s ease-in-out infinite;
-}
-
-/* CLA-6 default: confused, then accepts being carried */
-.lobster-container.drag-reaction-confused-accepts .body-group {
-  animation: dragRealizationTilt 0.45s ease-out forwards;
-}
-
-.lobster-container.drag-reaction-confused-accepts .eye-open {
-  animation: dragRealizationBlink 0.45s ease-out forwards;
-}
-
-.lobster-container.drag-reaction-confused-accepts .fx-question {
-  animation: questionWobble 0.45s ease-out forwards;
-}
-
-.lobster-container.drag-reaction-confused-accepts .mouth-neutral {
-  opacity: 0;
-}
-
-.lobster-container.drag-reaction-confused-accepts .mouth-happy {
-  animation: acceptSmile 0.45s ease-out forwards;
-}
-
-/* CLA-6 fast-drag variant: startled, then carried */
-.lobster-container.drag-reaction-startled .body-group {
-  animation: startledCarryPop 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.lobster-container.drag-reaction-startled .eye-open {
-  animation: none;
-  transform: scale(1.24);
-}
-
-.lobster-container.drag-reaction-startled .mouth-neutral {
-  opacity: 0;
-}
-
-.lobster-container.drag-reaction-startled .mouth-worried {
-  opacity: 1;
-}
-
-.lobster-container.drag-reaction-startled .left-claw {
-  animation: startledFlailLeft 0.5s ease-out forwards;
-}
-
-.lobster-container.drag-reaction-startled .right-claw {
-  animation: startledFlailRight 0.5s ease-out forwards;
-}
-
 /* Camera Snap Action */
 .camera-flash-overlay {
   position: absolute;
@@ -1555,4 +1483,79 @@
   100% {
     transform: translateY(0) rotate(0deg);
   }
+}
+
+/* DRAGGING STATE - shared carried body motion for all drag reactions.
+   INVARIANT: these rules must stay last in this file. state-dragging is applied
+   alongside the mood (.state-*), idle-behavior (.idle-*), and action (.action-*)
+   classes at equal specificity, and main can push a new mood or action at any
+   moment mid-drag, so the carried pose only wins by being declared after all of
+   them. Append new claw-transform rules above this block, never below it. */
+.lobster-container.state-dragging {
+  animation: carriedFloat 1.6s ease-in-out infinite;
+}
+
+.lobster-container.state-dragging .body-group {
+  animation: carriedBodyTilt 1.6s ease-in-out infinite;
+}
+
+.lobster-container.state-dragging .left-claw {
+  animation: none;
+  transform: translateY(-8px) rotate(-16deg);
+}
+
+.lobster-container.state-dragging .right-claw {
+  animation: none;
+  transform: translateY(-8px) rotate(16deg);
+}
+
+.lobster-container.state-drag-resisting .body-group {
+  animation: resistTug 0.22s ease-in-out infinite;
+}
+
+/* CLA-6 default: confused, then accepts being carried */
+.lobster-container.drag-reaction-confused-accepts .body-group {
+  animation: dragRealizationTilt 0.45s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-confused-accepts .eye-open {
+  animation: dragRealizationBlink 0.45s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-confused-accepts .fx-question {
+  animation: questionWobble 0.45s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-confused-accepts .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.drag-reaction-confused-accepts .mouth-happy {
+  animation: acceptSmile 0.45s ease-out forwards;
+}
+
+/* CLA-6 fast-drag variant: startled, then carried */
+.lobster-container.drag-reaction-startled .body-group {
+  animation: startledCarryPop 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.lobster-container.drag-reaction-startled .eye-open {
+  animation: none;
+  transform: scale(1.24);
+}
+
+.lobster-container.drag-reaction-startled .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.drag-reaction-startled .mouth-worried {
+  opacity: 1;
+}
+
+.lobster-container.drag-reaction-startled .left-claw {
+  animation: startledFlailLeft 0.5s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-startled .right-claw {
+  animation: startledFlailRight 0.5s ease-out forwards;
 }

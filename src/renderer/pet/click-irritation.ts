@@ -17,6 +17,13 @@ export interface ClickIrritationResult {
 export const IRRITATION_CLICK_THRESHOLD = 5;
 export const IRRITATION_WINDOW_MS = 3000;
 export const IRRITATION_COOLDOWN_MS = 10000;
+/**
+ * Widest gap between consecutive clicks that still counts as rapid: the spacing
+ * at which IRRITATION_CLICK_THRESHOLD clicks fit inside IRRITATION_WINDOW_MS.
+ * Derived from the escalation constants so a burst can only be sustained at the
+ * same cadence that could have built it.
+ */
+export const IRRITATION_SUSTAIN_MS = IRRITATION_WINDOW_MS / (IRRITATION_CLICK_THRESHOLD - 1);
 
 export const INITIAL_CLICK_IRRITATION_STATE: ClickIrritationState = {
   level: 'calm',
@@ -38,7 +45,7 @@ export function recordPetClick(
     state.recentClickTimes.length > 0
       ? state.recentClickTimes[state.recentClickTimes.length - 1]
       : null;
-  const isRapidClick = previousClickAt !== null && now - previousClickAt <= IRRITATION_WINDOW_MS;
+  const isRapidClick = previousClickAt !== null && now - previousClickAt <= IRRITATION_SUSTAIN_MS;
 
   const cooledDown =
     state.lastRapidClickAt !== null && now - state.lastRapidClickAt >= IRRITATION_COOLDOWN_MS;

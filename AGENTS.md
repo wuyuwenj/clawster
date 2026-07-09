@@ -54,6 +54,7 @@ User message
 - Renderer behavior that needs unit tests lives in pure logic modules (no React/Electron imports) next to the component, e.g. `src/renderer/pet/emote-bubbles.ts` — the Vitest suite runs in a node environment with no DOM
 - Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 - The `pet.muted` setting (Assistant panel toggle) silences both of Clawster's sound sources (CLA-52). Main pushes changes to the **pet-chat** window on the `pet-muted-changed` channel — that window owns the Animalese engine, so sending to the pet window would never gate the voice — and `main.ts` calls `setMutedProvider` so `chat/tool-executor.ts` can raise notifications with `silent: true`. The engine seeds itself from persisted settings on the first utterance and applies later changes mid-utterance; character timing is unchanged when muted
+- In `src/renderer/pet/styles.css` the `.state-dragging` block must stay last: it is applied alongside the `.state-*` / `.idle-*` / `.action-*` classes at equal specificity, so the carried claw pose only wins by being declared after all of them (enforced by `test/drag-interactions.test.ts`)
 
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)

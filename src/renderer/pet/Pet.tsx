@@ -262,7 +262,11 @@ export const Pet: React.FC = () => {
   const clickIrritationRef = useRef<ClickIrritationState>(INITIAL_CLICK_IRRITATION_STATE);
   const irritationBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const irritationRevertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pokeTimersRef = useRef(new PokeReactionTimers());
+  const pokeTimersRef = useRef<PokeReactionTimers | null>(null);
+  if (pokeTimersRef.current === null) {
+    pokeTimersRef.current = new PokeReactionTimers();
+  }
+  const pokeTimers = pokeTimersRef.current;
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraSnapEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -361,7 +365,7 @@ export const Pet: React.FC = () => {
       clearTimeout(irritationRevertTimeoutRef.current);
       irritationRevertTimeoutRef.current = null;
     }
-    pokeTimersRef.current.clear();
+    pokeTimers.clear();
     if (idleBehaviorTimeoutRef.current) {
       clearTimeout(idleBehaviorTimeoutRef.current);
       idleBehaviorTimeoutRef.current = null;
@@ -384,7 +388,7 @@ export const Pet: React.FC = () => {
       }
     }, 1000);
     irritationRevertTimeoutRef.current = setTimeout(revertMoodAfterReaction, 1700);
-  }, [maybeShowEmoteBubble, revertMoodAfterReaction, setPetMood]);
+  }, [maybeShowEmoteBubble, revertMoodAfterReaction, setPetMood, pokeTimers]);
 
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
     if (!sleepLockedRef.current) return true;
@@ -666,7 +670,7 @@ export const Pet: React.FC = () => {
       if (irritationRevertTimeoutRef.current) {
         clearTimeout(irritationRevertTimeoutRef.current);
       }
-      pokeTimersRef.current.clear();
+      pokeTimers.clear();
       if (cameraSnapEndTimeoutRef.current) {
         clearTimeout(cameraSnapEndTimeoutRef.current);
       }
@@ -678,7 +682,7 @@ export const Pet: React.FC = () => {
       }
       window.clawster.removeAllListeners();
     };
-  }, [canApplyMoodUpdate, setPetMood, maybeShowEmoteBubble, revertMoodAfterReaction]);
+  }, [canApplyMoodUpdate, setPetMood, maybeShowEmoteBubble, revertMoodAfterReaction, pokeTimers]);
 
   const isSleepTransparent = transparentWhenSleeping && (mood === 'sleeping' || mood === 'doze');
   const shouldShowModeOverlay = import.meta.env.DEV && showModeOverlay;
@@ -713,8 +717,10 @@ export const Pet: React.FC = () => {
 
       if (!didDragRef.current && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
         didDragRef.current = true;
-        setDragVisual((current) => ({ ...current, dragging: true }));
+        // A sleeping Clawster keeps its tucked-claw sleep pose: the carried
+        // pose and carriedFloat would read as awake while the eyes stay shut.
         if (!sleepLockedRef.current) {
+          setDragVisual((current) => ({ ...current, dragging: true }));
           const resistance = dragResistanceRef.current;
           if (!resistance?.active) {
             startDragReaction(pickDragReactionVariant({ dragDistancePx, elapsedMs }));
@@ -732,7 +738,8 @@ export const Pet: React.FC = () => {
           : null;
         if (resistanceStep) {
           dragResistanceRef.current = resistanceStep.state;
-          const resisting = resistanceStep.state.active && !resistanceStep.state.won;
+          const resisting =
+            !sleepLockedRef.current && resistanceStep.state.active && !resistanceStep.state.won;
           setDragVisual((current) => (current.resisting === resisting ? current : { ...current, resisting }));
           if (resistanceStep.wonNow) {
             // Stop the autonomous move animation in main, otherwise it keeps
@@ -832,11 +839,11 @@ export const Pet: React.FC = () => {
     if (reaction.mood) {
       setPetMood(reaction.mood);
       maybeShowEmoteBubble({ kind: 'mood', mood: reaction.mood });
-      pokeTimersRef.current.scheduleMoodRevert(revertMoodAfterReaction, reaction.duration);
+      pokeTimers.scheduleMoodRevert(revertMoodAfterReaction, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
       maybeShowEmoteBubble({ kind: 'behavior', behavior: reaction.behavior, source: 'poke' });
-      pokeTimersRef.current.scheduleBehaviorClear(() => {
+      pokeTimers.scheduleBehaviorClear(() => {
         if (!sleepLockedRef.current) {
           setIdleBehavior(null);
         }
@@ -845,7 +852,7 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction, applyIrritationReaction]);
+  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction, applyIrritationReaction, pokeTimers]);
 
   // Right click = open custom context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
