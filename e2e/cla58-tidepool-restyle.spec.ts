@@ -16,15 +16,27 @@ import pixelmatch from 'pixelmatch';
 //   CAPTURE_BASELINE=1 npx playwright test cla58  → saves before-*.png of the
 //     OLD design into .no-mistakes/evidence/cla58/ (run once, pre-restyle,
 //     and commit the result).
+//   CAPTURE_EVIDENCE=1 npx playwright test cla58  → refreshes the committed
+//     after-*.png / diff-*.png proof in that same tracked directory.
 //   npx playwright test cla58                     → saves after-*.png of the
-//     NEW design next to them and pixel-diffs each pair. If the restyle is
-//     not actually visible (diff fraction below MIN_DIFF_FRACTION), it FAILS.
+//     NEW design and pixel-diffs each pair. If the restyle is not actually
+//     visible (diff fraction below MIN_DIFF_FRACTION), it FAILS.
+//
+// Only the two capture modes write to the tracked evidence directory. A plain
+// run — including `npm run test:e2e`, which sweeps all of e2e/ — writes its
+// output to the gitignored test-results/ tree instead, so a routine or CI run
+// can never dirty the worktree or silently replace the committed proof.
 //
 // Both surfaces are driven the same way the app drives them: the chatbar via
 // the toggle-chatbar IPC, the bubble via the chat-message IPC (showPetChat),
 // so the shots show the real windows, not a storybook.
 const EVIDENCE_DIR = path.join(__dirname, '..', '.no-mistakes', 'evidence', 'cla58');
 const BASELINE_MODE = process.env.CAPTURE_BASELINE === '1';
+const CAPTURE_EVIDENCE = process.env.CAPTURE_EVIDENCE === '1';
+const OUTPUT_DIR =
+  BASELINE_MODE || CAPTURE_EVIDENCE
+    ? EVIDENCE_DIR
+    : path.join(__dirname, '..', 'test-results', 'cla58');
 // The Tidepool restyle flips near-black slabs to cream — most of both windows
 // repaints. Idle rendering noise (caret hidden, no animations at capture time)
 // is well under 1%, so 10% cleanly separates a real restyle from a no-op.
@@ -67,7 +79,7 @@ async function settleForShot(page: Page) {
 }
 
 test.beforeAll(async () => {
-  fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clawster-cla58-e2e-'));
   fs.writeFileSync(
     path.join(dataDir, 'clawster-config.json'),
@@ -95,7 +107,7 @@ test('chatbar wears the Tidepool look and visibly differs from the old slab', as
   await settleForShot(chatbar);
 
   const shotName = BASELINE_MODE ? 'before-chatbar.png' : 'after-chatbar.png';
-  await chatbar.screenshot({ path: path.join(EVIDENCE_DIR, shotName) });
+  await chatbar.screenshot({ path: path.join(OUTPUT_DIR, shotName) });
 
   if (BASELINE_MODE) return;
 
@@ -116,8 +128,8 @@ test('chatbar wears the Tidepool look and visibly differs from the old slab', as
 
   const frac = diffFraction(
     path.join(EVIDENCE_DIR, 'before-chatbar.png'),
-    path.join(EVIDENCE_DIR, 'after-chatbar.png'),
-    path.join(EVIDENCE_DIR, 'diff-chatbar.png'),
+    path.join(OUTPUT_DIR, 'after-chatbar.png'),
+    path.join(OUTPUT_DIR, 'diff-chatbar.png'),
   );
   console.log(`[cla58] chatbar before→after pixel-diff fraction: ${(frac * 100).toFixed(1)}%`);
   expect(frac).toBeGreaterThan(MIN_DIFF_FRACTION);
@@ -125,7 +137,7 @@ test('chatbar wears the Tidepool look and visibly differs from the old slab', as
   // Extra evidence: the 17px warm-ink input text in the rounded face.
   await input.fill('can you find my science notes?');
   await settleForShot(chatbar);
-  await chatbar.screenshot({ path: path.join(EVIDENCE_DIR, 'after-chatbar-typed.png') });
+  await chatbar.screenshot({ path: path.join(OUTPUT_DIR, 'after-chatbar-typed.png') });
   await input.fill('');
 
   await first.evaluate(() => (window as any).clawster.closeChatbar());
@@ -147,7 +159,7 @@ test('pet-chat bubble wears the Tidepool look and visibly differs from the old p
   await settleForShot(petChat);
 
   const shotName = BASELINE_MODE ? 'before-petchat.png' : 'after-petchat.png';
-  await petChat.screenshot({ path: path.join(EVIDENCE_DIR, shotName) });
+  await petChat.screenshot({ path: path.join(OUTPUT_DIR, shotName) });
 
   if (BASELINE_MODE) return;
 
@@ -169,8 +181,8 @@ test('pet-chat bubble wears the Tidepool look and visibly differs from the old p
 
   const frac = diffFraction(
     path.join(EVIDENCE_DIR, 'before-petchat.png'),
-    path.join(EVIDENCE_DIR, 'after-petchat.png'),
-    path.join(EVIDENCE_DIR, 'diff-petchat.png'),
+    path.join(OUTPUT_DIR, 'after-petchat.png'),
+    path.join(OUTPUT_DIR, 'diff-petchat.png'),
   );
   console.log(`[cla58] pet-chat before→after pixel-diff fraction: ${(frac * 100).toFixed(1)}%`);
   expect(frac).toBeGreaterThan(MIN_DIFF_FRACTION);
