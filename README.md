@@ -131,6 +131,7 @@ Make it a strict code reviewer, a cheerful assistant, a sarcastic debugger, or a
 ### Behaviors
 In the Assistant panel settings, you can:
 - Enable/disable attention seeking behavior
+- Mute Clawster's voice and notification sounds
 - Configure watched folders for file change notifications
 - Toggle window title tracking
 - Manage analytics opt-in/out
