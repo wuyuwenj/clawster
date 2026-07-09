@@ -22,19 +22,7 @@ let moveAnimation: NodeJS.Timeout | null = null;
 // Resolver of the in-flight animateMoveTo promise. Cancelling an animation must
 // also resolve its promise — otherwise an overlapping call (e.g. two seekAttention
 // ticks) clears the timer but orphans the previous caller's await forever.
-let resolveMoveAnimation: (() => void) | null = null;
-
-function cancelActiveMoveAnimation(): void {
-  if (moveAnimation) {
-    clearInterval(moveAnimation);
-    moveAnimation = null;
-  }
-  if (resolveMoveAnimation) {
-    const resolve = resolveMoveAnimation;
-    resolveMoveAnimation = null;
-    resolve();
-  }
-}
+let moveAnimationResolve: (() => void) | null = null;
 
 // Constants
 const IDLE_BEHAVIOR_MIN_INTERVAL = 3000;
@@ -90,6 +78,16 @@ export function initPetBehaviors(deps: {
   updateAssistantPositionFn = deps.updateAssistantPosition;
 }
 
+function stopMoveAnimation(): void {
+  if (moveAnimation) {
+    clearInterval(moveAnimation);
+    moveAnimation = null;
+  }
+  const resolve = moveAnimationResolve;
+  moveAnimationResolve = null;
+  resolve?.();
+}
+
 // Smooth animation to move pet to target position
 export function animateMoveTo(targetX: number, targetY: number, duration: number = 1000): Promise<void> {
   return new Promise((resolve) => {
@@ -98,7 +96,8 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
       resolve();
       return;
     }
-    cancelActiveMoveAnimation();
+    stopMoveAnimation();
+    moveAnimationResolve = resolve;
 
     const [startX, startY] = getPetWindow()?.getPosition() ?? [0, 0];
 
@@ -106,20 +105,11 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     // native setPosition throw from inside the timer (CLA-56).
     if (!areUsableCoords(startX, startY, targetX, targetY)) {
       console.warn('[animateMoveTo] Refusing to move: unusable coordinates', { startX, startY, targetX, targetY });
-      resolve();
+      stopMoveAnimation();
       return;
     }
 
     const startTime = Date.now();
-    resolveMoveAnimation = resolve;
-    const finish = () => {
-      if (moveAnimation) {
-        clearInterval(moveAnimation);
-        moveAnimation = null;
-      }
-      resolveMoveAnimation = null;
-      resolve();
-    };
 
     // Notify renderer that movement started
     getPetWindow()?.webContents.send('pet-moving', { moving: true });
@@ -127,7 +117,7 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     moveAnimation = setInterval(() => {
       const win = getPetWindow();
       if (!win) {
-        finish();
+        stopMoveAnimation();
         return;
       }
 
@@ -146,7 +136,7 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
       if (!areUsableCoords(currentX, currentY)) {
         console.warn('[animateMoveTo] Aborting move: computed unusable position', { currentX, currentY });
         getPetWindow()?.webContents.send('pet-moving', { moving: false });
-        finish();
+        stopMoveAnimation();
         return;
       }
 
@@ -156,8 +146,8 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
 
       if (progress >= 1) {
         getStore().set('pet.position', { x: targetX, y: targetY });
-        getPetWindow()?.webContents.send('pet-moving', { moving: false });
-        finish();
+        win.webContents.send('pet-moving', { moving: false });
+        stopMoveAnimation();
       }
     }, 16);
   });
@@ -191,7 +181,7 @@ function seekAttention() {
     console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
     getPetWindow()?.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
     // Deliberately not awaited: a newer seek cancels the in-flight animation via
-    // cancelActiveMoveAnimation, which also resolves the superseded promise.
+    // stopMoveAnimation, which also resolves the superseded promise.
     void animateMoveTo(targetX, targetY, 1500);
   } else {
     console.log('[AttentionSeeker] Too close, not moving');
@@ -454,5 +444,20 @@ export function getMoveAnimation(): NodeJS.Timeout | null {
 }
 
 export function clearMoveAnimation(): void {
-  cancelActiveMoveAnimation();
+  stopMoveAnimation();
+}
+
+// The user out-dragged an autonomous move: stop overwriting the window
+// position, keep where the pet actually ended up, and tell the renderer it is
+// no longer walking.
+export function cancelMoveAnimation(): void {
+  if (!moveAnimation) return;
+
+  const petWindow = getPetWindow();
+  stopMoveAnimation();
+  if (!petWindow) return;
+
+  const [x, y] = petWindow.getPosition();
+  getStore().set('pet.position', { x, y });
+  petWindow.webContents.send('pet-moving', { moving: false });
 }

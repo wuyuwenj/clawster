@@ -76,6 +76,7 @@ import {
   getIsSleeping,
   forceSleep,
   clearMoveAnimation,
+  cancelMoveAnimation,
   PetAction,
 } from './pet-behaviors';
 import {
@@ -1162,20 +1163,27 @@ function setupIPC() {
     }
   });
 
+  // The renderer wins a drag against an autonomous move: stop the move
+  // animation so it no longer overwrites the dragged position.
+  ipcMain.on('pet-drag-take-over', () => {
+    cancelMoveAnimation();
+  });
+
   ipcMain.on('pet-drag', (_event, deltaX: number, deltaY: number) => {
     logEvent('pet_dragged');
     trackPetInteraction('drag');
     const petWindow = getPetWindow();
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
-      // Clamp the drag to the display's work area so the pet can never be parked
-      // off-screen. A negative y in particular is the CLA-56 crash source: the
-      // next move animation eases y across zero and Math.round produces a -0
-      // frame, which Electron's native setPosition rejects with an uncaught
-      // TypeError. The finite check is insurance against malformed IPC deltas —
-      // never hand a non-finite value to setPosition or persist it.
-      const rawX = x + deltaX;
-      const rawY = y + deltaY;
+      // Round the accumulated sub-pixel drag delta to whole pixels, then clamp
+      // to the display's work area so the pet can never be parked off-screen. A
+      // negative y in particular is the CLA-56 crash source: the next move
+      // animation eases y across zero and Math.round produces a -0 frame, which
+      // Electron's native setPosition rejects with an uncaught TypeError. The
+      // finite check is insurance against malformed IPC deltas — never hand a
+      // non-finite value to setPosition or persist it.
+      const rawX = Math.round(x + deltaX);
+      const rawY = Math.round(y + deltaY);
       if (Number.isFinite(rawX) && Number.isFinite(rawY)) {
         const [winWidth, winHeight] = petWindow.getSize();
         const area = screen.getDisplayNearestPoint({ x: rawX, y: rawY }).workArea;

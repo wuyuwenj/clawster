@@ -57,6 +57,7 @@ interface ClawsterAPI {
   toggleScreenshotQuestion: () => void;
   closeScreenshotQuestion: () => void;
   dragPet: (deltaX: number, deltaY: number) => void;
+  petDragTakeOver: () => void;
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) => void;
   hidePetChat: () => void;
   resizePetChat: (width: number, height: number) => void;

@@ -9,9 +9,12 @@ import {
   applyChatbarCuriousHold,
 } from './emote-bubbles';
 import {
+  DragDeltaRemainder,
   DragReactionVariant,
   DragResistanceState,
+  ZERO_DRAG_REMAINDER,
   pickDragReactionVariant,
+  scaleDragDelta,
   startDragResistance,
   updateDragResistance,
 } from './drag-interactions';
@@ -19,7 +22,6 @@ import {
   ClickIrritationState,
   INITIAL_CLICK_IRRITATION_STATE,
   IrritationEscalationLevel,
-  coolDownClickIrritation,
   recordPetClick,
 } from './click-irritation';
 
@@ -254,9 +256,11 @@ export const Pet: React.FC = () => {
   const didDragRef = useRef(false);
   const isWalkingRef = useRef(false);
   const dragResistanceRef = useRef<DragResistanceState | null>(null);
+  const dragRemainderRef = useRef<DragDeltaRemainder>(ZERO_DRAG_REMAINDER);
   const dragReactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const clickIrritationRef = useRef<ClickIrritationState>(INITIAL_CLICK_IRRITATION_STATE);
-  const clickIrritationCooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const irritationBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const irritationRevertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraSnapEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -277,6 +281,7 @@ export const Pet: React.FC = () => {
     const sleeping = isSleepMood(nextMood);
     sleepLockedRef.current = sleeping;
     if (sleeping) {
+      isWalkingRef.current = false;
       setIsWalking(false);
       if (idleBehaviorTimeoutRef.current) {
         clearTimeout(idleBehaviorTimeoutRef.current);
@@ -340,22 +345,31 @@ export const Pet: React.FC = () => {
 
   const applyIrritationReaction = useCallback((level: IrritationEscalationLevel) => {
     if (sleepLockedRef.current) return;
+    if (irritationBehaviorTimeoutRef.current) {
+      clearTimeout(irritationBehaviorTimeoutRef.current);
+      irritationBehaviorTimeoutRef.current = null;
+    }
+    if (irritationRevertTimeoutRef.current) {
+      clearTimeout(irritationRevertTimeoutRef.current);
+      irritationRevertTimeoutRef.current = null;
+    }
+
     if (level === 'mildly-annoyed') {
       setPetMood('huff');
       maybeShowEmoteBubble({ kind: 'irritation', level });
-      setTimeout(revertMoodAfterReaction, 1300);
+      irritationRevertTimeoutRef.current = setTimeout(revertMoodAfterReaction, 1300);
       return;
     }
 
     setPetMood('mad');
     maybeShowEmoteBubble({ kind: 'irritation', level });
     setIdleBehavior('snip_claws');
-    setTimeout(() => {
+    irritationBehaviorTimeoutRef.current = setTimeout(() => {
       if (!sleepLockedRef.current) {
         setIdleBehavior(null);
       }
     }, 1000);
-    setTimeout(revertMoodAfterReaction, 1700);
+    irritationRevertTimeoutRef.current = setTimeout(revertMoodAfterReaction, 1700);
   }, [maybeShowEmoteBubble, revertMoodAfterReaction, setPetMood]);
 
   const canApplyMoodUpdate = useCallback((nextMood: Mood): boolean => {
@@ -632,8 +646,11 @@ export const Pet: React.FC = () => {
       if (dragReactionTimeoutRef.current) {
         clearTimeout(dragReactionTimeoutRef.current);
       }
-      if (clickIrritationCooldownTimeoutRef.current) {
-        clearTimeout(clickIrritationCooldownTimeoutRef.current);
+      if (irritationBehaviorTimeoutRef.current) {
+        clearTimeout(irritationBehaviorTimeoutRef.current);
+      }
+      if (irritationRevertTimeoutRef.current) {
+        clearTimeout(irritationRevertTimeoutRef.current);
       }
       if (cameraSnapEndTimeoutRef.current) {
         clearTimeout(cameraSnapEndTimeoutRef.current);
@@ -658,7 +675,7 @@ export const Pet: React.FC = () => {
     const now = Date.now();
     isDraggingRef.current = true;
     didDragRef.current = false;
-    setDragVisual({ dragging: true, resisting: isWalkingRef.current, reaction: null });
+    dragRemainderRef.current = ZERO_DRAG_REMAINDER;
     dragStart.current = { x: e.screenX, y: e.screenY };
     dragInitialStart.current = { x: e.screenX, y: e.screenY, at: now };
     dragResistanceRef.current = startDragResistance({
@@ -679,14 +696,15 @@ export const Pet: React.FC = () => {
       );
       const elapsedMs = Math.max(1, Date.now() - dragInitialStart.current.at);
 
-      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
-        if (!didDragRef.current && !sleepLockedRef.current) {
+      if (!didDragRef.current && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
+        didDragRef.current = true;
+        setDragVisual((current) => ({ ...current, dragging: true }));
+        if (!sleepLockedRef.current) {
           const resistance = dragResistanceRef.current;
           if (!resistance?.active) {
             startDragReaction(pickDragReactionVariant({ dragDistancePx, elapsedMs }));
           }
         }
-        didDragRef.current = true;
       }
 
       if (didDragRef.current) {
@@ -699,19 +717,33 @@ export const Pet: React.FC = () => {
           : null;
         if (resistanceStep) {
           dragResistanceRef.current = resistanceStep.state;
-          setDragVisual((current) => ({ ...current, resisting: resistanceStep.state.active && !resistanceStep.state.won }));
-          if (resistanceStep.wonNow && !sleepLockedRef.current) {
+          const resisting = resistanceStep.state.active && !resistanceStep.state.won;
+          setDragVisual((current) => (current.resisting === resisting ? current : { ...current, resisting }));
+          if (resistanceStep.wonNow) {
+            // Stop the autonomous move animation in main, otherwise it keeps
+            // overwriting the window position the drag is setting.
+            window.clawster.petDragTakeOver();
             isWalkingRef.current = false;
             setIsWalking(false);
-            startDragReaction(pickDragReactionVariant({
-              dragDistancePx: resistanceStep.displacementPx,
-              elapsedMs: Math.max(1, Date.now() - dragInitialStart.current.at),
-            }));
+            if (!sleepLockedRef.current) {
+              startDragReaction(pickDragReactionVariant({
+                dragDistancePx: resistanceStep.displacementPx,
+                elapsedMs: Math.max(1, Date.now() - dragInitialStart.current.at),
+              }));
+            }
           }
         }
 
-        const responseScale = resistanceStep?.responseScale ?? 1;
-        window.clawster.dragPet(deltaX * responseScale, deltaY * responseScale);
+        const scaled = scaleDragDelta({
+          deltaX,
+          deltaY,
+          responseScale: resistanceStep?.responseScale ?? 1,
+          remainder: dragRemainderRef.current,
+        });
+        dragRemainderRef.current = scaled.remainder;
+        if (scaled.moveX !== 0 || scaled.moveY !== 0) {
+          window.clawster.dragPet(scaled.moveX, scaled.moveY);
+        }
         dragStart.current = { x: moveEvent.screenX, y: moveEvent.screenY };
       }
     };
@@ -719,7 +751,8 @@ export const Pet: React.FC = () => {
     const handleDocumentMouseUp = () => {
       isDraggingRef.current = false;
       dragResistanceRef.current = null;
-      setDragVisual({ dragging: false, resisting: false, reaction: null });
+      dragRemainderRef.current = ZERO_DRAG_REMAINDER;
+      setDragVisual((current) => ({ ...current, dragging: false, resisting: false }));
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
@@ -769,15 +802,11 @@ export const Pet: React.FC = () => {
 
     const irritation = recordPetClick(clickIrritationRef.current, Date.now());
     clickIrritationRef.current = irritation.state;
-    if (clickIrritationCooldownTimeoutRef.current) {
-      clearTimeout(clickIrritationCooldownTimeoutRef.current);
-    }
-    clickIrritationCooldownTimeoutRef.current = setTimeout(() => {
-      clickIrritationRef.current = coolDownClickIrritation(clickIrritationRef.current, Date.now());
-    }, 10050);
 
-    if (irritation.changedTo) {
-      applyIrritationReaction(irritation.changedTo);
+    // While Clawster is annoyed, every click stays annoyed — never fall through
+    // to the cheerful poke reactions below.
+    if (irritation.reaction) {
+      applyIrritationReaction(irritation.reaction);
       window.clawster.petClicked?.();
       return;
     }

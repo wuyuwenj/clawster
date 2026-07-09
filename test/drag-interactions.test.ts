@@ -5,7 +5,9 @@ import {
   DRAG_RESISTANCE_SCALE,
   DRAG_RESISTANCE_WIN_PX,
   FAST_DRAG_STARTLED_CHANCE,
+  ZERO_DRAG_REMAINDER,
   pickDragReactionVariant,
+  scaleDragDelta,
   startDragResistance,
   updateDragResistance,
 } from '../src/renderer/pet/drag-interactions';
@@ -85,6 +87,55 @@ describe('drag resistance (CLA-7)', () => {
     expect(step.state.won).toBe(true);
     expect(step.responseScale).toBe(1);
     expect(step.wonNow).toBe(true);
+  });
+});
+
+describe('scaled drag deltas stay integral (CLA-7)', () => {
+  it('passes unresisted integer deltas straight through', () => {
+    const scaled = scaleDragDelta({
+      deltaX: 7,
+      deltaY: -3,
+      responseScale: 1,
+      remainder: ZERO_DRAG_REMAINDER,
+    });
+
+    expect(scaled).toEqual({ moveX: 7, moveY: -3, remainder: { x: 0, y: 0 } });
+  });
+
+  it('always emits integer deltas while resisting', () => {
+    let remainder = ZERO_DRAG_REMAINDER;
+
+    for (let i = 0; i < 10; i += 1) {
+      const scaled = scaleDragDelta({
+        deltaX: 3,
+        deltaY: -5,
+        responseScale: DRAG_RESISTANCE_SCALE,
+        remainder,
+      });
+      remainder = scaled.remainder;
+
+      expect(Number.isInteger(scaled.moveX)).toBe(true);
+      expect(Number.isInteger(scaled.moveY)).toBe(true);
+    }
+  });
+
+  it('carries the sub-pixel remainder so slow resisted drags still advance', () => {
+    let remainder = ZERO_DRAG_REMAINDER;
+    let movedX = 0;
+
+    for (let i = 0; i < 20; i += 1) {
+      const scaled = scaleDragDelta({
+        deltaX: 1,
+        deltaY: 0,
+        responseScale: DRAG_RESISTANCE_SCALE,
+        remainder,
+      });
+      remainder = scaled.remainder;
+      movedX += scaled.moveX;
+    }
+
+    // 20 one-pixel moves at 0.35 response = 7px, not the 0px a naive round gives.
+    expect(movedX).toBe(7);
   });
 });
 

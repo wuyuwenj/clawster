@@ -10,6 +10,7 @@ export interface ClickIrritationState {
 export interface ClickIrritationResult {
   state: ClickIrritationState;
   changedTo: IrritationEscalationLevel | null;
+  reaction: IrritationEscalationLevel | null;
 }
 
 export const IRRITATION_CLICK_THRESHOLD = 5;
@@ -54,14 +55,6 @@ export function recordPetClick(
       lastClickAt: now,
     },
     changedTo,
+    reaction: level === 'calm' ? null : level,
   };
-}
-
-export function coolDownClickIrritation(
-  state: ClickIrritationState,
-  now: number
-): ClickIrritationState {
-  if (state.lastClickAt === null) return state;
-  if (now - state.lastClickAt < IRRITATION_COOLDOWN_MS) return state;
-  return INITIAL_CLICK_IRRITATION_STATE;
 }

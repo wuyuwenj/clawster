@@ -66,6 +66,39 @@ export function updateDragResistance(
   };
 }
 
+export interface DragDeltaRemainder {
+  x: number;
+  y: number;
+}
+
+export interface ScaledDragDelta {
+  moveX: number;
+  moveY: number;
+  remainder: DragDeltaRemainder;
+}
+
+export const ZERO_DRAG_REMAINDER: DragDeltaRemainder = { x: 0, y: 0 };
+
+// BrowserWindow.setPosition only accepts integer coordinates; the remainder
+// carries the sub-pixel part of a resisted delta into the next mousemove.
+export function scaleDragDelta(options: {
+  deltaX: number;
+  deltaY: number;
+  responseScale: number;
+  remainder: DragDeltaRemainder;
+}): ScaledDragDelta {
+  const scaledX = options.deltaX * options.responseScale + options.remainder.x;
+  const scaledY = options.deltaY * options.responseScale + options.remainder.y;
+  const moveX = Math.round(scaledX);
+  const moveY = Math.round(scaledY);
+
+  return {
+    moveX,
+    moveY,
+    remainder: { x: scaledX - moveX, y: scaledY - moveY },
+  };
+}
+
 export function pickDragReactionVariant(options: {
   dragDistancePx: number;
   elapsedMs: number;

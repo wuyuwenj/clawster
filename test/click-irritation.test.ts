@@ -5,7 +5,6 @@ import {
   IRRITATION_CLICK_THRESHOLD,
   IRRITATION_COOLDOWN_MS,
   IRRITATION_WINDOW_MS,
-  coolDownClickIrritation,
   recordPetClick,
 } from '../src/renderer/pet/click-irritation';
 
@@ -62,7 +61,7 @@ describe('click irritation state machine (CLA-8)', () => {
     expect(result.changedTo).toBeNull();
   });
 
-  it('fully resets after 10 seconds without clicks', () => {
+  it('fully resets on the first click after 10 seconds without clicks', () => {
     let state = INITIAL_CLICK_IRRITATION_STATE;
 
     for (let i = 0; i < IRRITATION_CLICK_THRESHOLD + 1; i += 1) {
@@ -71,8 +70,53 @@ describe('click irritation state machine (CLA-8)', () => {
 
     expect(state.level).toBe('very-annoyed');
 
-    const cooled = coolDownClickIrritation(state, state.lastClickAt! + IRRITATION_COOLDOWN_MS);
+    const result = recordPetClick(state, state.lastClickAt! + IRRITATION_COOLDOWN_MS);
 
-    expect(cooled).toEqual(INITIAL_CLICK_IRRITATION_STATE);
+    expect(result.state.level).toBe('calm');
+    expect(result.reaction).toBeNull();
+    expect(result.changedTo).toBeNull();
+  });
+
+  it('stays annoyed instead of falling back to a random poke once very annoyed', () => {
+    let state = INITIAL_CLICK_IRRITATION_STATE;
+
+    for (let i = 0; i < IRRITATION_CLICK_THRESHOLD + 1; i += 1) {
+      state = recordPetClick(state, 1000 + i * 300).state;
+    }
+
+    expect(state.level).toBe('very-annoyed');
+
+    const result = recordPetClick(state, state.lastClickAt! + 300);
+
+    expect(result.changedTo).toBeNull();
+    expect(result.reaction).toBe('very-annoyed');
+  });
+
+  it('keeps reacting irritated across a short pause in a spam burst', () => {
+    let state = INITIAL_CLICK_IRRITATION_STATE;
+    let now = 1000;
+
+    for (let i = 0; i < IRRITATION_CLICK_THRESHOLD + 1; i += 1) {
+      state = recordPetClick(state, now).state;
+      now += 300;
+    }
+
+    expect(state.level).toBe('very-annoyed');
+
+    // A 4s gap empties the 3s rapid-click window but stays inside the 10s cooldown.
+    now += 4000;
+
+    for (let i = 0; i < IRRITATION_CLICK_THRESHOLD + 1; i += 1) {
+      const result = recordPetClick(state, now);
+      state = result.state;
+      now += 300;
+      expect(result.reaction).toBe('very-annoyed');
+    }
+  });
+
+  it('reports no reaction while calm', () => {
+    const result = recordPetClick(INITIAL_CLICK_IRRITATION_STATE, 1000);
+
+    expect(result.reaction).toBeNull();
   });
 });

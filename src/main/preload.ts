@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('clawster', {
 
   // Pet dragging
   dragPet: (deltaX: number, deltaY: number) => ipcRenderer.send('pet-drag', deltaX, deltaY),
+  petDragTakeOver: () => ipcRenderer.send('pet-drag-take-over'),
   // Pet chat popup
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) =>
     ipcRenderer.send('show-pet-chat', message),
@@ -320,6 +321,7 @@ export interface ClawsterAPI {
   closeScreenshotQuestion: () => void;
   askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
   dragPet: (deltaX: number, deltaY: number) => void;
+  petDragTakeOver: () => void;
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) => void;
   hidePetChat: () => void;
   resizePetChat: (width: number, height: number) => void;
