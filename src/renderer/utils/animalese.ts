@@ -54,6 +54,8 @@ interface AnimaleseOptions {
   volume?: number;
 }
 
+const isLetter = (lower: string): boolean => /[a-z]/.test(lower);
+
 type VisemeCallback = (mouth: MouthShape | null) => void;
 
 type RendererSettings = {
@@ -101,21 +103,17 @@ export class AnimaleseEngine {
     }
   }
 
-  private getCharDelay(char: string): number {
-    const lower = char.toLowerCase();
-
+  private getCharDelay(lower: string): number {
     // Skip non-letter characters (silence)
-    if (!/[a-z]/.test(lower)) {
+    if (!isLetter(lower)) {
       return lower === ' ' ? this.speed * 0.5 : this.speed * 0.3;
     }
 
     return this.speed;
   }
 
-  private playCharSound(char: string): void {
-    const lower = char.toLowerCase();
-
-    if (!/[a-z]/.test(lower)) return;
+  private playCharSound(lower: string): void {
+    if (!isLetter(lower)) return;
 
     const ctx = this.getAudioContext();
     if (!this.gainNode) return;
@@ -177,6 +175,7 @@ export class AnimaleseEngine {
     try {
       if (typeof window === 'undefined' || !window.clawster?.getSettings) return;
       const settings = await window.clawster.getSettings() as RendererSettings;
+      if (this.mutedInitialized) return;
       this.muted = Boolean(settings.pet?.muted);
       this.mutedInitialized = true;
     } catch {
@@ -230,9 +229,9 @@ export class AnimaleseEngine {
         }
 
         // Play audio for this character
-        const delay = this.getCharDelay(char);
+        const delay = this.getCharDelay(lower);
         if (!this.muted) {
-          this.playCharSound(char);
+          this.playCharSound(lower);
         }
 
         // Schedule next character
