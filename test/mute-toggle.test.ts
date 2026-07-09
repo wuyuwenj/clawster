@@ -218,6 +218,28 @@ describe('Animalese mute gate', () => {
     expect(getSettings).not.toHaveBeenCalled();
     expect(MockAudioContext.oscillatorStarts).toBe(0);
   });
+
+  it('discards a stale settings read when mute lands while it is in flight', async () => {
+    let resolveSettings: (settings: unknown) => void = () => {};
+    getSettings.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSettings = resolve;
+      })
+    );
+    const engine = new AnimaleseEngine();
+    engine.configure({ speed: 1 });
+
+    const speaking = engine.speak('abcdefghij');
+    await Promise.resolve();
+
+    // Main writes the store before broadcasting, so this snapshot is stale.
+    engine.setMuted(true);
+    resolveSettings({ pet: { muted: false } });
+
+    await finishSpeech(speaking);
+
+    expect(MockAudioContext.oscillatorStarts).toBe(0);
+  });
 });
 
 describe('notification mute gate', () => {
