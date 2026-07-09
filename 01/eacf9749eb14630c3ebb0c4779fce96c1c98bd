@@ -1,0 +1,25 @@
+test/mute-toggle.test.ts
+  s_f9971bac88bf44::t_683536371f1147 221-234,236-242
+  s_f9971bac88bf44::t_d2a42c71983e28 235
+src/renderer/utils/animalese.ts
+  s_f9971bac88bf44::t_2ccb6e5ecb58c2 232,234
+  s_f9971bac88bf44::t_97b40c02165a16 178
+  s_f9971bac88bf44::t_15c8a451a14166 106,108,115-116
+  s_f9971bac88bf44::t_3bff76c11a4830 57-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "01eacf9749eb14630c3ebb0c4779fce96c1c98bd",
+  "prompts": {},
+  "sessions": {
+    "s_f9971bac88bf44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c69dca8-5832-49ef-98ce-69f1cec7c70d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
