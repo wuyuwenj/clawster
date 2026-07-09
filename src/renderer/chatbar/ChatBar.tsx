@@ -515,7 +515,7 @@ export const ChatBar: React.FC = () => {
         {response && (
           <div className="border-t-2 border-[var(--tp-ink)] bg-[var(--tp-shell-deep)] p-4 flex gap-3 items-start animate-fade-in max-h-[200px] overflow-y-auto">
             <div className={`w-7 h-7 rounded-lg border-2 border-[var(--tp-ink)] flex items-center justify-center shrink-0 mt-0.5 ${!isConnected ? 'bg-[var(--tp-coral-tint)]' : 'bg-[var(--tp-coral)]'}`}>
-              <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className={`text-xs ${!isConnected ? 'text-[var(--tp-coral-deep)]' : 'text-[var(--tp-text-ink)]'}`} />
+              <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className={`text-xs ${!isConnected ? 'text-[var(--tp-ink)]' : 'text-[var(--tp-text-ink)]'}`} />
             </div>
             <div className="flex-1">
               <div className="tp-font-body text-[15px] leading-[1.55] text-[var(--tp-text-ink)] select-text cursor-text">
