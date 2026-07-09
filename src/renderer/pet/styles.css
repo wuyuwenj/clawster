@@ -500,10 +500,12 @@
 }
 
 .lobster-container.state-dragging .left-claw {
+  animation: none;
   transform: translateY(-8px) rotate(-16deg);
 }
 
 .lobster-container.state-dragging .right-claw {
+  animation: none;
   transform: translateY(-8px) rotate(16deg);
 }
 

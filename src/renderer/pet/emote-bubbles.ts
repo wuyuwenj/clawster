@@ -7,7 +7,7 @@ export type EmoteTrigger =
   | { kind: 'behavior'; behavior: string; source: 'idle' | 'poke' }
   | { kind: 'wake' }
   | { kind: 'drag' }
-  | { kind: 'irritation'; level: 'mildly-annoyed' | 'very-annoyed' };
+  | { kind: 'irritation'; level: 'mildly-annoyed' | 'very-annoyed'; escalated: boolean };
 
 export interface EmoteSuppression {
   /** Lobster is actively talking/responding (Animalese mouth active) */
@@ -96,7 +96,10 @@ export function shouldShowEmoteBubble(options: {
   if (suppression.talking) return false;
   if (suppression.petChatOpen || suppression.assistantOpen || suppression.chatbarOpen) return false;
 
-  if (trigger.kind === 'irritation') return true;
+  // Only the click that actually escalates the irritation level jumps the gap,
+  // so the bubble is never swallowed by a preceding poke bubble. Subsequent
+  // annoyed clicks stay rate-limited and don't remount the same bubble.
+  if (trigger.kind === 'irritation' && trigger.escalated) return true;
 
   if (lastBubbleAt !== null && now - lastBubbleAt < MIN_BUBBLE_GAP_MS) return false;
 

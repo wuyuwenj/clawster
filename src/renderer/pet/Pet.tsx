@@ -261,6 +261,7 @@ export const Pet: React.FC = () => {
   const clickIrritationRef = useRef<ClickIrritationState>(INITIAL_CLICK_IRRITATION_STATE);
   const irritationBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const irritationRevertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pokeReactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const idleBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraSnapEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraFlashOnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -343,8 +344,14 @@ export const Pet: React.FC = () => {
     setPetMood('idle');
   }, [setPetMood]);
 
-  const applyIrritationReaction = useCallback((level: IrritationEscalationLevel) => {
+  const applyIrritationReaction = useCallback((
+    level: IrritationEscalationLevel,
+    escalated: boolean
+  ) => {
     if (sleepLockedRef.current) return;
+    // Reactions still pending from earlier pokes (or an earlier irritation
+    // reaction) would otherwise revert the mood or cancel snip_claws part-way
+    // through this one.
     if (irritationBehaviorTimeoutRef.current) {
       clearTimeout(irritationBehaviorTimeoutRef.current);
       irritationBehaviorTimeoutRef.current = null;
@@ -353,16 +360,25 @@ export const Pet: React.FC = () => {
       clearTimeout(irritationRevertTimeoutRef.current);
       irritationRevertTimeoutRef.current = null;
     }
+    if (pokeReactionTimeoutRef.current) {
+      clearTimeout(pokeReactionTimeoutRef.current);
+      pokeReactionTimeoutRef.current = null;
+    }
+    if (idleBehaviorTimeoutRef.current) {
+      clearTimeout(idleBehaviorTimeoutRef.current);
+      idleBehaviorTimeoutRef.current = null;
+    }
+    setIdleBehavior(null);
 
     if (level === 'mildly-annoyed') {
       setPetMood('huff');
-      maybeShowEmoteBubble({ kind: 'irritation', level });
+      maybeShowEmoteBubble({ kind: 'irritation', level, escalated });
       irritationRevertTimeoutRef.current = setTimeout(revertMoodAfterReaction, 1300);
       return;
     }
 
     setPetMood('mad');
-    maybeShowEmoteBubble({ kind: 'irritation', level });
+    maybeShowEmoteBubble({ kind: 'irritation', level, escalated });
     setIdleBehavior('snip_claws');
     irritationBehaviorTimeoutRef.current = setTimeout(() => {
       if (!sleepLockedRef.current) {
@@ -652,6 +668,9 @@ export const Pet: React.FC = () => {
       if (irritationRevertTimeoutRef.current) {
         clearTimeout(irritationRevertTimeoutRef.current);
       }
+      if (pokeReactionTimeoutRef.current) {
+        clearTimeout(pokeReactionTimeoutRef.current);
+      }
       if (cameraSnapEndTimeoutRef.current) {
         clearTimeout(cameraSnapEndTimeoutRef.current);
       }
@@ -806,7 +825,7 @@ export const Pet: React.FC = () => {
     // While Clawster is annoyed, every click stays annoyed — never fall through
     // to the cheerful poke reactions below.
     if (irritation.reaction) {
-      applyIrritationReaction(irritation.reaction);
+      applyIrritationReaction(irritation.reaction, irritation.changedTo !== null);
       window.clawster.petClicked?.();
       return;
     }
@@ -814,14 +833,19 @@ export const Pet: React.FC = () => {
     // Pick a random reaction
     const reaction = pokeReactions[Math.floor(Math.random() * pokeReactions.length)];
 
+    if (pokeReactionTimeoutRef.current) {
+      clearTimeout(pokeReactionTimeoutRef.current);
+      pokeReactionTimeoutRef.current = null;
+    }
+
     if (reaction.mood) {
       setPetMood(reaction.mood);
       maybeShowEmoteBubble({ kind: 'mood', mood: reaction.mood });
-      setTimeout(revertMoodAfterReaction, reaction.duration);
+      pokeReactionTimeoutRef.current = setTimeout(revertMoodAfterReaction, reaction.duration);
     } else if (reaction.behavior) {
       setIdleBehavior(reaction.behavior);
       maybeShowEmoteBubble({ kind: 'behavior', behavior: reaction.behavior, source: 'poke' });
-      setTimeout(() => {
+      pokeReactionTimeoutRef.current = setTimeout(() => {
         if (!sleepLockedRef.current) {
           setIdleBehavior(null);
         }

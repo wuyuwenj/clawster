@@ -4,7 +4,7 @@ export type IrritationEscalationLevel = Exclude<IrritationLevel, 'calm'>;
 export interface ClickIrritationState {
   level: IrritationLevel;
   recentClickTimes: number[];
-  lastClickAt: number | null;
+  lastEscalationAt: number | null;
 }
 
 export interface ClickIrritationResult {
@@ -20,15 +20,19 @@ export const IRRITATION_COOLDOWN_MS = 10000;
 export const INITIAL_CLICK_IRRITATION_STATE: ClickIrritationState = {
   level: 'calm',
   recentClickTimes: [],
-  lastClickAt: null,
+  lastEscalationAt: null,
 };
 
 export function recordPetClick(
   state: ClickIrritationState,
   now: number
 ): ClickIrritationResult {
+  // Irritation builds from rapid clicking and cools once the rapid clicking
+  // stops, so the cooldown is measured from the last escalation rather than
+  // the last click — otherwise slow, isolated poking would hold the tantrum
+  // open forever.
   const cooledDown =
-    state.lastClickAt !== null && now - state.lastClickAt >= IRRITATION_COOLDOWN_MS;
+    state.lastEscalationAt !== null && now - state.lastEscalationAt >= IRRITATION_COOLDOWN_MS;
   const baseState = cooledDown ? INITIAL_CLICK_IRRITATION_STATE : state;
   const recentClickTimes = [
     ...baseState.recentClickTimes.filter((clickAt) => now - clickAt <= IRRITATION_WINDOW_MS),
@@ -52,7 +56,7 @@ export function recordPetClick(
     state: {
       level,
       recentClickTimes,
-      lastClickAt: now,
+      lastEscalationAt: changedTo !== null ? now : baseState.lastEscalationAt,
     },
     changedTo,
     reaction: level === 'calm' ? null : level,
