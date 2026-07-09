@@ -1,0 +1,40 @@
+test/click-irritation.test.ts
+  s_baa25ca2ffbaec::t_6b7ef3c2e30a20 7
+  s_baa25ca2ffbaec::t_b6e32608110ba5 184-252
+test/drag-interactions.test.ts
+  s_baa25ca2ffbaec::t_fbafac336f2b25 203-239
+  s_baa25ca2ffbaec::t_519e96a6cfa0aa 179-182,186-188
+src/renderer/pet/Pet.tsx
+  s_baa25ca2ffbaec::t_1b140f5b26808c 673
+  s_baa25ca2ffbaec::t_496b6baebfd60e 741-742
+  s_baa25ca2ffbaec::t_dd2c161cc10174 368
+  s_baa25ca2ffbaec::t_22e4453f1a3262 720-721,723
+  s_baa25ca2ffbaec::t_2296321a9022ba 391
+  s_baa25ca2ffbaec::t_688c9d1bdc6e6e 855
+  s_baa25ca2ffbaec::t_8c8f7ad71745c3 265-269
+  s_baa25ca2ffbaec::t_80746bc39346f3 685
+  s_baa25ca2ffbaec::t_a1cccbd5d8823e 842,846
+src/renderer/pet/click-irritation.ts
+  s_baa25ca2ffbaec::t_c8a232122cb3ca 20-26
+  s_baa25ca2ffbaec::t_bc23c59b197f27 48
+src/renderer/pet/styles.css
+  s_baa25ca2ffbaec::t_9b571f35e58fed 1487-1561
+AGENTS.md
+  s_baa25ca2ffbaec::t_22ef29d2126308 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "29159a7bfcc88d7fa7fe7b20d111628a899673b2",
+  "prompts": {},
+  "sessions": {
+    "s_baa25ca2ffbaec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a79e1aa5-497d-418b-b20d-01d4fda09e57",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
