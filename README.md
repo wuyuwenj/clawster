@@ -177,8 +177,10 @@ clawster/
 │   └── renderer/          # Frontend (React + Vite)
 │       ├── pet/           # Animated lobster component
 │       ├── chatbar/       # Quick chat overlay
+│       ├── pet-chat/      # Speech-bubble popup above the pet
 │       ├── assistant/     # Full assistant panel
-│       └── onboarding/    # First-launch setup wizard
+│       ├── onboarding/    # First-launch setup wizard
+│       └── styles/        # Tidepool design tokens (tidepool.css)
 ├── proxy/                 # Cloudflare Worker proxy
 │   └── src/index.ts       # HMAC auth, rate limiting, moderation
 ├── eval/                  # Model evaluation framework
