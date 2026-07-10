@@ -26,23 +26,28 @@ function isEmotionalMessage(input: string): boolean {
   return EMOTIONAL_PATTERNS.some(p => p.test(input));
 }
 
+import { checkPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
+import { trackToolExecuted } from '../analytics';
+import type { EmotionEngine } from '../emotion-engine';
+
 // "Are you real / are you AI / is someone typing this?" probes. The audience is
 // 10-14 y/o — Clawster must answer in character as a real lobster and never leak
 // implementation details (the fine-tuned model otherwise blurts "...respond with
 // JSON only", CLA-38). Handled deterministically here, before the classifier, so
-// the persona never depends on the model to keep the secret.
+// the persona never depends on the model to keep the secret. Kept narrow: only
+// genuine assistant-identity probes match — "is that real?" / "is this fake?"
+// about on-screen things, "are you a real friend?", and "are you able to..."
+// capability requests all route to the normal model path instead.
 const IDENTITY_PROBE_PATTERNS = [
-  /\b(are|r)\s*(you|u|ya)\b[^.?!]*\b(real|ai|a\.?i\.?|a bot|a robot|human|a person|a program|a computer|a machine|fake|alive|sentient|conscious)\b/i,
-  /\bis (this|it|that|someone|somebody|anyone)\b[^.?!]*\b(real|a bot|a robot|an ai|typing|fake|a person|a human|automated|a program)\b/i,
+  /\b(?:are|r)\s+(?:you|u|ya)\b(?:\s+(?:actually|really|even|just|like|seriously|honestly|truly|for real))*\s+(?:an?\s+)?(?:real(?=\W*$|\W+(?:person|human|lobster|animal|creature|thing|deal|one|guy|dude)\b)|really\s+an?\s+ai|a\.?i\.?\b|ai\b|artificial intelligence|bot|robot|human|person|machine|computer|program|fake|alive|sentient|conscious)/i,
+  /\bis\s+(?:this|it|that)\b(?:\s+(?:actually|really|even|just))?\s+an?\s+(?:real\s+(?:person|human|lobster)|bot|robot|ai|a\.?i\.?|human|person|machine|computer|program|automated)\b/i,
+  /\bis\s+(?:someone|somebody|anyone|a real person|a person)\b[^.?!]*\btyping\b/i,
   /\bwho('?s| is)\b[^.?!]*\btyping\b/i,
 ];
 
 export function isIdentityProbe(input: string): boolean {
   return IDENTITY_PROBE_PATTERNS.some(p => p.test(input));
 }
-import { checkPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
-import { trackToolExecuted } from '../analytics';
-import type { EmotionEngine } from '../emotion-engine';
 
 function stripScreenContext(message: string): string {
   return message.replace(/^\[Screen Context:.*?\]\s*/s, '');

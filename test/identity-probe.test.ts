@@ -42,6 +42,10 @@ describe('isIdentityProbe', () => {
     expect(isIdentityProbe('open spotify')).toBe(false);
     expect(isIdentityProbe('who are you')).toBe(false); // capabilities intent, not a probe
     expect(isIdentityProbe('can you help me')).toBe(false);
+    expect(isIdentityProbe('is that real?')).toBe(false); // about an on-screen thing
+    expect(isIdentityProbe('is this fake?')).toBe(false); // about an on-screen thing
+    expect(isIdentityProbe('are you a real friend?')).toBe(false); // affection, not identity
+    expect(isIdentityProbe('are you able to open spotify?')).toBe(false); // capability request
   });
 });
 
