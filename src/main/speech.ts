@@ -67,6 +67,15 @@ export const SPEECH_NO_SPEECH_USER_MESSAGE = "I didn't catch that — try again!
 export const SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE =
   "Clawster's voice can't start on this Mac right now.";
 
+/**
+ * Generous enough for the one-time model read plus a cold Metal shader warm-up,
+ * short enough that a wedged helper does not strand the mic indicator forever.
+ */
+export const SPEECH_HELPER_STARTUP_TIMEOUT_MS = 30_000;
+
+export const SPEECH_HELPER_TIMEOUT_USER_MESSAGE =
+  "Clawster's voice took too long to wake up — tap the mic to try again.";
+
 /** Only an intact (or unremovable) cached model makes a retry pointless. */
 export function speechModelVerdictMessage(verdict: WhisperModelVerdict): string {
   return verdict === 'unrecoverable'
@@ -120,10 +129,11 @@ export function handleSpeechHelperMessage(msg: any): void {
       speechStartPending = false;
       speechSessionActive = false;
       if (sender) {
-        // An empty transcript reaches the renderer as "nothing happened at all".
-        if (result.text) {
-          sender.send('speech-result', result);
-        } else {
+        // The final always goes out: it is the only message that clears the input
+        // box, which still holds the last partial. An empty one cannot auto-submit,
+        // so the error that follows is the sole thing the user reads.
+        sender.send('speech-result', result);
+        if (!result.text) {
           sender.send('speech-error', { type: 'error', message: SPEECH_NO_SPEECH_USER_MESSAGE });
         }
       }
@@ -182,9 +192,20 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
       if (speechHelperStartup === startupPromise) speechHelperStartup = null;
     };
 
+    // Without this, a helper that neither reports `ready` nor exits — a wedged GPU
+    // driver, say — leaves this promise pending forever. It is cached, so every
+    // later `speech-start` awaits the same dead promise and never returns.
+    const startupTimer = setTimeout(() => {
+      speechProcessExitExpected = true;
+      if (!child.killed) child.kill();
+      rejectStartup(new Error(SPEECH_HELPER_TIMEOUT_USER_MESSAGE));
+    }, SPEECH_HELPER_STARTUP_TIMEOUT_MS);
+    startupTimer.unref?.();
+
     const resolveStartup = () => {
       if (startupSettled) return;
       startupSettled = true;
+      clearTimeout(startupTimer);
       releaseStartupSlot();
       resolve(child);
     };
@@ -192,6 +213,7 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     const rejectStartup = (error: Error) => {
       if (startupSettled) return;
       startupSettled = true;
+      clearTimeout(startupTimer);
       releaseStartupSlot();
       reject(error);
     };

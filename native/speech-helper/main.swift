@@ -36,6 +36,9 @@ let kSilenceTimeout: TimeInterval = 1.5
 let kPartialInterval: TimeInterval = 0.9
 // Hard cap so a stuck session cannot grow the buffer without bound.
 let kMaxRecordingSeconds: Double = 120
+// Must stay byte-identical to SPEECH_NO_SPEECH_USER_MESSAGE in src/main/speech.ts:
+// both no-speech paths have to read the same to the user.
+let kNoSpeechUserMessage = "I didn't catch that — try again!"
 
 // MARK: - JSON Output Helpers
 
@@ -445,7 +448,7 @@ final class SpeechManager {
         // `transcribe` zero-pads short utterances, and a quick "yes" clears the
         // voiced budget long before it reaches kMinSamples.
         guard sawVoice else {
-            emitError("I didn't catch that — try again!")
+            emitError(kNoSpeechUserMessage)
             emitStatus("stopped")
             return
         }

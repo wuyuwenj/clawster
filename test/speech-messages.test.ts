@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
+import fs from 'fs';
+import path from 'path';
 
 vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: vi.fn(() => '/app') },
@@ -15,6 +17,8 @@ vi.mock('../src/main/whisper-model', () => ({
 import { spawn } from 'child_process';
 import { verifyCachedWhisperModel } from '../src/main/whisper-model';
 import {
+  SPEECH_HELPER_STARTUP_TIMEOUT_MS,
+  SPEECH_HELPER_TIMEOUT_USER_MESSAGE,
   SPEECH_MODEL_LOAD_USER_MESSAGE,
   SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE,
   SPEECH_NO_SPEECH_USER_MESSAGE,
@@ -39,9 +43,16 @@ function fakeChild() {
   const child = new EventEmitter() as EventEmitter & {
     stdout: EventEmitter;
     stderr: EventEmitter;
+    kill: ReturnType<typeof vi.fn>;
+    killed: boolean;
   };
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
+  child.killed = false;
+  child.kill = vi.fn(() => {
+    child.killed = true;
+    return true;
+  });
   vi.mocked(spawn).mockReturnValue(child as never);
   return child;
 }
@@ -104,19 +115,32 @@ describe('handleSpeechHelperMessage', () => {
   it('signals an annotation-only final instead of delivering an empty transcript', () => {
     const sender = fakeSender();
     beginSession(sender);
+    handleSpeechHelperMessage({ type: 'partial', text: ' thank you' });
+    vi.mocked(sender.send).mockClear();
 
     // Music, a cough or a door slam arms the helper's voice gate, then decodes to
-    // annotations only. Forwarding "" would turn the mic off and do nothing else.
+    // annotations only. The empty final clears the stale partial out of the input
+    // box; the error is what the user actually reads.
     handleSpeechHelperMessage({ type: 'final', text: ' (upbeat music)' });
 
-    expect(sender.send).toHaveBeenCalledTimes(1);
-    expect(sender.send).toHaveBeenCalledWith('speech-error', {
-      type: 'error',
-      message: SPEECH_NO_SPEECH_USER_MESSAGE,
-    });
+    expect(vi.mocked(sender.send).mock.calls).toEqual([
+      ['speech-result', { type: 'final', text: '' }],
+      ['speech-error', { type: 'error', message: SPEECH_NO_SPEECH_USER_MESSAGE }],
+    ]);
     expect(isSpeechSessionActive()).toBe(false);
     expect(isSpeechStartPending()).toBe(false);
     expect(getSpeechEventSender()).toBeNull();
+  });
+
+  it('does not signal no-speech when the final carries a transcript', () => {
+    const sender = fakeSender();
+    beginSession(sender);
+
+    handleSpeechHelperMessage({ type: 'final', text: ' open my email' });
+
+    expect(vi.mocked(sender.send).mock.calls).toEqual([
+      ['speech-result', { type: 'final', text: 'open my email' }],
+    ]);
   });
 
   it('ignores the transcribing status the helper emits between stop and final', () => {
@@ -293,5 +317,67 @@ describe('ensureSpeechHelper startup failures', () => {
 
     const error = await startup;
     expect((error as Error).message).toBe('Speech helper exited unexpectedly (code 1)');
+  });
+});
+
+describe('ensureSpeechHelper startup timeout', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('kills a helper that never reports ready, so the next press can retry', async () => {
+    const child = fakeChild();
+    const startup = ensureSpeechHelper().catch((error: Error) => error);
+
+    // Neither `ready` nor an exit: the helper is wedged. Without the timer this
+    // promise never settles, and it is cached for every later `speech-start`.
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_STARTUP_TIMEOUT_MS);
+
+    const error = (await startup) as Error;
+    expect(error.message).toBe(SPEECH_HELPER_TIMEOUT_USER_MESSAGE);
+    expect(child.kill).toHaveBeenCalled();
+
+    // The cached startup slot was released, so a fresh helper is spawned.
+    vi.mocked(spawn).mockClear();
+    fakeChild();
+    void ensureSpeechHelper().catch(() => {});
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not trip the timeout once the helper reports ready', async () => {
+    const child = fakeChild();
+    const startup = ensureSpeechHelper();
+
+    child.stdout.emit('data', Buffer.from('{"type":"status","state":"ready"}\n'));
+    await expect(startup).resolves.toBe(child);
+
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_STARTUP_TIMEOUT_MS * 2);
+    expect(child.kill).not.toHaveBeenCalled();
+  });
+
+  it('keeps the timeout message free of any file path', () => {
+    expect(SPEECH_HELPER_TIMEOUT_USER_MESSAGE).not.toMatch(/\//);
+  });
+});
+
+describe('cross-language user-facing strings', () => {
+  // The helper hardcodes its own copy of the no-speech sentence, so the two
+  // no-speech paths (its voice gate, and speech.ts's empty-final) can drift apart.
+  it('matches the helper’s no-speech message byte for byte', () => {
+    const source = path.join(__dirname, '../native/speech-helper/main.swift');
+    let swift: string;
+    try {
+      swift = fs.readFileSync(source, 'utf8');
+    } catch {
+      return; // Swift source unavailable (e.g. a partial checkout); nothing to pin.
+    }
+
+    const match = swift.match(/let kNoSpeechUserMessage = "(.*)"/);
+    expect(match, 'kNoSpeechUserMessage not found in main.swift').not.toBeNull();
+    expect(match![1]).toBe(SPEECH_NO_SPEECH_USER_MESSAGE);
   });
 });
