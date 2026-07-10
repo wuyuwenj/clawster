@@ -13,7 +13,7 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mac": "SPEECH_HELPER_UNIVERSAL=1 npm run build && electron-builder --mac",
     "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landing/public/downloads/Clawster-*mac* ../clawster-landing/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/Clawster-*-x64.dmg release/Clawster-*-x64-mac.zip release/Clawster-*-x64-mac.zip.blockmap release/latest-mac.yml ../clawster-landing/public/downloads/",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",

@@ -20,15 +20,15 @@ import whisper
 let kSampleRate: Double = 16000
 // Whisper pads short inputs poorly; keep at least one second of audio.
 let kMinSamples = Int(kSampleRate)
-// Voice activity uses hysteresis. Chunks at or above the arm threshold (~-44 dBFS)
-// extend a contiguous voiced run; a session only transcribes once one run reaches
-// the budget below, and any quieter chunk restarts the run from zero. Scattered
-// clicks therefore cannot arm whisper on otherwise-silent room tone. Once armed,
-// the lower sustain threshold (~-50 dBFS) keeps the silence timeout at bay, low
-// enough for a soft-spoken kid sitting back from a built-in mic.
-let kVoiceArmRMSThreshold: Float = 0.006
-let kVoiceSustainRMSThreshold: Float = 0.003
-// ~250 ms of unbroken voiced audio, far longer than a keyboard click or a chair creak.
+// A single voice threshold (~-44 dBFS) sits well above a built-in mic's room-tone
+// floor (~-50 to -55 dBFS), so ambient noise can neither arm whisper nor hold the
+// silence timeout open. Speech dips below it constantly — stop consonants, glottal
+// closures, gaps between words — so a voiced run survives sub-threshold audio until
+// it has stayed quiet for the whole hangover window. Only once a run accumulates
+// the voiced budget below does the session transcribe, which is far more audio than
+// a keyboard click or a chair creak produces.
+let kVoiceRMSThreshold: Float = 0.006
+let kVoiceHangoverSamples = Int(kSampleRate * 0.2)
 let kMinVoicedSamplesToArm = Int(kSampleRate * 0.25)
 // Stop automatically once the user has been quiet for this long (matches the old helper).
 let kSilenceTimeout: TimeInterval = 1.5
@@ -176,6 +176,7 @@ final class SpeechManager {
     private var silenceTimer: DispatchWorkItem?
     private var heardVoice = false
     private var voicedSamples = 0
+    private var silentSamples = 0
 
     init(engine: WhisperEngine) {
         self.engine = engine
@@ -219,6 +220,7 @@ final class SpeechManager {
         samplesLock.unlock()
         heardVoice = false
         voicedSamples = 0
+        silentSamples = 0
 
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
@@ -291,24 +293,26 @@ final class SpeechManager {
         }
     }
 
-    /// Arms transcription only after an unbroken run of voiced audio, then keeps
-    /// the silence timeout alive while the speaker trails off below the arm level.
+    /// Arms transcription once a voiced run reaches the budget, tolerating dips
+    /// shorter than the hangover window, and keeps the silence timeout alive for
+    /// as long as the speaker stays above the same threshold.
     private func trackVoiceActivity(rms: Float, frames: Int) {
         guard isRecording else { return }
 
-        guard heardVoice else {
-            guard rms >= kVoiceArmRMSThreshold else {
+        guard rms >= kVoiceRMSThreshold else {
+            silentSamples += frames
+            if !heardVoice && silentSamples > kVoiceHangoverSamples {
                 voicedSamples = 0
-                return
             }
-            voicedSamples += frames
-            guard voicedSamples >= kMinVoicedSamplesToArm else { return }
-            heardVoice = true
-            resetSilenceTimer()
             return
         }
 
-        if rms >= kVoiceSustainRMSThreshold {
+        silentSamples = 0
+        voicedSamples += frames
+        if !heardVoice && voicedSamples >= kMinVoicedSamplesToArm {
+            heardVoice = true
+        }
+        if heardVoice {
             resetSilenceTimer()
         }
     }

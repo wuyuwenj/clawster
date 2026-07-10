@@ -135,6 +135,7 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     // must already be on disk by the time we spawn it.
     const child = spawn(helperPath, ['--model', whisperModelPath()]);
     let startupSettled = false;
+    let modelLoadFailed = false;
     let buffer = '';
 
     speechProcess = child;
@@ -169,6 +170,9 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
             resolveStartup();
           }
           if (msg.type === 'error' && isSpeechModelLoadFailure(msg.message)) {
+            // The helper exits(1) straight after, so remember why: the generic
+            // exit-code text would otherwise be the last thing the user sees.
+            modelLoadFailed = true;
             // Only a checksum mismatch means the cached file is at fault; the
             // error itself also covers failures that re-downloading cannot fix.
             deleteWhisperModelIfCorrupt().catch((error: unknown) => {
@@ -198,7 +202,9 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     });
 
     child.on('exit', (code, signal) => {
-      const exitMessage = formatSpeechHelperExit(code, signal);
+      const exitMessage = modelLoadFailed
+        ? SPEECH_MODEL_LOAD_USER_MESSAGE
+        : formatSpeechHelperExit(code, signal);
       const sender = getSpeechEventSender();
       const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
 

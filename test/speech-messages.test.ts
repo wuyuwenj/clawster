@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { EventEmitter } from 'events';
 
 vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: vi.fn(() => '/app') },
 }));
 
+vi.mock('child_process', () => ({ spawn: vi.fn() }));
+
+vi.mock('../src/main/whisper-model', () => ({
+  whisperModelPath: () => '/tmp/ggml-base.en.bin',
+  deleteWhisperModelIfCorrupt: vi.fn(async () => false),
+}));
+
+import { spawn } from 'child_process';
 import {
   SPEECH_MODEL_LOAD_USER_MESSAGE,
+  ensureSpeechHelper,
   handleSpeechHelperMessage,
   isSpeechModelLoadFailure,
   isSpeechSessionActive,
@@ -21,6 +31,18 @@ function fakeSender() {
   return { send: vi.fn(), isDestroyed: () => false } as unknown as Electron.WebContents;
 }
 
+/** Stands in for the spawned Swift helper: stdout lines in, exit/error events out. */
+function fakeChild() {
+  const child = new EventEmitter() as EventEmitter & {
+    stdout: EventEmitter;
+    stderr: EventEmitter;
+  };
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  vi.mocked(spawn).mockReturnValue(child as never);
+  return child;
+}
+
 /** Puts the module in the state a `speech-start` IPC call would leave it in. */
 function beginSession(sender: Electron.WebContents) {
   setSpeechSender(sender);
@@ -31,6 +53,7 @@ function beginSession(sender: Electron.WebContents) {
 beforeEach(() => {
   resetSpeechHelperState();
   vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 describe('handleSpeechHelperMessage', () => {
@@ -152,5 +175,37 @@ describe('handleSpeechHelperMessage', () => {
     handleSpeechHelperMessage({ type: 'final', text: ' hello' });
 
     expect(destroyed.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('ensureSpeechHelper startup failures', () => {
+  function emitLine(child: { stdout: EventEmitter }, msg: unknown) {
+    child.stdout.emit('data', Buffer.from(`${JSON.stringify(msg)}\n`));
+  }
+
+  it('surfaces the friendly retry message when a model-load failure kills the helper', async () => {
+    const child = fakeChild();
+    const startup = ensureSpeechHelper().catch((error: Error) => error);
+
+    // The helper reports the failure, then exits(1) milliseconds later.
+    emitLine(child, {
+      type: 'error',
+      message: 'Failed to load the speech model at /Users/kid/.clawster/models/whisper/x.bin',
+    });
+    child.emit('exit', 1, null);
+
+    const error = await startup;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
+  });
+
+  it('still reports the raw exit for failures unrelated to the model', async () => {
+    const child = fakeChild();
+    const startup = ensureSpeechHelper().catch((error: Error) => error);
+
+    child.emit('exit', 1, null);
+
+    const error = await startup;
+    expect((error as Error).message).toBe('Speech helper exited unexpectedly (code 1)');
   });
 });

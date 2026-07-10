@@ -72,7 +72,9 @@ cp -R "$FRAMEWORK_SLICE/whisper.framework" "$NATIVE_DIR/whisper.framework"
 # --- Build the helper ----------------------------------------------------------
 
 # whisper.framework is universal, and package.json still ships an x64 dmg/zip, so
-# the helper has to be universal too or the Intel bundle gets an arm64-only binary.
+# release builds set SPEECH_HELPER_UNIVERSAL=1 to make the helper universal too —
+# otherwise the Intel bundle gets an arm64-only binary. `npm run dev` leaves it
+# unset and pays for one compile.
 build_slice() {
   swiftc "$NATIVE_DIR/main.swift" \
     -o "$2" \
@@ -88,19 +90,20 @@ build_slice() {
 BUILD_DIR="$(mktemp -d)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
+if [[ "${SPEECH_HELPER_UNIVERSAL:-}" == "1" ]]; then
+  ARCHS=(arm64 x86_64)
+else
+  ARCHS=("$TARGET_ARCH")
+fi
+
 SLICES=()
-for arch in arm64 x86_64; do
+for arch in "${ARCHS[@]}"; do
   echo "Building speech-helper for $arch..."
-  if build_slice "$arch" "$BUILD_DIR/speech-helper-$arch"; then
-    SLICES+=("$BUILD_DIR/speech-helper-$arch")
-  elif [[ "$arch" == "$TARGET_ARCH" ]]; then
-    echo "Failed to build speech-helper for the host architecture ($arch)." >&2
+  if ! build_slice "$arch" "$BUILD_DIR/speech-helper-$arch"; then
+    echo "Failed to build speech-helper for $arch." >&2
     exit 1
-  else
-    # `npm run dev` runs this on every start; a toolchain without the other
-    # slice's SDK support degrades to a host-only helper rather than failing.
-    echo "Warning: could not build the $arch slice; speech-helper will be $TARGET_ARCH-only." >&2
   fi
+  SLICES+=("$BUILD_DIR/speech-helper-$arch")
 done
 
 lipo -create "${SLICES[@]}" -output "$NATIVE_DIR/speech-helper"
