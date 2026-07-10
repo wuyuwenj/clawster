@@ -1,0 +1,54 @@
+src/main/whisper-transcript.ts
+  s_0c2fe0b02a84e9::t_73be80957a7565 1-23
+test/speech-messages.test.ts
+  s_0c2fe0b02a84e9::t_83a1c08887b014 1-115
+native/speech-helper/main.swift
+  s_0c2fe0b02a84e9::t_449492c0b26de3 403-405,407-410,419,425,440,445
+  s_0c2fe0b02a84e9::t_d71299b4db4416 3-30,34-35,39,42,73-80,82-93,105-106,109-143,145,148,150-151,153-162,166-167,169,171-172,175,177-178,180-181,195,200,208-211,213-214,216-218,221-223,225,227-228,236,243-328,336,344-345,355,357,360-379,384,390,393-402,406,411-418,420-424,426-439,441-444,446,451-456,462-481
+  s_0c2fe0b02a84e9::t_a3140f7950769f 144
+  s_0c2fe0b02a84e9::t_023d5d48ec446b 81,96-104,107-108
+  s_0c2fe0b02a84e9::t_f4126ab0f36c30 484-491,503,511
+src/main/speech.ts
+  s_0c2fe0b02a84e9::t_632533d94de75c 4-5
+  s_0c2fe0b02a84e9::t_3ddabba639b118 56
+  s_0c2fe0b02a84e9::t_5d0f9b5fc40b56 116-118
+  s_0c2fe0b02a84e9::t_12a38ab778a296 76-77,82,89
+scripts/build-speech-helper.sh
+  s_0c2fe0b02a84e9::t_a87ff4683132f7 12,14-24,35-73,77-78,80
+src/main/main.ts
+  s_0c2fe0b02a84e9::t_fa4dd74c2b0a52 66-70
+  s_0c2fe0b02a84e9::t_522978ab5edf2f 1050-1053
+  s_0c2fe0b02a84e9::t_574903726f30ad 1069-1078
+  s_0c2fe0b02a84e9::t_f527f082e7a616 65
+AGENTS.md
+  s_0c2fe0b02a84e9::t_72805311491def 78
+  s_0c2fe0b02a84e9::t_90375946e404d3 55-62
+package.json
+  s_0c2fe0b02a84e9::t_baf83c04a96959 101,107-110
+test/whisper-transcript.test.ts
+  s_0c2fe0b02a84e9::t_6c668c107c0358 1-42
+.gitignore
+  s_0c2fe0b02a84e9::t_acba3307faf02f 14-15
+test/speech-helper.test.ts
+  s_0c2fe0b02a84e9::t_75ad5ccb89261e 1-98
+src/main/whisper-model.ts
+  s_0c2fe0b02a84e9::t_789670bf933a2e 1-177
+test/whisper-model.test.ts
+  s_0c2fe0b02a84e9::t_ee31b923db74e5 1-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a27ffe74c8cec82c080defe9fb099d2fa1b3331d",
+  "prompts": {},
+  "sessions": {
+    "s_0c2fe0b02a84e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "452933ad-a3b2-4eb6-acab-97199d4bd7a8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
