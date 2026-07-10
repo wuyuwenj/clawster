@@ -1,0 +1,40 @@
+test/pet-movement-crash.test.ts
+  s_a9bb5632d08e90::t_58a8783e901b60 98-221
+  s_a9bb5632d08e90::t_1ef2474c7b159e 1-17,20-97,222
+  s_a9bb5632d08e90::t_28400b9f769a93 18-19
+src/main/pet-behaviors.ts
+  s_a9bb5632d08e90::t_5c771fb10c79af 457
+  s_a9bb5632d08e90::t_6a12686dd0a431 101,104-112,114-122,130,138-151,160
+  s_a9bb5632d08e90::t_6c00546e95fa7b 59-67
+  s_a9bb5632d08e90::t_7aa5cfb245d832 22-37
+  s_a9bb5632d08e90::t_e0711660e483b1 193-195
+src/main/main.ts
+  s_a9bb5632d08e90::t_2bf954a62fec6a 1163-1168,1175-1179
+  s_a9bb5632d08e90::t_ea73b50d55f846 1169-1174
+  s_a9bb5632d08e90::t_70c5ef4406cdb0 118
+AGENTS.md
+  s_a9bb5632d08e90::t_5761ded4a1aa58 53
+src/main/windows.ts
+  s_a9bb5632d08e90::t_86cbce77f5e32e 218-224
+  s_a9bb5632d08e90::t_95ffb5dd962107 44-83
+.no-mistakes/evidence/cla56/regression-test-after-fix.txt
+  s_a9bb5632d08e90::t_acad77139676b5 1-13
+.no-mistakes/evidence/cla56/regression-test-before-fix.txt
+  s_a9bb5632d08e90::t_bf3ce821d5b50f 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "db6e0bd68997c6a8eff3e83490f0bd69441ff520",
+  "prompts": {},
+  "sessions": {
+    "s_a9bb5632d08e90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "feb21f87-6aed-4257-8959-7e3fd622b155",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
