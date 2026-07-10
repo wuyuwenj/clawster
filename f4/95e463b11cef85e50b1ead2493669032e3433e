@@ -1,0 +1,19 @@
+package-lock.json
+  s_c40e8e1fa12f33::t_b39040f9da212e 14093-14506,14534-14577
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f495e463b11cef85e50b1ead2493669032e3433e",
+  "prompts": {},
+  "sessions": {
+    "s_c40e8e1fa12f33": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb54d03b-a82f-4c5c-8f40-82c0e647331f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
