@@ -115,6 +115,7 @@ import {
   contractPetWindow,
   showPetContextMenuAtCursor,
   applyDebugWindowBordersToAllWindows,
+  clampPetPosition,
 } from './windows';
 
 const execFileAsync = promisify(execFile);
@@ -1159,12 +1160,23 @@ function setupIPC() {
     const petWindow = getPetWindow();
     if (petWindow) {
       const [x, y] = petWindow.getPosition();
-      const newX = x + deltaX;
-      const newY = y + deltaY;
-      petWindow.setPosition(newX, newY);
-      store.set('pet.position', { x: newX, y: newY });
-      updatePetChatPosition();
-      updateAssistantPosition();
+      // Clamp the drag to the display's work area so the pet can never be parked
+      // off-screen. A negative y in particular is the CLA-56 crash source: the
+      // next move animation eases y across zero and Math.round produces a -0
+      // frame, which Electron's native setPosition rejects with an uncaught
+      // TypeError. The finite check is insurance against malformed IPC deltas —
+      // never hand a non-finite value to setPosition or persist it.
+      const rawX = x + deltaX;
+      const rawY = y + deltaY;
+      if (Number.isFinite(rawX) && Number.isFinite(rawY)) {
+        const [winWidth, winHeight] = petWindow.getSize();
+        const area = screen.getDisplayNearestPoint({ x: rawX, y: rawY }).workArea;
+        const { x: newX, y: newY } = clampPetPosition(rawX, rawY, winWidth, winHeight, area);
+        petWindow.setPosition(newX, newY);
+        store.set('pet.position', { x: newX, y: newY });
+        updatePetChatPosition();
+        updateAssistantPosition();
+      }
       getPetContextMenuWindow()?.hide();
       resetInteractionTimer();
     }

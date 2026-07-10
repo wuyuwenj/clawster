@@ -50,6 +50,7 @@ User message
 - The proxy is a separate Cloudflare Worker in `proxy/` with its own `package.json`
 - HMAC authentication links the client and proxy (shared secret)
 - Local model requires Ollama running at `localhost:11434`
+- Electron's native `win.setPosition(x, y)` throws a hard `TypeError` ("Error processing argument at index N, conversion failure") on any argument V8 doesn't treat as an Int32 — NaN, ±Infinity, non-integers, and **negative zero**. The CLA-56 crash was `-0`: an unclamped drag parked the pet above the top edge (negative y), and `Math.round` in the move animation returned `-0` on frames easing across zero (`-0` passes `Number.isFinite`). Guard coords with `areUsableCoords` (`pet-behaviors.ts`), normalize with `+ 0` before the native sink, and clamp drags via `clampPetPosition` (`windows.ts`). Note the store cannot be poisoned with NaN (`JSON.stringify(NaN)` is `null`), but `resolvePetStartPosition` still guards startup against `Infinity` (`1e999` parses as Infinity) and partial/stringified legacy values
 - Renderer behavior that needs unit tests lives in pure logic modules (no React/Electron imports) next to the component, e.g. `src/renderer/pet/emote-bubbles.ts` — the Vitest suite runs in a node environment with no DOM
 - Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 

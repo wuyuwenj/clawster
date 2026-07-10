@@ -19,6 +19,22 @@ let attentionInterval: NodeJS.Timeout | null = null;
 let idleBehaviorInterval: NodeJS.Timeout | null = null;
 let sleepCheckInterval: NodeJS.Timeout | null = null;
 let moveAnimation: NodeJS.Timeout | null = null;
+// Resolver of the in-flight animateMoveTo promise. Cancelling an animation must
+// also resolve its promise — otherwise an overlapping call (e.g. two seekAttention
+// ticks) clears the timer but orphans the previous caller's await forever.
+let resolveMoveAnimation: (() => void) | null = null;
+
+function cancelActiveMoveAnimation(): void {
+  if (moveAnimation) {
+    clearInterval(moveAnimation);
+    moveAnimation = null;
+  }
+  if (resolveMoveAnimation) {
+    const resolve = resolveMoveAnimation;
+    resolveMoveAnimation = null;
+    resolve();
+  }
+}
 
 // Constants
 const IDLE_BEHAVIOR_MIN_INTERVAL = 3000;
@@ -39,6 +55,15 @@ const IDLE_BEHAVIORS: { type: IdleBehavior; weight: number }[] = [
 ];
 
 const isSleepMoodState = (state?: string): boolean => state === 'sleeping' || state === 'doze';
+
+// Electron's native win.setPosition rejects any argument V8 doesn't treat as an
+// Int32 — NaN, ±Infinity, AND negative zero — with an uncaught "TypeError: Error
+// processing argument at index N, conversion failure from". -0 is the live crash
+// (CLA-56): Math.round returns -0 for eased values in [-0.5, 0), i.e. frames
+// where y crosses the top screen edge from a negative start. Note -0 passes
+// Number.isFinite, so a plain finite check is not enough.
+export const areUsableCoords = (...vals: number[]): boolean =>
+  vals.every((v) => Number.isFinite(v) && !Object.is(v, -0));
 
 // Dependencies injected from main
 let _rawGetPetWindow: () => BrowserWindow | null = () => null;
@@ -73,10 +98,28 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
       resolve();
       return;
     }
-    if (moveAnimation) clearInterval(moveAnimation);
+    cancelActiveMoveAnimation();
 
     const [startX, startY] = getPetWindow()?.getPosition() ?? [0, 0];
+
+    // Refuse unusable coordinates (NaN/Infinity/-0) up front rather than let the
+    // native setPosition throw from inside the timer (CLA-56).
+    if (!areUsableCoords(startX, startY, targetX, targetY)) {
+      console.warn('[animateMoveTo] Refusing to move: unusable coordinates', { startX, startY, targetX, targetY });
+      resolve();
+      return;
+    }
+
     const startTime = Date.now();
+    resolveMoveAnimation = resolve;
+    const finish = () => {
+      if (moveAnimation) {
+        clearInterval(moveAnimation);
+        moveAnimation = null;
+      }
+      resolveMoveAnimation = null;
+      resolve();
+    };
 
     // Notify renderer that movement started
     getPetWindow()?.webContents.send('pet-moving', { moving: true });
@@ -84,9 +127,7 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     moveAnimation = setInterval(() => {
       const win = getPetWindow();
       if (!win) {
-        clearInterval(moveAnimation!);
-        moveAnimation = null;
-        resolve();
+        finish();
         return;
       }
 
@@ -94,19 +135,29 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
 
-      const currentX = Math.round(startX + (targetX - startX) * eased);
-      const currentY = Math.round(startY + (targetY - startY) * eased);
+      // + 0 normalizes negative zero (-0 + 0 === +0): Math.round yields -0 for
+      // frames easing across zero from a negative start, and the native
+      // setPosition rejects -0 — the CLA-56 crash.
+      const currentX = Math.round(startX + (targetX - startX) * eased) + 0;
+      const currentY = Math.round(startY + (targetY - startY) * eased) + 0;
+
+      // Insurance: never let a tick hand an unusable value to the native sink,
+      // whatever state mutated mid-flight.
+      if (!areUsableCoords(currentX, currentY)) {
+        console.warn('[animateMoveTo] Aborting move: computed unusable position', { currentX, currentY });
+        getPetWindow()?.webContents.send('pet-moving', { moving: false });
+        finish();
+        return;
+      }
 
       win.setPosition(currentX, currentY);
       updatePetChatPositionFn();
       updateAssistantPositionFn();
 
       if (progress >= 1) {
-        clearInterval(moveAnimation!);
-        moveAnimation = null;
         getStore().set('pet.position', { x: targetX, y: targetY });
         getPetWindow()?.webContents.send('pet-moving', { moving: false });
-        resolve();
+        finish();
       }
     }, 16);
   });
@@ -139,7 +190,9 @@ function seekAttention() {
   if (distance > 600) {
     console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
     getPetWindow()?.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
-    animateMoveTo(targetX, targetY, 1500);
+    // Deliberately not awaited: a newer seek cancels the in-flight animation via
+    // cancelActiveMoveAnimation, which also resolves the superseded promise.
+    void animateMoveTo(targetX, targetY, 1500);
   } else {
     console.log('[AttentionSeeker] Too close, not moving');
   }
@@ -401,8 +454,5 @@ export function getMoveAnimation(): NodeJS.Timeout | null {
 }
 
 export function clearMoveAnimation(): void {
-  if (moveAnimation) {
-    clearInterval(moveAnimation);
-    moveAnimation = null;
-  }
+  cancelActiveMoveAnimation();
 }

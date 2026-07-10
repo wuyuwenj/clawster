@@ -41,6 +41,46 @@ export function computePetChatMaxHeight(petY: number, areaY: number, areaHeight:
   const ceiling = Math.round(areaHeight * 0.8);
   return Math.max(PET_CHAT_MAX_HEIGHT, Math.min(spaceAbovePet, ceiling));
 }
+// The persisted pet.position can be absent (first run), null, or malformed — a
+// partial object, a stringified legacy value, or Infinity (JSON `1e999` parses to
+// Infinity). Feeding a non-finite x/y into BrowserWindow poisons the window
+// geometry that getPosition() later reports to the move animation (CLA-56). Fall
+// back to the default bottom-right corner unless the saved value is two finite
+// numbers. (+ 0 normalizes a -0 in either coordinate.)
+export function resolvePetStartPosition(
+  saved: unknown,
+  screenWidth: number,
+  screenHeight: number,
+  petWidth: number,
+  petHeight: number,
+): { x: number; y: number } {
+  if (
+    saved !== null &&
+    typeof saved === 'object' &&
+    Number.isFinite((saved as { x?: unknown }).x) &&
+    Number.isFinite((saved as { y?: unknown }).y)
+  ) {
+    return { x: (saved as { x: number }).x + 0, y: (saved as { y: number }).y + 0 };
+  }
+  return { x: screenWidth - petWidth - 20, y: screenHeight - petHeight - 20 };
+}
+
+// Clamp a dragged pet position so the whole window stays inside the given work
+// area. The real CLA-56 crash source: an unclamped drag can park the pet above
+// the top edge (negative y), and the next animation easing y back across zero
+// produces a -0 frame that the native setPosition rejects.
+export function clampPetPosition(
+  x: number,
+  y: number,
+  winWidth: number,
+  winHeight: number,
+  workArea: { x: number; y: number; width: number; height: number },
+): { x: number; y: number } {
+  const clampedX = Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - winWidth) + 0;
+  const clampedY = Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - winHeight) + 0;
+  return { x: clampedX, y: clampedY };
+}
+
 const ASSISTANT_VERTICAL_GAP = -3;
 const PET_CONTEXT_MENU_WIDTH = 220;
 const PET_CONTEXT_MENU_HEIGHT = 342;
@@ -175,8 +215,13 @@ export function createPetWindow() {
   const petWindowHeight = PET_WINDOW_HEIGHT;
 
   const savedPosition = store.get('pet.position') as { x: number; y: number } | null;
-  const startX = savedPosition ? savedPosition.x : screenWidth - petWindowWidth - 20;
-  const startY = savedPosition ? savedPosition.y : screenHeight - petWindowHeight - 20;
+  const { x: startX, y: startY } = resolvePetStartPosition(
+    savedPosition,
+    screenWidth,
+    screenHeight,
+    petWindowWidth,
+    petWindowHeight,
+  );
 
   petWindow = new BrowserWindow({
     width: petWindowWidth,
