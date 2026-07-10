@@ -21,6 +21,14 @@ export const DRAG_RESISTANCE_SCALE = 0.35;
 export const FAST_DRAG_SPEED_PX_PER_MS = 0.8;
 export const FAST_DRAG_STARTLED_CHANCE = 0.25;
 
+// How long a drag must run before its speed is worth reading. A single
+// mousemove frame spans ~8-16ms, which turns any grab into a "fast" drag.
+export const DRAG_SPEED_SAMPLE_MS = 60;
+// A speed reading is only meaningful once the drag has spanned both a real
+// slice of time and a real distance.
+export const FAST_DRAG_MIN_SAMPLE_MS = 16;
+export const FAST_DRAG_MIN_SAMPLE_PX = 24;
+
 export function startDragResistance(options: {
   movingAutonomously: boolean;
   startX: number;
@@ -99,15 +107,22 @@ export function scaleDragDelta(options: {
   };
 }
 
+export function hasDragSpeedSample(elapsedMs: number): boolean {
+  return elapsedMs >= DRAG_SPEED_SAMPLE_MS;
+}
+
 export function pickDragReactionVariant(options: {
   dragDistancePx: number;
   elapsedMs: number;
   random?: () => number;
 }): DragReactionVariant {
-  const elapsed = Math.max(1, options.elapsedMs);
-  const speedPxPerMs = options.dragDistancePx / elapsed;
   const random = options.random ?? Math.random;
 
+  if (options.elapsedMs < FAST_DRAG_MIN_SAMPLE_MS || options.dragDistancePx < FAST_DRAG_MIN_SAMPLE_PX) {
+    return 'confused-accepts';
+  }
+
+  const speedPxPerMs = options.dragDistancePx / options.elapsedMs;
   if (speedPxPerMs >= FAST_DRAG_SPEED_PX_PER_MS && random() < FAST_DRAG_STARTLED_CHANCE) {
     return 'startled';
   }

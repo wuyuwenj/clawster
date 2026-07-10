@@ -6,6 +6,11 @@ vi.mock('electron', () => ({
 }));
 
 import { animateMoveTo, cancelMoveAnimation, initPetBehaviors } from '../src/main/pet-behaviors';
+import {
+  DRAG_RESISTANCE_SCALE,
+  ZERO_DRAG_REMAINDER,
+  scaleDragDelta,
+} from '../src/renderer/pet/drag-interactions';
 
 function createFakePetWindow(startX: number, startY: number) {
   let position: [number, number] = [startX, startY];
@@ -73,6 +78,34 @@ describe('autonomous move animation cancellation (CLA-7)', () => {
 
     expect(stored['pet.position']).toBeUndefined();
     expect(petWindow.webContents.send).not.toHaveBeenCalled();
+  });
+
+  it('lets the resisted drag deltas accumulate once the take-over fires', async () => {
+    const move = animateMoveTo(500, 500, 1000);
+    await vi.advanceTimersByTimeAsync(100);
+
+    // The drag crosses the 2px threshold while the pet is still walking.
+    cancelMoveAnimation();
+    const [startX, startY] = petWindow.getPosition();
+
+    // 10 mousemoves of 4px each, resisted at 0.35, applied the way pet-drag does.
+    let remainder = ZERO_DRAG_REMAINDER;
+    for (let i = 0; i < 10; i += 1) {
+      const scaled = scaleDragDelta({
+        deltaX: 4,
+        deltaY: 0,
+        responseScale: DRAG_RESISTANCE_SCALE,
+        remainder,
+      });
+      remainder = scaled.remainder;
+      const [x, y] = petWindow.getPosition();
+      petWindow.setPosition(x + scaled.moveX, y + scaled.moveY);
+      await vi.advanceTimersByTimeAsync(16);
+    }
+
+    // 40px of cursor travel nets 14px of pet travel — real, and under 1:1.
+    expect(petWindow.getPosition()).toEqual([startX + 14, startY]);
+    await move;
   });
 
   it('resolves the pending promise when a new move interrupts an old one', async () => {

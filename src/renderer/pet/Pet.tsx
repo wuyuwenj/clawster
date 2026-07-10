@@ -9,10 +9,12 @@ import {
   applyChatbarCuriousHold,
 } from './emote-bubbles';
 import {
+  DRAG_SPEED_SAMPLE_MS,
   DragDeltaRemainder,
   DragReactionVariant,
   DragResistanceState,
   ZERO_DRAG_REMAINDER,
+  hasDragSpeedSample,
   pickDragReactionVariant,
   scaleDragDelta,
   startDragResistance,
@@ -259,6 +261,9 @@ export const Pet: React.FC = () => {
   const dragResistanceRef = useRef<DragResistanceState | null>(null);
   const dragRemainderRef = useRef<DragDeltaRemainder>(ZERO_DRAG_REMAINDER);
   const dragReactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragSpeedSampleRef = useRef({ distancePx: 0, elapsedMs: 0 });
+  const dragSpeedPendingRef = useRef(false);
+  const dragSpeedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const clickIrritationRef = useRef<ClickIrritationState>(INITIAL_CLICK_IRRITATION_STATE);
   const irritationBehaviorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const irritationRevertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -341,6 +346,22 @@ export const Pet: React.FC = () => {
       setDragVisual((current) => ({ ...current, reaction: null }));
     }, 650);
   }, [maybeShowEmoteBubble]);
+
+  // The variant depends on drag speed, which is meaningless over one mousemove
+  // frame. Hold the pick until the sample spans DRAG_SPEED_SAMPLE_MS, or until
+  // the drag ends, whichever comes first.
+  const flushDragReaction = useCallback(() => {
+    if (!dragSpeedPendingRef.current) return;
+    dragSpeedPendingRef.current = false;
+    if (dragSpeedTimeoutRef.current) {
+      clearTimeout(dragSpeedTimeoutRef.current);
+      dragSpeedTimeoutRef.current = null;
+    }
+    startDragReaction(pickDragReactionVariant({
+      dragDistancePx: dragSpeedSampleRef.current.distancePx,
+      elapsedMs: dragSpeedSampleRef.current.elapsedMs,
+    }));
+  }, [startDragReaction]);
 
   // CLA-27: setPetMood maps this back to curious while the chatbar is open,
   // so the curious mood holds until the chatbar closes.
@@ -664,6 +685,9 @@ export const Pet: React.FC = () => {
       if (dragReactionTimeoutRef.current) {
         clearTimeout(dragReactionTimeoutRef.current);
       }
+      if (dragSpeedTimeoutRef.current) {
+        clearTimeout(dragSpeedTimeoutRef.current);
+      }
       if (irritationBehaviorTimeoutRef.current) {
         clearTimeout(irritationBehaviorTimeoutRef.current);
       }
@@ -695,6 +719,11 @@ export const Pet: React.FC = () => {
     isDraggingRef.current = true;
     didDragRef.current = false;
     dragRemainderRef.current = ZERO_DRAG_REMAINDER;
+    dragSpeedPendingRef.current = false;
+    if (dragSpeedTimeoutRef.current) {
+      clearTimeout(dragSpeedTimeoutRef.current);
+      dragSpeedTimeoutRef.current = null;
+    }
     dragStart.current = { x: e.screenX, y: e.screenY };
     dragInitialStart.current = { x: e.screenX, y: e.screenY, at: now };
     dragResistanceRef.current = startDragResistance({
@@ -717,18 +746,36 @@ export const Pet: React.FC = () => {
 
       if (!didDragRef.current && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
         didDragRef.current = true;
+        const resistance = dragResistanceRef.current;
+        if (resistance?.active) {
+          // Take the window position over from main's eased move interval before
+          // the first resisted delta, or the 16ms absolute writes overwrite it.
+          // `resistance.active` is latched at mousedown, so the resist window
+          // survives the pet-moving:false this triggers.
+          window.clawster.petDragTakeOver();
+          isWalkingRef.current = false;
+          setIsWalking(false);
+        }
         // A sleeping Clawster keeps its tucked-claw sleep pose: the carried
         // pose and carriedFloat would read as awake while the eyes stay shut.
         if (!sleepLockedRef.current) {
           setDragVisual((current) => ({ ...current, dragging: true }));
-          const resistance = dragResistanceRef.current;
           if (!resistance?.active) {
-            startDragReaction(pickDragReactionVariant({ dragDistancePx, elapsedMs }));
+            dragSpeedSampleRef.current = { distancePx: dragDistancePx, elapsedMs };
+            dragSpeedPendingRef.current = true;
+            dragSpeedTimeoutRef.current = setTimeout(flushDragReaction, DRAG_SPEED_SAMPLE_MS);
           }
         }
       }
 
       if (didDragRef.current) {
+        if (dragSpeedPendingRef.current) {
+          dragSpeedSampleRef.current = { distancePx: dragDistancePx, elapsedMs };
+          if (hasDragSpeedSample(elapsedMs)) {
+            flushDragReaction();
+          }
+        }
+
         const resistanceStep = dragResistanceRef.current
           ? updateDragResistance(dragResistanceRef.current, {
               currentX: moveEvent.screenX,
@@ -742,11 +789,6 @@ export const Pet: React.FC = () => {
             !sleepLockedRef.current && resistanceStep.state.active && !resistanceStep.state.won;
           setDragVisual((current) => (current.resisting === resisting ? current : { ...current, resisting }));
           if (resistanceStep.wonNow) {
-            // Stop the autonomous move animation in main, otherwise it keeps
-            // overwriting the window position the drag is setting.
-            window.clawster.petDragTakeOver();
-            isWalkingRef.current = false;
-            setIsWalking(false);
             if (!sleepLockedRef.current) {
               startDragReaction(pickDragReactionVariant({
                 dragDistancePx: resistanceStep.displacementPx,
@@ -774,6 +816,7 @@ export const Pet: React.FC = () => {
       isDraggingRef.current = false;
       dragResistanceRef.current = null;
       dragRemainderRef.current = ZERO_DRAG_REMAINDER;
+      flushDragReaction();
       setDragVisual((current) => ({ ...current, dragging: false, resisting: false }));
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
@@ -781,7 +824,7 @@ export const Pet: React.FC = () => {
 
     document.addEventListener('mousemove', handleDocumentMouseMove);
     document.addEventListener('mouseup', handleDocumentMouseUp);
-  }, [startDragReaction]);
+  }, [flushDragReaction, startDragReaction]);
 
   // Poke reactions - random animations when clicked
   const pokeReactions: Array<{ mood?: Mood; behavior?: IdleBehavior; duration: number }> = [

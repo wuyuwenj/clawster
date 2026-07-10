@@ -78,7 +78,9 @@ export function initPetBehaviors(deps: {
   updateAssistantPositionFn = deps.updateAssistantPosition;
 }
 
-function stopMoveAnimation(): void {
+// Stops the eased position interval and resolves whatever animateMoveTo call
+// is still awaiting it.
+export function stopMoveAnimation(): void {
   if (moveAnimation) {
     clearInterval(moveAnimation);
     moveAnimation = null;
@@ -441,10 +443,6 @@ export async function executePetAction(action: PetAction): Promise<void> {
 
 export function getMoveAnimation(): NodeJS.Timeout | null {
   return moveAnimation;
-}
-
-export function clearMoveAnimation(): void {
-  stopMoveAnimation();
 }
 
 // The user out-dragged an autonomous move: stop overwriting the window

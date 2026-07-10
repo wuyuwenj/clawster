@@ -6,8 +6,10 @@ import {
   DRAG_RESISTANCE_MAX_MS,
   DRAG_RESISTANCE_SCALE,
   DRAG_RESISTANCE_WIN_PX,
+  DRAG_SPEED_SAMPLE_MS,
   FAST_DRAG_STARTLED_CHANCE,
   ZERO_DRAG_REMAINDER,
+  hasDragSpeedSample,
   pickDragReactionVariant,
   scaleDragDelta,
   startDragResistance,
@@ -170,6 +172,94 @@ describe('drag reaction variant selection (CLA-6)', () => {
         random: () => FAST_DRAG_STARTLED_CHANCE,
       })
     ).toBe('confused-accepts');
+  });
+
+  it('reads a normal grab-and-move as confused-accepts', () => {
+    // 40px over the 60ms sample window is 0.67px/ms — under the fast threshold.
+    expect(
+      pickDragReactionVariant({
+        dragDistancePx: 40,
+        elapsedMs: DRAG_SPEED_SAMPLE_MS,
+        random: () => 0,
+      })
+    ).toBe('confused-accepts');
+  });
+
+  it('reads a genuine flick as startled', () => {
+    expect(
+      pickDragReactionVariant({
+        dragDistancePx: 120,
+        elapsedMs: DRAG_SPEED_SAMPLE_MS,
+        random: () => 0,
+      })
+    ).toBe('startled');
+  });
+
+  it('never startles on a single-frame sample', () => {
+    // mousedown and the first mousemove landing in the same millisecond used to
+    // read as 3px/ms, which trivially cleared the fast-drag threshold.
+    expect(
+      pickDragReactionVariant({ dragDistancePx: 3, elapsedMs: 1, random: () => 0 })
+    ).toBe('confused-accepts');
+    expect(
+      pickDragReactionVariant({ dragDistancePx: 15, elapsedMs: 8, random: () => 0 })
+    ).toBe('confused-accepts');
+  });
+
+  it('only reports a usable speed sample once the drag spans the sample window', () => {
+    expect(hasDragSpeedSample(DRAG_SPEED_SAMPLE_MS - 1)).toBe(false);
+    expect(hasDragSpeedSample(DRAG_SPEED_SAMPLE_MS)).toBe(true);
+  });
+});
+
+describe('drag reaction speed sampling is deferred (CLA-6)', () => {
+  const pet = readFileSync(new URL('../src/renderer/pet/Pet.tsx', import.meta.url), 'utf8');
+
+  it('holds the variant pick until the sample window elapses', () => {
+    const flipAt = pet.indexOf('didDragRef.current = true;');
+    const block = pet.slice(flipAt, pet.indexOf('if (didDragRef.current) {', flipAt));
+
+    expect(block).not.toContain('startDragReaction(');
+    expect(block).toContain('dragSpeedPendingRef.current = true');
+    expect(block).toContain('setTimeout(flushDragReaction, DRAG_SPEED_SAMPLE_MS)');
+  });
+
+  it('flushes the pending reaction when the drag ends before the window elapses', () => {
+    const mouseUpAt = pet.indexOf('const handleDocumentMouseUp = () => {');
+    expect(mouseUpAt).toBeGreaterThan(-1);
+
+    const body = pet.slice(mouseUpAt, pet.indexOf('};', mouseUpAt));
+    expect(body).toContain('flushDragReaction()');
+  });
+});
+
+describe('resisted drag takes the window position over from main (CLA-7)', () => {
+  const pet = readFileSync(new URL('../src/renderer/pet/Pet.tsx', import.meta.url), 'utf8');
+
+  it('signals the take-over as soon as a resisted drag crosses the threshold', () => {
+    const flipAt = pet.indexOf('didDragRef.current = true;');
+    const block = pet.slice(flipAt, pet.indexOf('if (didDragRef.current) {', flipAt));
+
+    expect(block).toContain('window.clawster.petDragTakeOver()');
+    expect(block).toContain('isWalkingRef.current = false');
+  });
+
+  it('does not wait for the resist window to be won before stopping the move', () => {
+    const wonAt = pet.indexOf('if (resistanceStep.wonNow) {');
+    expect(wonAt).toBeGreaterThan(-1);
+
+    const block = pet.slice(wonAt, pet.indexOf('const scaled = scaleDragDelta', wonAt));
+    expect(block).not.toContain('petDragTakeOver');
+  });
+
+  it('drives the resist window off the latched flag, not the live one', () => {
+    // Cancelling the walk clears isWalkingRef, so resistance must read the
+    // `active` flag latched at mousedown or the friction disappears.
+    const resistingAt = pet.indexOf('const resisting =');
+    const expression = pet.slice(resistingAt, pet.indexOf(';', resistingAt));
+
+    expect(expression).toContain('resistanceStep.state.active');
+    expect(expression).not.toContain('isWalkingRef');
   });
 });
 

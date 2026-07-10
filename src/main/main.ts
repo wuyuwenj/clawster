@@ -75,7 +75,7 @@ import {
   executePetAction,
   getIsSleeping,
   forceSleep,
-  clearMoveAnimation,
+  stopMoveAnimation,
   cancelMoveAnimation,
   PetAction,
 } from './pet-behaviors';
@@ -1602,6 +1602,6 @@ app.on('will-quit', () => {
     clearInterval(idleCheckInterval);
   }
   stopAttentionSeeker();
-  clearMoveAnimation();
+  stopMoveAnimation();
   tutorialManager.destroy();
 });
