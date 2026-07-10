@@ -21,7 +21,9 @@ let kSampleRate: Double = 16000
 // Whisper pads short inputs poorly; keep at least one second of audio.
 let kMinSamples = Int(kSampleRate)
 // Root-mean-square level above which a chunk counts as speech rather than room tone.
-let kVoiceRMSThreshold: Float = 0.01
+// ~-50 dBFS: low enough for a soft-spoken kid sitting back from a built-in mic,
+// still above the noise floor whisper hallucinates confident phrases from.
+let kVoiceRMSThreshold: Float = 0.003
 // Stop automatically once the user has been quiet for this long (matches the old helper).
 let kSilenceTimeout: TimeInterval = 1.5
 // Re-transcribe the buffer this often to produce interim results.

@@ -6,6 +6,7 @@ vi.mock('electron', () => ({
 
 import {
   handleSpeechHelperMessage,
+  isSpeechModelLoadFailure,
   isSpeechSessionActive,
   isSpeechStartPending,
   getSpeechEventSender,
@@ -102,6 +103,12 @@ describe('handleSpeechHelperMessage', () => {
     });
     expect(isSpeechSessionActive()).toBe(false);
     expect(getSpeechEventSender()).toBeNull();
+  });
+
+  it('recognizes the helper message that means the cached model is unusable', () => {
+    expect(isSpeechModelLoadFailure('Failed to load the speech model at /tmp/x.bin')).toBe(true);
+    expect(isSpeechModelLoadFailure('Microphone permission denied.')).toBe(false);
+    expect(isSpeechModelLoadFailure(undefined)).toBe(false);
   });
 
   it('drops results when the renderer window is gone', () => {

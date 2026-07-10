@@ -17,13 +17,20 @@ describe('sanitizeTranscript', () => {
     expect(sanitizeTranscript('*coughs*')).toBe('');
   });
 
-  it('drops unterminated annotations', () => {
+  it('drops an unterminated annotation that is the whole transcript', () => {
     expect(sanitizeTranscript(' [BLANK_AUDIO')).toBe('');
+  });
+
+  it('never lets a stray delimiter swallow the rest of the transcript', () => {
+    expect(sanitizeTranscript('call me at (555 1234')).toBe('call me at (555 1234');
+    expect(sanitizeTranscript('a [b c')).toBe('a [b c');
+    expect(sanitizeTranscript('2 * 3 * 4')).toBe('2 * 3 * 4');
   });
 
   it('keeps speech that is mixed with an annotation', () => {
     expect(sanitizeTranscript(' [BLANK_AUDIO] open my email')).toBe('open my email');
     expect(sanitizeTranscript(' hey (laughs) clawster')).toBe('hey clawster');
+    expect(sanitizeTranscript('open my email (laughs) please')).toBe('open my email please');
   });
 
   it('resolves punctuation-only output to empty text', () => {

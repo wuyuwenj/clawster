@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import {
   WHISPER_MODEL,
   MIN_MACOS_VERSION,
+  deleteWhisperModel,
   downloadModel,
   downloadPercent,
   ensureWhisperModel,
@@ -150,6 +151,52 @@ describe('downloadModel', () => {
   it('surfaces an HTTP failure', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => fakeResponse(body, { ok: false, status: 404 })));
     await expect(downloadModel(spec, dataDir)).rejects.toThrow(/404/);
+  });
+
+  it('gives up when the server never responds', async () => {
+    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+    })));
+
+    await expect(
+      downloadModel(spec, dataDir, () => {}, { connectMs: 10, stallMs: 10_000 })
+    ).rejects.toThrow(/stalled/i);
+  });
+
+  it('gives up when the transfer goes quiet mid-download, leaving no partial file', async () => {
+    // A body that yields one chunk and then never another.
+    const stalled = {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-length': '9999' }),
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(body));
+        },
+      }),
+    } as unknown as Response;
+    vi.stubGlobal('fetch', vi.fn(async () => stalled));
+
+    await expect(
+      downloadModel(spec, dataDir, () => {}, { connectMs: 10_000, stallMs: 20 })
+    ).rejects.toThrow(/stalled/i);
+    expect(fs.existsSync(path.join(dataDir, 'test-model.bin.part'))).toBe(false);
+    expect(fs.existsSync(path.join(dataDir, 'test-model.bin'))).toBe(false);
+  });
+});
+
+describe('deleteWhisperModel', () => {
+  it('removes a cached model so the next attempt re-downloads', () => {
+    writeSparseModel();
+    expect(isWhisperModelInstalled()).toBe(true);
+
+    deleteWhisperModel();
+
+    expect(isWhisperModelInstalled()).toBe(false);
+  });
+
+  it('is a no-op when nothing is cached', () => {
+    expect(() => deleteWhisperModel()).not.toThrow();
   });
 });
 

@@ -15,11 +15,24 @@ export interface WhisperModelSpec {
   bytes: number;
 }
 
+// Pinned to a revision rather than `main`: a re-upload upstream would make the
+// checksum below unmatchable and break voice input for everyone without a cache.
 export const WHISPER_MODEL: WhisperModelSpec = {
   name: 'ggml-base.en.bin',
-  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
+  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.en.bin',
   sha256: 'a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002',
   bytes: 147964211,
+};
+
+/** Give up if the server never responds, or if a transfer goes quiet mid-flight. */
+export interface DownloadTimeouts {
+  connectMs: number;
+  stallMs: number;
+}
+
+export const DEFAULT_DOWNLOAD_TIMEOUTS: DownloadTimeouts = {
+  connectMs: 30_000,
+  stallMs: 60_000,
 };
 
 // whisper.framework (the prebuilt whisper.cpp xcframework the helper links
@@ -46,6 +59,14 @@ export function isWhisperModelInstalled(modelPath = whisperModelPath()): boolean
   } catch {
     return false;
   }
+}
+
+/**
+ * Removes the cached model. The size check above cannot see a file that was
+ * corrupted in place, so the helper's model-load failure is what invalidates it.
+ */
+export function deleteWhisperModel(modelPath = whisperModelPath()): void {
+  fs.rmSync(modelPath, { force: true });
 }
 
 /** Compares a `major.minor.patch` macOS version against MIN_MACOS_VERSION. */
@@ -80,39 +101,59 @@ export async function fileSha256(filePath: string): Promise<string> {
 /**
  * Streams a model to `<destDir>/<spec.name>`, verifying its checksum before the
  * file is moved into place. A partial or corrupt download never becomes the
- * cached model.
+ * cached model. A silent socket aborts the transfer rather than hanging forever.
  */
 export async function downloadModel(
   spec: WhisperModelSpec,
   destDir: string,
-  onProgress: (percent: number) => void = () => {}
+  onProgress: (percent: number) => void = () => {},
+  timeouts: DownloadTimeouts = DEFAULT_DOWNLOAD_TIMEOUTS
 ): Promise<string> {
   fs.mkdirSync(destDir, { recursive: true });
 
   const finalPath = path.join(destDir, spec.name);
   const tempPath = `${finalPath}.part`;
 
-  const response = await fetch(spec.url);
-  if (!response.ok || !response.body) {
-    throw new Error(`Download failed with status ${response.status}`);
-  }
+  const controller = new AbortController();
+  let timedOut = false;
+  let timer: NodeJS.Timeout | undefined;
 
-  const total = Number(response.headers.get('content-length')) || spec.bytes;
-  let received = 0;
-  let lastPercent = -1;
+  // Re-armed on every chunk, so a stall is measured from the last byte received.
+  const armTimeout = (ms: number) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, ms);
+    timer.unref();
+  };
 
-  const source = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
-  source.on('data', (chunk: Buffer) => {
-    received += chunk.length;
-    const percent = downloadPercent(received, total);
-    if (percent !== lastPercent) {
-      lastPercent = percent;
-      onProgress(percent);
-    }
-  });
+  armTimeout(timeouts.connectMs);
 
   try {
-    await pipeline(source, fs.createWriteStream(tempPath));
+    const response = await fetch(spec.url, { signal: controller.signal });
+    if (!response.ok || !response.body) {
+      throw new Error(`Download failed with status ${response.status}`);
+    }
+
+    const total = Number(response.headers.get('content-length')) || spec.bytes;
+    let received = 0;
+    let lastPercent = -1;
+
+    const source = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
+    armTimeout(timeouts.stallMs);
+    source.on('data', (chunk: Buffer) => {
+      armTimeout(timeouts.stallMs);
+      received += chunk.length;
+      const percent = downloadPercent(received, total);
+      if (percent !== lastPercent) {
+        lastPercent = percent;
+        onProgress(percent);
+      }
+    });
+
+    await pipeline(source, fs.createWriteStream(tempPath), { signal: controller.signal });
+    clearTimeout(timer);
 
     const actual = await fileSha256(tempPath);
     if (actual !== spec.sha256) {
@@ -123,7 +164,12 @@ export async function downloadModel(
     return finalPath;
   } catch (error) {
     fs.rmSync(tempPath, { force: true });
+    if (timedOut) {
+      throw new Error('The speech model download stalled. Check your connection and try again.');
+    }
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

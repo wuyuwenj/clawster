@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
-import { whisperModelPath } from './whisper-model';
+import { deleteWhisperModel, whisperModelPath } from './whisper-model';
 import { sanitizeTranscript } from './whisper-transcript';
 
 // Speech recognition state
@@ -41,6 +41,11 @@ export function formatSpeechHelperExit(code: number | null, signal: NodeJS.Signa
 export function notifySpeechErrorToSender(sender: Electron.WebContents | null, message: string): void {
   if (!sender || sender.isDestroyed()) return;
   sender.send('speech-error', { type: 'error', message });
+}
+
+/** Matches the helper's own message when whisper cannot open the model file. */
+export function isSpeechModelLoadFailure(message: unknown): boolean {
+  return typeof message === 'string' && /failed to load the speech model/i.test(message);
 }
 
 export function resetSpeechHelperState(): void {
@@ -149,6 +154,11 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
           if (msg.type === 'status' && msg.state === 'ready') {
             speechHelperReady = true;
             resolveStartup();
+          }
+          if (msg.type === 'error' && isSpeechModelLoadFailure(msg.message)) {
+            // The cached file is the right size but unreadable; drop it so the
+            // next attempt re-downloads instead of failing identically forever.
+            deleteWhisperModel();
           }
           handleSpeechHelperMessage(msg);
         } catch {

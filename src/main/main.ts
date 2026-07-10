@@ -13,8 +13,6 @@ import {
 } from 'electron';
 import path from 'path';
 import os from 'os';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
@@ -51,7 +49,6 @@ import { logEvent } from './event-logger';
 import {
   ensureSpeechHelper,
   resetSpeechHelperState,
-  getSpeechHelperPath,
   getSpeechProcess,
   isSpeechSessionActive,
   isSpeechStartPending,
@@ -123,8 +120,6 @@ import {
   applyDebugWindowBordersToAllWindows,
   clampPetPosition,
 } from './windows';
-
-const execFileAsync = promisify(execFile);
 
 // Load environment variables
 config();
@@ -1038,16 +1033,9 @@ function setupIPC() {
       return { mic: 'denied', speech: 'denied' };
     }
 
-    const micStatus = systemPreferences.getMediaAccessStatus('microphone');
-
-    try {
-      const helperPath = getSpeechHelperPath();
-      const { stdout } = await execFileAsync(helperPath, ['--check-permissions']);
-      const result = JSON.parse(stdout.trim());
-      return { mic: micStatus, speech: result.speech || 'not-determined' };
-    } catch {
-      return { mic: micStatus, speech: 'not-determined' };
-    }
+    // Transcription is local, so there is no separate speech-recognition
+    // authorization to query — only the microphone matters.
+    return { mic: systemPreferences.getMediaAccessStatus('microphone'), speech: 'granted' };
   });
 
   // Speech recognition - start recording
