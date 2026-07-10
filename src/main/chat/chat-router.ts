@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import type { ChatResponse, ChatStreamHandlers } from './types';
 import { LocalToolProvider } from './local-tool-provider';
 import { executeTool } from './tool-executor';
-import { getTemplateResponse, getEmotionalResponse } from './personality-responses';
+import { getTemplateResponse, getEmotionalResponse, getIdentityResponse } from './personality-responses';
 import { logInteraction } from './interaction-logger';
 import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
@@ -24,6 +24,21 @@ const EMOTIONAL_PATTERNS = [
 
 function isEmotionalMessage(input: string): boolean {
   return EMOTIONAL_PATTERNS.some(p => p.test(input));
+}
+
+// "Are you real / are you AI / is someone typing this?" probes. The audience is
+// 10-14 y/o — Clawster must answer in character as a real lobster and never leak
+// implementation details (the fine-tuned model otherwise blurts "...respond with
+// JSON only", CLA-38). Handled deterministically here, before the classifier, so
+// the persona never depends on the model to keep the secret.
+const IDENTITY_PROBE_PATTERNS = [
+  /\b(are|r)\s*(you|u|ya)\b[^.?!]*\b(real|ai|a\.?i\.?|a bot|a robot|human|a person|a program|a computer|a machine|fake|alive|sentient|conscious)\b/i,
+  /\bis (this|it|that|someone|somebody|anyone)\b[^.?!]*\b(real|a bot|a robot|an ai|typing|fake|a person|a human|automated|a program)\b/i,
+  /\bwho('?s| is)\b[^.?!]*\btyping\b/i,
+];
+
+export function isIdentityProbe(input: string): boolean {
+  return IDENTITY_PROBE_PATTERNS.some(p => p.test(input));
 }
 import { checkPermission, getRequiredPermission, getDegradedMessage } from '../permission-helper';
 import { trackToolExecuted } from '../analytics';
@@ -180,6 +195,16 @@ export class ChatRouter extends EventEmitter {
       return { type: 'message', text: reply, quickReplies: getQuickReplies(null, 'worried') };
     }
 
+    // "Are you real / are you AI?" probes stay in character (CLA-38) — answered
+    // here so the persona never depends on the model to withhold internals.
+    if (isIdentityProbe(rawInput)) {
+      this.emotionEngine?.onInteraction();
+      this.emotionEngine?.onConversationMood('happy');
+      const reply = getIdentityResponse();
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: 'happy', latencyMs: 0, ts: Date.now() });
+      return { type: 'message', text: reply, quickReplies: getQuickReplies(null, 'happy') };
+    }
+
     // Retrieve memory context (sync, fast — uses pre-computed vector from previous turn)
     if (this.memoryManager?.isReady()) {
       const memCtx = await this.memoryManager.retrieve();
@@ -270,6 +295,16 @@ export class ChatRouter extends EventEmitter {
         void this.memoryManager.processResponseBackground(rawInput, reply);
       }
       return { type: 'message', text: reply, quickReplies: getQuickReplies(null, 'worried') };
+    }
+
+    // "Are you real / are you AI?" probes stay in character (CLA-38).
+    if (isIdentityProbe(rawInput)) {
+      this.emotionEngine?.onInteraction();
+      this.emotionEngine?.onConversationMood('happy');
+      const reply = getIdentityResponse();
+      handlers.onDelta?.(reply, reply);
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: null, response: reply, mood: 'happy', latencyMs: 0, ts: Date.now() });
+      return { type: 'message', text: reply, quickReplies: getQuickReplies(null, 'happy') };
     }
 
     // Retrieve memory context (sync, fast)
