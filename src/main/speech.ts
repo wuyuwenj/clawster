@@ -1,6 +1,8 @@
 import { app } from 'electron';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
+import { whisperModelPath } from './whisper-model';
+import { sanitizeTranscript } from './whisper-transcript';
 
 // Speech recognition state
 let speechProcess: ChildProcess | null = null;
@@ -51,7 +53,7 @@ export function resetSpeechHelperState(): void {
   speechProcessExitExpected = false;
 }
 
-function handleSpeechHelperMessage(msg: any): void {
+export function handleSpeechHelperMessage(msg: any): void {
   const sender = getSpeechEventSender();
 
   console.log('[Speech]', JSON.stringify(msg));
@@ -71,18 +73,20 @@ function handleSpeechHelperMessage(msg: any): void {
   }
 
   if (msg.type === 'partial' || msg.type === 'final') {
+    const result = { ...msg, text: sanitizeTranscript(msg.text ?? '') };
+
     if (msg.type === 'final') {
       speechStartPending = false;
       speechSessionActive = false;
       if (sender) {
-        sender.send('speech-result', msg);
+        sender.send('speech-result', result);
       }
       speechSender = null;
       return;
     }
 
     if (sender) {
-      sender.send('speech-result', msg);
+      sender.send('speech-result', result);
     }
     return;
   }
@@ -90,11 +94,6 @@ function handleSpeechHelperMessage(msg: any): void {
   if (msg.type === 'error') {
     speechStartPending = false;
     speechSessionActive = false;
-
-    if (msg.message && (msg.message.includes('Dictation') || msg.message.includes('Siri'))) {
-      msg.message = 'Speech recognition requires Dictation to be enabled. Go to System Settings → Keyboard → Dictation and turn it on.';
-      msg.openSettings = true;
-    }
 
     if (sender) {
       sender.send('speech-error', msg);
@@ -114,7 +113,9 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
 
   const helperPath = getSpeechHelperPath();
   speechHelperStartup = new Promise((resolve, reject) => {
-    const child = spawn(helperPath);
+    // The helper loads the Whisper model before it reports "ready", so the model
+    // must already be on disk by the time we spawn it.
+    const child = spawn(helperPath, ['--model', whisperModelPath()]);
     let startupSettled = false;
     let buffer = '';
 

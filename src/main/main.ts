@@ -63,6 +63,12 @@ import {
   setSpeechProcessExitExpected,
 } from './speech';
 import {
+  ensureWhisperModel,
+  formatVoiceSetupMessage,
+  isWhisperSupportedMacOS,
+  MIN_MACOS_VERSION,
+} from './whisper-model';
+import {
   initPetBehaviors,
   animateMoveTo,
   startAttentionSeeker,
@@ -1050,6 +1056,10 @@ function setupIPC() {
       return { success: false, error: 'Speech recognition is only available on macOS' };
     }
 
+    if (!isWhisperSupportedMacOS(process.getSystemVersion())) {
+      return { success: false, error: `Voice input needs macOS ${MIN_MACOS_VERSION} or newer.` };
+    }
+
     if (isSpeechSessionActive() || isSpeechStartPending()) {
       return { success: false, error: 'Already recording' };
     }
@@ -1063,6 +1073,16 @@ function setupIPC() {
       }
     } else if (micStatus !== 'granted') {
       return { success: false, error: 'Microphone permission denied. Please enable in System Settings > Privacy & Security > Microphone.' };
+    }
+
+    // Speech runs locally, which means the Whisper model has to be on disk. The
+    // first voice attempt kicks off the one-time download in the background.
+    const setup = ensureWhisperModel();
+    if (setup.status === 'downloading') {
+      return { success: false, error: formatVoiceSetupMessage(setup.percent) };
+    }
+    if (setup.status === 'error') {
+      return { success: false, error: `Voice setup failed: ${setup.message}` };
     }
 
     const sender = event.sender;

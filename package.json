@@ -98,13 +98,16 @@
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "Clawster needs screen capture permission to help you with what's on your screen.",
         "NSAppleEventsUsageDescription": "Clawster needs this to detect which app you're using.",
-        "NSMicrophoneUsageDescription": "Clawster needs microphone access for voice input.",
-        "NSSpeechRecognitionUsageDescription": "Clawster uses speech recognition to convert your voice to text."
+        "NSMicrophoneUsageDescription": "Clawster needs microphone access for voice input."
       },
       "extraResources": [
         {
           "from": "native/speech-helper/speech-helper",
           "to": "speech-helper"
+        },
+        {
+          "from": "native/speech-helper/whisper.framework",
+          "to": "whisper.framework"
         }
       ]
     },

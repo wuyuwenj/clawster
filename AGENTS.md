@@ -55,6 +55,14 @@ User message
 - Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 - The `pet.muted` setting (Assistant panel toggle) silences both of Clawster's sound sources (CLA-52). Main pushes changes to the **pet-chat** window on the `pet-muted-changed` channel — that window owns the Animalese engine, so sending to the pet window would never gate the voice — and `main.ts` calls `setMutedProvider` so `chat/tool-executor.ts` can raise notifications with `silent: true`. The engine seeds itself from persisted settings on the first utterance and applies later changes mid-utterance; character timing is unchanged when muted
 
+### Voice Input (local Whisper STT)
+- `native/speech-helper/main.swift` captures the mic and transcribes on-device with whisper.cpp — no audio leaves the machine. It speaks the same line-delimited JSON protocol as before (`start`/`stop`/`quit` on stdin → `status`/`partial`/`final`/`error` on stdout), so `src/main/speech.ts`, the `speech-start`/`speech-stop` IPC, and the renderer are all unchanged
+- `npm run build:speech` downloads the prebuilt whisper.cpp **xcframework** (pinned version + sha256) into `native/speech-helper/vendor/` and copies `whisper.framework` next to the binary, which links it via `@executable_path`. Using the release artifact keeps this a `swiftc`-only build — **no cmake needed**. Both the framework and the binary are gitignored
+- The framework is built for **macOS 13.3**, so the helper targets 13.3 and `speech-start` rejects older systems with a clear message
+- The ~148 MB model (`ggml-base.en.bin`) is **never committed or bundled**. It downloads on first voice use into `<clawsterDataDir()>/models/whisper/`, checksum-verified via a `.part` temp file. While it downloads, `speech-start` returns a "Setting up voice…" message that the chatbar already renders — no renderer changes needed
+- Whisper hallucinates confident phrases from room tone, so the helper only transcribes when RMS-based voice activity was detected, and `sanitizeTranscript()` (`src/main/whisper-transcript.ts`) strips `[BLANK_AUDIO]`-style annotations
+- ggml's Metal backend aborts at exit if a whisper context is still alive — every exit path must call `WhisperEngine.shutdown()` first
+
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)
 - `npm run test:e2e` — Playwright E2E (needs Vite dev server + optionally Ollama)
@@ -70,6 +78,7 @@ User message
 - Use `vi.mock('electron')`, never `vi.doMock` — known Vitest bug (#4166) leaves exports undefined
 - Unit tests that route through `executeTool` (e.g. via `ChatRouter.chat`) must also `vi.mock('child_process')` — otherwise `tool-executor.ts` runs real `osascript` against macOS apps, which can stall under parallel test load (see `test/quick-replies.test.ts`)
 - Integration tests (`test/e2e-*.test.ts`) need Ollama running — they skip gracefully if unavailable
+- `test/speech-helper.test.ts` drives the real Swift helper binary; it skips unless macOS + `npm run build:speech` has run + the Whisper model is downloaded. It synthesizes speech with `say` rather than needing a microphone
 - E2E tests use `CLAWSTER_DATA_DIR` env var to isolate test data from real user data
 - E2E specs save screenshots when the `EVIDENCE_DIR` env var is set (skipped otherwise) — evidence for PR review is committed under `.no-mistakes/evidence/`
 
