@@ -61,12 +61,32 @@ export function isWhisperModelInstalled(modelPath = whisperModelPath()): boolean
   }
 }
 
-/**
- * Removes the cached model. The size check above cannot see a file that was
- * corrupted in place, so the helper's model-load failure is what invalidates it.
- */
+/** Removes the cached model so the next attempt re-downloads it. */
 export function deleteWhisperModel(modelPath = whisperModelPath()): void {
   fs.rmSync(modelPath, { force: true });
+}
+
+/**
+ * Removes the cached model only if its bytes no longer match `spec.sha256`.
+ * The helper reports the same load failure for environmental problems (Metal
+ * backend init, OOM, a sandbox denial), and deleting a healthy model on those
+ * would re-download ~148 MB on every mic press without ever succeeding.
+ */
+export async function deleteWhisperModelIfCorrupt(
+  spec: WhisperModelSpec = WHISPER_MODEL,
+  modelPath = whisperModelPath()
+): Promise<boolean> {
+  let actual: string;
+  try {
+    actual = await fileSha256(modelPath);
+  } catch {
+    return false;
+  }
+
+  if (actual === spec.sha256) return false;
+
+  deleteWhisperModel(modelPath);
+  return true;
 }
 
 /** Compares a `major.minor.patch` macOS version against MIN_MACOS_VERSION. */
@@ -133,6 +153,8 @@ export async function downloadModel(
   try {
     const response = await fetch(spec.url, { signal: controller.signal });
     if (!response.ok || !response.body) {
+      // Release the socket now rather than leaving the body for the collector.
+      controller.abort();
       throw new Error(`Download failed with status ${response.status}`);
     }
 

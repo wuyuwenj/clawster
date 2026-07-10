@@ -104,10 +104,12 @@
         {
           "from": "native/speech-helper/speech-helper",
           "to": "speech-helper"
-        },
+        }
+      ],
+      "extraFiles": [
         {
           "from": "native/speech-helper/whisper.framework",
-          "to": "whisper.framework"
+          "to": "Frameworks/whisper.framework"
         }
       ]
     },

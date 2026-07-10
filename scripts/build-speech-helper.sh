@@ -64,8 +64,8 @@ if [[ ! -d "$FRAMEWORK_SLICE/whisper.framework" ]]; then
   fi
 fi
 
-# The helper loads whisper.framework from @executable_path, so keep a copy next to
-# the binary. electron-builder ships both into Contents/Resources for packaged apps.
+# Keep a copy next to the binary for `npm start`. cp -R preserves the framework's
+# Versions/Current symlinks, which codesign requires of a nested bundle.
 rm -rf "$NATIVE_DIR/whisper.framework"
 cp -R "$FRAMEWORK_SLICE/whisper.framework" "$NATIVE_DIR/whisper.framework"
 
@@ -78,6 +78,7 @@ swiftc "$NATIVE_DIR/main.swift" \
   -framework whisper \
   -framework AVFoundation \
   -Xlinker -rpath -Xlinker "@executable_path" \
+  -Xlinker -rpath -Xlinker "@executable_path/../Frameworks" \
   -target "$TARGET_ARCH-apple-macos$MACOS_DEPLOYMENT_TARGET" \
   -O
 

@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
-import { deleteWhisperModel, whisperModelPath } from './whisper-model';
+import { deleteWhisperModelIfCorrupt, whisperModelPath } from './whisper-model';
 import { sanitizeTranscript } from './whisper-transcript';
 
 // Speech recognition state
@@ -156,9 +156,9 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
             resolveStartup();
           }
           if (msg.type === 'error' && isSpeechModelLoadFailure(msg.message)) {
-            // The cached file is the right size but unreadable; drop it so the
-            // next attempt re-downloads instead of failing identically forever.
-            deleteWhisperModel();
+            // Only a checksum mismatch means the cached file is at fault; the
+            // error itself also covers failures that re-downloading cannot fix.
+            void deleteWhisperModelIfCorrupt();
           }
           handleSpeechHelperMessage(msg);
         } catch {

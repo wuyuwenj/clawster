@@ -7,6 +7,7 @@ import {
   WHISPER_MODEL,
   MIN_MACOS_VERSION,
   deleteWhisperModel,
+  deleteWhisperModelIfCorrupt,
   downloadModel,
   downloadPercent,
   ensureWhisperModel,
@@ -197,6 +198,35 @@ describe('deleteWhisperModel', () => {
 
   it('is a no-op when nothing is cached', () => {
     expect(() => deleteWhisperModel()).not.toThrow();
+  });
+});
+
+describe('deleteWhisperModelIfCorrupt', () => {
+  const body = Buffer.from('pretend ggml weights');
+  const spec = {
+    name: 'test-model.bin',
+    url: 'https://example.invalid/test-model.bin',
+    sha256: createHash('sha256').update(body).digest('hex'),
+    bytes: body.length,
+  };
+  const modelPath = () => path.join(dataDir, spec.name);
+
+  it('deletes a model whose bytes no longer match the checksum', async () => {
+    fs.writeFileSync(modelPath(), 'corrupted in place');
+
+    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(true);
+    expect(fs.existsSync(modelPath())).toBe(false);
+  });
+
+  it('keeps a healthy model, so an environmental failure cannot loop re-downloading', async () => {
+    fs.writeFileSync(modelPath(), body);
+
+    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(false);
+    expect(fs.existsSync(modelPath())).toBe(true);
+  });
+
+  it('is a no-op when nothing is cached', async () => {
+    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(false);
   });
 });
 
