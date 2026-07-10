@@ -1,0 +1,19 @@
+tsconfig.node.tsbuildinfo
+  s_92d1d805333e0b::t_bc7108dc8ff7a7 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1c1a6fde580bc771da60ce5db68fa34c2662b4c8",
+  "prompts": {},
+  "sessions": {
+    "s_92d1d805333e0b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "671f6395-5226-4ced-80a0-16c2c26a9934",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
