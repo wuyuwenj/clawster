@@ -77,6 +77,13 @@ export class AnimaleseEngine {
   private muted = false;
   private mutedInitialized = false;
 
+  /** True when audio output must be suppressed (automated tests / CLAWSTER_MUTE_AUDIO).
+   *  Read lazily so the preload bridge is available; the engine is constructed at
+   *  module load, before `window.clawster` exists. */
+  private isMuted(): boolean {
+    return typeof window !== 'undefined' && (window as any).clawster?.audioMuted === true;
+  }
+
   private getAudioContext(): AudioContext {
     if (!this.audioCtx || this.audioCtx.state === 'closed') {
       // Use latencyHint to help with autoplay policy in Electron
@@ -192,6 +199,10 @@ export class AnimaleseEngine {
     this.stop();
 
     if (!text || text.trim().length === 0) return;
+
+    // Audio-safety: in tests / muted mode, produce NO sound (mock audio output)
+    // and never open an AudioContext. Resolve immediately.
+    if (this.isMuted()) return;
 
     this.isPlaying = true;
     const playbackToken = ++this.playbackToken;

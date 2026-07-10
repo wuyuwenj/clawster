@@ -14,10 +14,11 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        /* Opaque shell-cream mat: the chatbar window itself is opaque, so the
-           whole window must read as one warm Tidepool surface over any
-           wallpaper — never translucent, never near-black. */
-        background: #FFF9F2;
+        /* Opaque mat: the chatbar window is opaque, so the whole window must
+           read as one surface. Driven by the --tp-shell token so it follows the
+           theme (dark #0f0f0f default, Tidepool cream in light); the fallback
+           matches the dark window backgroundColor for the pre-CSS first paint. */
+        background: var(--tp-shell, #0f0f0f);
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }

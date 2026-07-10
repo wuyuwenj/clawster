@@ -56,12 +56,12 @@ export const ReadyStep: React.FC<Props> = ({ data, updateData }) => {
         <div className="absolute -inset-8 bg-[#FF8C69]/20 blur-2xl -z-10 rounded-full" />
       </div>
 
-      <h2 className="text-3xl font-medium tracking-tight text-white mb-2">You're all set!</h2>
-      <p className="text-sm text-neutral-400 mb-6">Say hi — I'm ready when you are.</p>
+      <h2 className="text-3xl font-medium tracking-tight text-[var(--app-text-strong)] mb-2">You're all set!</h2>
+      <p className="text-sm text-[var(--app-muted)] mb-6">Say hi — I'm ready when you are.</p>
 
       {/* Try saying */}
-      <div className="w-full max-w-sm bg-neutral-900/50 border border-white/5 rounded-xl p-4 text-left mb-5">
-        <div className="text-xs text-neutral-500 mb-2">Try saying:</div>
+      <div className="ob-surface-50 w-full max-w-sm border ob-border-hairline rounded-xl p-4 text-left mb-5">
+        <div className="text-xs ob-text-quaternary mb-2">Try saying:</div>
         <div className="flex flex-wrap gap-2">
           <span className="px-2.5 py-1 rounded-full bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[#FF8C69] text-xs font-medium">“wave at me”</span>
           <span className="px-2.5 py-1 rounded-full bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[#FF8C69] text-xs font-medium">“what time is it”</span>
@@ -69,23 +69,23 @@ export const ReadyStep: React.FC<Props> = ({ data, updateData }) => {
       </div>
 
       {/* Hotkey reminder */}
-      <div className="flex items-center gap-2.5 mb-6 text-xs text-neutral-400">
+      <div className="flex items-center gap-2.5 mb-6 text-xs text-[var(--app-muted)]">
         <span>Press</span>
         <span className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-neutral-200 font-medium">⌘</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-neutral-200 font-medium">⇧</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-neutral-200 font-medium">Space</kbd>
+          <kbd className="ob-chip px-1.5 py-0.5 rounded border text-[var(--app-text)] font-medium">⌘</kbd>
+          <kbd className="ob-chip px-1.5 py-0.5 rounded border text-[var(--app-text)] font-medium">⇧</kbd>
+          <kbd className="ob-chip px-1.5 py-0.5 rounded border text-[var(--app-text)] font-medium">Space</kbd>
         </span>
         <span>anytime to chat</span>
       </div>
 
-      <label className="w-full max-w-sm flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-neutral-900/30 px-3 py-2.5 cursor-pointer">
-        <span className="text-sm text-neutral-200">Launch on startup</span>
+      <label className="ob-surface-30 w-full max-w-sm flex items-center justify-between gap-3 rounded-lg border border-[var(--app-border)] px-3 py-2.5 cursor-pointer">
+        <span className="text-sm text-[var(--app-text)]">Launch on startup</span>
         <input
           type="checkbox"
           checked={data.launchOnStartup}
           onChange={(e) => updateData({ launchOnStartup: e.target.checked })}
-          className="h-4 w-4 rounded border-white/20 bg-neutral-900 accent-[#FF8C69]"
+          className="ob-checkbox h-4 w-4 rounded accent-[#FF8C69]"
         />
       </label>
     </div>

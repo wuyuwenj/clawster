@@ -638,12 +638,12 @@ export const Assistant: React.FC = () => {
   const activeSessionTitle = sessions.find((s) => s.id === activeSessionId)?.title || 'New chat';
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f0f] text-neutral-200 overflow-hidden">
+    <div className="flex flex-col h-screen bg-[var(--app-bg)] text-[var(--app-text)] overflow-hidden">
       {/* Header */}
-      <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 select-none shrink-0 bg-[#0f0f0f] drag-region">
+      <div className="h-12 border-b border-[var(--app-border)] flex items-center justify-between px-4 select-none shrink-0 bg-[var(--app-bg)] drag-region">
         <div className="flex items-center gap-2.5">
           <ClawsterIcon size={18} />
-          <span className="text-sm font-medium tracking-tight text-white">Clawster</span>
+          <span className="text-sm font-medium tracking-tight text-[var(--app-text-strong)]">Clawster</span>
           <button
             className="no-drag relative flex items-center justify-center ml-1 cursor-pointer"
             title={connectionStatus.connected ? 'Connected' : 'Disconnected'}
@@ -652,7 +652,7 @@ export const Assistant: React.FC = () => {
           </button>
         </div>
         <button
-          className="no-drag text-neutral-500 hover:text-white transition-colors flex items-center justify-center w-6 h-6"
+          className="no-drag text-[var(--app-muted)] hover:text-[var(--app-text-strong)] transition-colors flex items-center justify-center w-6 h-6"
           onClick={closeWindow}
         >
           <Icon icon="solar:close-circle-linear" className="text-lg" />
@@ -662,13 +662,13 @@ export const Assistant: React.FC = () => {
       <UpdateBanner />
 
       {/* Tabs */}
-      <div className="flex px-2 border-b border-white/5 shrink-0 bg-[#0f0f0f]">
+      <div className="flex px-2 border-b border-[var(--app-border)] shrink-0 bg-[var(--app-bg)]">
         <button
           onClick={() => switchTab('chat')}
           className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
             activeTab === 'chat'
               ? 'text-[#FF8C69] border-[#FF8C69]'
-              : 'text-neutral-500 border-transparent hover:text-neutral-300'
+              : 'text-[var(--app-muted)] border-transparent hover:text-[var(--app-text)]'
           }`}
         >
           Chat
@@ -678,7 +678,7 @@ export const Assistant: React.FC = () => {
           className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
             activeTab === 'activity'
               ? 'text-[#FF8C69] border-[#FF8C69]'
-              : 'text-neutral-500 border-transparent hover:text-neutral-300'
+              : 'text-[var(--app-muted)] border-transparent hover:text-[var(--app-text)]'
           }`}
         >
           Activity
@@ -688,7 +688,7 @@ export const Assistant: React.FC = () => {
           className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
             activeTab === 'settings'
               ? 'text-[#FF8C69] border-[#FF8C69]'
-              : 'text-neutral-500 border-transparent hover:text-neutral-300'
+              : 'text-[var(--app-muted)] border-transparent hover:text-[var(--app-text)]'
           }`}
         >
           Settings
@@ -699,19 +699,19 @@ export const Assistant: React.FC = () => {
       {activeTab === 'chat' && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {/* Session switcher (CLA-33) */}
-          <div className="relative flex items-center gap-2 px-3 py-2 border-b border-white/5">
+          <div className="relative flex items-center gap-2 px-3 py-2 border-b border-[var(--app-border)]">
             <button
               onClick={() => { reloadSessions(); setConfirmDeleteId(null); setShowSessions((v) => !v); }}
-              className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white max-w-[70%]"
+              className="flex items-center gap-1.5 text-xs text-[var(--app-text)] hover:text-[var(--app-text-strong)] max-w-[70%]"
               title="Switch chat"
             >
               <span className="truncate">{activeSessionTitle}</span>
-              <span className="text-neutral-500">▾</span>
+              <span className="text-[var(--app-muted)]">▾</span>
             </button>
             <button
               onClick={handleNewSession}
               disabled={isLoading}
-              className="ml-auto text-xs px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="ml-auto text-xs px-2 py-1 rounded-md bg-[var(--app-surface)] hover:bg-[var(--app-surface-hover)] text-[var(--app-text)] disabled:opacity-50 disabled:cursor-not-allowed"
               title="Start a new chat"
             >
               ＋ New
@@ -719,19 +719,19 @@ export const Assistant: React.FC = () => {
             {showSessions && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => { setConfirmDeleteId(null); setShowSessions(false); }} />
-                <div className="absolute left-3 top-full mt-1 z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] shadow-xl scrollbar-hide">
+                <div className="absolute left-3 top-full mt-1 z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-bg-elevated)] shadow-xl scrollbar-hide">
                   {sessions.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-neutral-500">No chats yet</div>
+                    <div className="px-3 py-2 text-xs text-[var(--app-muted)]">No chats yet</div>
                   )}
                   {sessions.map((s) => (
                     <div
                       key={s.id}
                       onClick={() => handleSwitchSession(s.id)}
-                      className={`group flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 ${s.id === activeSessionId ? 'bg-white/5' : ''}`}
+                      className={`group flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-[var(--app-surface)] ${s.id === activeSessionId ? 'bg-[var(--app-surface)]' : ''}`}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs text-neutral-200 truncate">{s.title}</div>
-                        <div className="text-[10px] text-neutral-500">{s.messageCount} message{s.messageCount === 1 ? '' : 's'}</div>
+                        <div className="text-xs text-[var(--app-text)] truncate">{s.title}</div>
+                        <div className="text-[10px] text-[var(--app-muted)]">{s.messageCount} message{s.messageCount === 1 ? '' : 's'}</div>
                       </div>
                       {s.id === activeSessionId && <span className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] shrink-0" />}
                       <button
@@ -740,7 +740,7 @@ export const Assistant: React.FC = () => {
                         className={`text-sm px-1 shrink-0 disabled:cursor-not-allowed ${
                           confirmDeleteId === s.id
                             ? 'opacity-100 text-red-400 text-[10px] font-medium'
-                            : 'opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400'
+                            : 'opacity-0 group-hover:opacity-100 text-[var(--app-muted)] hover:text-red-400'
                         }`}
                         title={confirmDeleteId === s.id ? 'Confirm delete' : 'Delete chat'}
                       >
@@ -760,8 +760,8 @@ export const Assistant: React.FC = () => {
               className="h-full overflow-y-auto p-4 space-y-5 scrollbar-hide flex flex-col"
             >
               {messages.length === 0 && (
-                <div className="text-center text-neutral-500 py-10">
-                  <p className="mb-2">Press <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs font-mono">⌥Space</kbd> to summon me anytime!</p>
+                <div className="text-center text-[var(--app-muted)] py-10">
+                  <p className="mb-2">Press <kbd className="px-1.5 py-0.5 bg-[var(--app-surface)] border border-[var(--app-border)] rounded text-xs font-mono">⌥Space</kbd> to summon me anytime!</p>
                   <p>Ask me anything or use the actions below.</p>
                 </div>
               )}
@@ -769,21 +769,21 @@ export const Assistant: React.FC = () => {
                 <React.Fragment key={msg.id}>
                   {msg.role === 'assistant' && (
                     <div className="max-w-[85%] mr-auto">
-                      <div className="bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-neutral-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed">
+                      <div className="bg-[#FF8C69]/10 border border-[#FF8C69]/20 text-[var(--app-text)] rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed">
                         <MarkdownMessage content={msg.content} />
                       </div>
                     </div>
                   )}
                   {msg.role === 'user' && (
                     <div className="max-w-[85%] ml-auto">
-                      <div className="bg-white/10 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed border border-white/5">
+                      <div className="bg-[var(--app-surface-hover)] text-[var(--app-text-strong)] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed border border-[var(--app-border)]">
                         <LinkifyText text={msg.content} />
                       </div>
                     </div>
                   )}
                   {msg.role === 'system' && (
                     <div className="text-center">
-                      <span className="text-xs text-neutral-500 bg-white/5 px-2 py-1 rounded-full">
+                      <span className="text-xs text-[var(--app-muted)] bg-[var(--app-surface)] px-2 py-1 rounded-full">
                         {msg.content}
                       </span>
                     </div>
@@ -792,7 +792,7 @@ export const Assistant: React.FC = () => {
               ))}
               {isLoading && !activeStreamMessageId && (
                 <div className="max-w-[85%] mr-auto">
-                  <div className="bg-[#FF8C69]/5 border border-[#FF8C69]/10 text-neutral-400 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
+                  <div className="bg-[#FF8C69]/5 border border-[#FF8C69]/10 text-[var(--app-muted)] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
                     <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
                     <div className="w-1.5 h-1.5 rounded-full bg-[#FF8C69] typing-dot"></div>
@@ -804,7 +804,7 @@ export const Assistant: React.FC = () => {
             {showScrollToBottom && (
               <button
                 onClick={handleScrollToBottomClick}
-                className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-[#0a0a0a]/95 border border-white/15 text-neutral-300 hover:text-white hover:border-white/30 transition-colors flex items-center justify-center shadow-lg"
+                className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-[var(--app-bg-deep)] border border-[var(--app-border)] text-[var(--app-text)] hover:text-[var(--app-text-strong)] hover:border-[var(--app-border)] transition-colors flex items-center justify-center shadow-lg"
                 title="Scroll to bottom"
               >
                 <Icon icon="solar:arrow-down-linear" className="text-base" />
@@ -817,31 +817,31 @@ export const Assistant: React.FC = () => {
             <button
               onClick={captureScreen}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-xs text-neutral-300 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--app-border)] bg-[var(--app-bg-elevated)] hover:bg-[var(--app-track)] text-xs text-[var(--app-text)] transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Icon icon="solar:camera-linear" className="text-neutral-500" />
+              <Icon icon="solar:camera-linear" className="text-[var(--app-muted)]" />
               Look at screen
             </button>
             <button
               onClick={() => setInput('What should I work on next?')}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-xs text-neutral-300 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--app-border)] bg-[var(--app-bg-elevated)] hover:bg-[var(--app-track)] text-xs text-[var(--app-text)] transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Icon icon="solar:clipboard-list-linear" className="text-neutral-500" />
+              <Icon icon="solar:clipboard-list-linear" className="text-[var(--app-muted)]" />
               What's next?
             </button>
             <button
               onClick={() => setInput('Summarize what I did today')}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-xs text-neutral-300 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--app-border)] bg-[var(--app-bg-elevated)] hover:bg-[var(--app-track)] text-xs text-[var(--app-text)] transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Icon icon="solar:chart-square-linear" className="text-neutral-500" />
+              <Icon icon="solar:chart-square-linear" className="text-[var(--app-muted)]" />
               Summarize day
             </button>
           </div>
 
           {/* Input */}
-          <div className="p-3 bg-[#0a0a0a] border-t border-white/5 shrink-0 flex gap-2 items-end">
+          <div className="p-3 bg-[var(--app-bg-deep)] border-t border-[var(--app-border)] shrink-0 flex gap-2 items-end">
             <textarea
               rows={1}
               value={input}
@@ -849,7 +849,7 @@ export const Assistant: React.FC = () => {
               onKeyPress={handleKeyPress}
               placeholder="Ask Clawster anything..."
               disabled={isLoading}
-              className="flex-1 bg-neutral-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all resize-none min-h-[44px] max-h-[120px] scrollbar-hide disabled:opacity-50 cursor-text"
+              className="flex-1 bg-[var(--app-bg-elevated)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[#FF8C69] focus:ring-1 focus:ring-[#FF8C69]/30 transition-all resize-none min-h-[44px] max-h-[120px] scrollbar-hide disabled:opacity-50 cursor-text"
             />
             <button
               onClick={handleMicToggle}
@@ -857,7 +857,7 @@ export const Assistant: React.FC = () => {
               className={`w-[44px] h-[44px] rounded-xl flex items-center justify-center shrink-0 border transition-all ${
                 isRecording
                   ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse'
-                  : 'bg-white/10 text-neutral-400 border-white/5 hover:bg-[#FF8C69] hover:text-black hover:border-[#FF8C69]'
+                  : 'bg-[var(--app-surface-hover)] text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[#FF8C69] hover:text-black hover:border-[#FF8C69]'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               title={isRecording ? 'Stop recording' : 'Voice input'}
             >
@@ -866,7 +866,7 @@ export const Assistant: React.FC = () => {
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="w-[44px] h-[44px] rounded-xl bg-white/10 text-neutral-400 flex items-center justify-center shrink-0 border border-white/5 transition-all hover:bg-[#FF8C69] hover:text-black hover:border-[#FF8C69] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:text-neutral-400 disabled:hover:border-white/5"
+              className="w-[44px] h-[44px] rounded-xl bg-[var(--app-surface-hover)] text-[var(--app-muted)] flex items-center justify-center shrink-0 border border-[var(--app-border)] transition-all hover:bg-[#FF8C69] hover:text-black hover:border-[#FF8C69] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--app-surface-hover)] disabled:hover:text-[var(--app-muted)] disabled:hover:border-[var(--app-border)]"
             >
               <Icon icon="solar:arrow-up-linear" className="text-lg" />
             </button>
@@ -878,7 +878,7 @@ export const Assistant: React.FC = () => {
       {activeTab === 'activity' && (
         <div className="flex-1 flex flex-col overflow-y-auto p-4 scrollbar-hide">
           {activityLog.length === 0 && (
-            <div className="text-center text-neutral-500 py-10">
+            <div className="text-center text-[var(--app-muted)] py-10">
               <p className="mb-2">No activity recorded yet.</p>
               <p>Switch apps or modify files to see events.</p>
             </div>
@@ -886,17 +886,17 @@ export const Assistant: React.FC = () => {
           {[...activityLog].reverse().map((event, i) => (
             <div
               key={i}
-              className="flex items-center justify-between py-3 border-b border-white/5"
+              className="flex items-center justify-between py-3 border-b border-[var(--app-border)]"
             >
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-medium text-neutral-300">
+                <span className="text-xs font-medium text-[var(--app-text)]">
                   {formatActivityType(event.type)}
                 </span>
-                <span className="text-[11px] font-mono text-neutral-500">
+                <span className="text-[11px] font-mono text-[var(--app-muted)]">
                   {event.app || event.filename || event.path}
                 </span>
               </div>
-              <span className="text-[11px] text-neutral-600">
+              <span className="text-[11px] text-[var(--app-muted)]">
                 {new Date(event.at).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -912,7 +912,7 @@ export const Assistant: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-6 scrollbar-hide">
           {/* Group: Personality */}
           <div>
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
               Personality
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -926,11 +926,11 @@ export const Assistant: React.FC = () => {
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors ${
                       active
                         ? 'border-[#FF8C69] bg-[#FF8C69]/10'
-                        : 'border-white/10 bg-neutral-900 hover:bg-neutral-800'
+                        : 'border-[var(--app-border)] bg-[var(--app-bg-elevated)] hover:bg-[var(--app-track)]'
                     }`}
                   >
                     <span className="text-lg leading-none">{preset.emoji}</span>
-                    <span className={`text-sm font-medium ${active ? 'text-[#FF8C69]' : 'text-neutral-300'}`}>
+                    <span className={`text-sm font-medium ${active ? 'text-[#FF8C69]' : 'text-[var(--app-text)]'}`}>
                       {preset.label}
                     </span>
                   </button>
@@ -939,15 +939,15 @@ export const Assistant: React.FC = () => {
             </div>
             <button
               onClick={() => window.clawster.openPersonalityFolder()}
-              className="mt-3 text-xs text-neutral-500 hover:text-neutral-300 transition-colors underline underline-offset-2"
+              className="mt-3 text-xs text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors underline underline-offset-2"
             >
               Edit raw files
             </button>
           </div>
 
           {/* Group 2: Watching (permission-gated) */}
-          <div className="pt-4 border-t border-white/5">
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+          <div className="pt-4 border-t border-[var(--app-border)]">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
               Watching
             </h3>
             <div className="space-y-4">
@@ -955,15 +955,15 @@ export const Assistant: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-300">
+                    <span className="text-sm font-medium text-[var(--app-text)]">
                       Watch active app changes
                     </span>
                     {permStatuses['accessibility'] === 'granted' ? (
                       <span className="w-1.5 h-1.5 rounded-full bg-[#008080]" title="Accessibility granted" />
                     ) : permWaiting === 'accessibility' ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 animate-pulse">Waiting...</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--app-track)] text-[var(--app-muted)] animate-pulse">Waiting...</span>
                     ) : permStatuses['accessibility'] === 'restricted' ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500">Managed</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--app-track)] text-[var(--app-muted)]">Managed</span>
                     ) : (settings.watch as { activeApp?: boolean })?.activeApp ? (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/50 text-amber-400 border border-amber-700/30">Needs permission</span>
                     ) : null}
@@ -982,7 +982,7 @@ export const Assistant: React.FC = () => {
                         }
                       }}
                     />
-                    <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                    <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                     <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                   </label>
                 </div>
@@ -990,11 +990,11 @@ export const Assistant: React.FC = () => {
                 {/* Inline permission panel for Accessibility */}
                 {expandedPerm === 'accessibility' && permStatuses['accessibility'] !== 'granted' && (
                   <div className="mt-3 p-3 rounded-lg bg-amber-950/20 border border-amber-800/20 space-y-2.5 animate-[slideDown_0.2s_ease-out]" style={{animation: 'slideDown 0.2s ease-out'}}>
-                    <p className="text-[13px] text-neutral-300 leading-relaxed">
+                    <p className="text-[13px] text-[var(--app-text)] leading-relaxed">
                       Clawster needs Accessibility access to close apps, hide distracting apps, and adjust brightness.{' '}
-                      <span className="text-neutral-500">It does not read your screen contents.</span>
+                      <span className="text-[var(--app-muted)]">It does not read your screen contents.</span>
                     </p>
-                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                    <p className="text-[11px] text-[var(--app-muted)] leading-relaxed">
                       Open System Settings → Privacy & Security → Accessibility. Turn on the switch next to Clawster.
                     </p>
                     <div className="flex items-center gap-2 pt-1">
@@ -1009,7 +1009,7 @@ export const Assistant: React.FC = () => {
                         Open Settings
                       </button>
                       <button
-                        className="px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+                        className="px-3 py-1.5 text-xs text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"
                         onClick={() => {
                           setExpandedPerm(null);
                           window.clawster.stopPermissionPolling('accessibility');
@@ -1022,15 +1022,15 @@ export const Assistant: React.FC = () => {
                 )}
 
                 {permStatuses['accessibility'] === 'restricted' && expandedPerm === 'accessibility' && (
-                  <div className="mt-3 p-3 rounded-lg bg-neutral-900 border border-white/5">
-                    <p className="text-[12px] text-neutral-500">This permission is managed by your organization.</p>
+                  <div className="mt-3 p-3 rounded-lg bg-[var(--app-bg-elevated)] border border-[var(--app-border)]">
+                    <p className="text-[12px] text-[var(--app-muted)]">This permission is managed by your organization.</p>
                   </div>
                 )}
               </div>
 
               {/* Include window titles */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-neutral-300">
+                <span className="text-sm font-medium text-[var(--app-text)]">
                   Include window titles
                 </span>
                 <label className="relative cursor-pointer">
@@ -1046,25 +1046,54 @@ export const Assistant: React.FC = () => {
                       }
                     }}
                   />
-                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                  <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                   <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                 </label>
               </div>
             </div>
           </div>
 
+          {/* Group: Appearance (CLA-58 Light theme) */}
+          <div className="pt-4 border-t border-[var(--app-border)]">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
+              Appearance
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center justify-between cursor-pointer group">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-[var(--app-text)]">
+                    Light theme
+                  </span>
+                  <span className="text-[11px] text-[var(--app-muted)] mt-0.5">
+                    Warm "Tidepool" look across every window (default is dark)
+                  </span>
+                </div>
+                <div className="relative shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={(settings.appearance as { theme?: 'dark' | 'light' })?.theme === 'light'}
+                    onChange={(e) => updateSetting('appearance.theme', e.target.checked ? 'light' : 'dark')}
+                  />
+                  <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
+                  <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* Group 3: Pet Behavior */}
-          <div className="pt-4 border-t border-white/5">
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+          <div className="pt-4 border-t border-[var(--app-border)]">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
               Pet Behavior
             </h3>
             <div className="space-y-4">
               <label className="flex items-center justify-between cursor-pointer group">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-neutral-300">
+                  <span className="text-sm font-medium text-[var(--app-text)]">
                     Seek attention
                   </span>
-                  <span className="text-[11px] text-neutral-500 mt-0.5">
+                  <span className="text-[11px] text-[var(--app-muted)] mt-0.5">
                     Move toward cursor periodically
                   </span>
                 </div>
@@ -1075,16 +1104,16 @@ export const Assistant: React.FC = () => {
                     checked={(settings.pet as { attentionSeeker: boolean })?.attentionSeeker ?? true}
                     onChange={(e) => updateSetting('pet.attentionSeeker', e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                  <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                   <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                 </div>
               </label>
               <label className="flex items-center justify-between cursor-pointer group">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-neutral-300">
+                  <span className="text-sm font-medium text-[var(--app-text)]">
                     Transparent while asleep
                   </span>
-                  <span className="text-[11px] text-neutral-500 mt-0.5">
+                  <span className="text-[11px] text-[var(--app-muted)] mt-0.5">
                     Fade Clawster when in doze/sleep state
                   </span>
                 </div>
@@ -1095,7 +1124,7 @@ export const Assistant: React.FC = () => {
                     checked={(settings.pet as { transparentWhenSleeping?: boolean })?.transparentWhenSleeping ?? false}
                     onChange={(e) => updateSetting('pet.transparentWhenSleeping', e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                  <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                   <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                 </div>
               </label>
@@ -1123,11 +1152,11 @@ export const Assistant: React.FC = () => {
           </div>
 
           {/* Group 4: Keyboard Shortcuts */}
-          <div className="pt-4 border-t border-white/5">
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+          <div className="pt-4 border-t border-[var(--app-border)]">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
               Keyboard Shortcuts
             </h3>
-            <div className="space-y-1 divide-y divide-white/5">
+            <div className="space-y-1 divide-y divide-[var(--app-border)]">
               <HotkeyInput
                 label="Open Chat"
                 description="Summon the quick chat bar"
@@ -1150,17 +1179,17 @@ export const Assistant: React.FC = () => {
           </div>
 
           {/* Group 5: Privacy & Analytics */}
-          <div className="pt-4 border-t border-white/5">
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+          <div className="pt-4 border-t border-[var(--app-border)]">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
               Privacy
             </h3>
             <div className="space-y-4">
               <label className="flex items-center justify-between cursor-pointer group">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-neutral-300">
+                  <span className="text-sm font-medium text-[var(--app-text)]">
                     Usage analytics
                   </span>
-                  <span className="text-[11px] text-neutral-500 mt-0.5">
+                  <span className="text-[11px] text-[var(--app-muted)] mt-0.5">
                     Help improve Clawster with anonymous usage data
                   </span>
                 </div>
@@ -1171,29 +1200,29 @@ export const Assistant: React.FC = () => {
                     checked={(settings.analytics as { enabled: boolean })?.enabled ?? true}
                     onChange={(e) => updateSetting('analytics.enabled', e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                  <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                   <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                 </div>
               </label>
-              <p className="text-[11px] text-neutral-600 leading-relaxed px-1">
+              <p className="text-[11px] text-[var(--app-muted)] leading-relaxed px-1">
                 We only track which features you use and how fast they respond — never your messages, clipboard, or file names. You can turn this off anytime.
               </p>
             </div>
           </div>
 
           {/* Group 6: Developer */}
-          <div className="pt-4 border-t border-white/5">
-            <h3 className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-3">
+          <div className="pt-4 border-t border-[var(--app-border)]">
+            <h3 className="text-[10px] font-medium text-[var(--app-muted)] uppercase tracking-widest mb-3">
               Developer
             </h3>
             <div className="space-y-3">
               {isDevEnvironment && (
                 <label className="flex items-center justify-between cursor-pointer group px-1">
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-neutral-300">
+                    <span className="text-sm font-medium text-[var(--app-text)]">
                       Show window borders
                     </span>
-                    <span className="text-[11px] text-neutral-500 mt-0.5">
+                    <span className="text-[11px] text-[var(--app-muted)] mt-0.5">
                       Draw debug outlines around window bounds
                     </span>
                   </div>
@@ -1204,7 +1233,7 @@ export const Assistant: React.FC = () => {
                       checked={(settings.dev as { windowBorders?: boolean })?.windowBorders ?? false}
                       onChange={(e) => updateSetting('dev.windowBorders', e.target.checked)}
                     />
-                    <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                    <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                     <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                   </div>
                 </label>
@@ -1212,10 +1241,10 @@ export const Assistant: React.FC = () => {
               {isDevEnvironment && (
                 <label className="flex items-center justify-between cursor-pointer group px-1">
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-neutral-300">
+                    <span className="text-sm font-medium text-[var(--app-text)]">
                       Show pet mode overlay
                     </span>
-                    <span className="text-[11px] text-neutral-500 mt-0.5">
+                    <span className="text-[11px] text-[var(--app-muted)] mt-0.5">
                       Display current mode text above Clawster
                     </span>
                   </div>
@@ -1226,7 +1255,7 @@ export const Assistant: React.FC = () => {
                       checked={(settings.dev as { showPetModeOverlay?: boolean })?.showPetModeOverlay ?? false}
                       onChange={(e) => updateSetting('dev.showPetModeOverlay', e.target.checked)}
                     />
-                    <div className="w-9 h-5 bg-neutral-800 rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-white/5"></div>
+                    <div className="w-9 h-5 bg-[var(--app-track)] rounded-full peer-checked:bg-[#FF8C69] transition-colors border border-[var(--app-border)]"></div>
                     <div className="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
                   </div>
                 </label>
@@ -1234,10 +1263,10 @@ export const Assistant: React.FC = () => {
               {isDevEnvironment && (
                 <div className="space-y-2">
                   <div className="px-1">
-                    <span className="text-sm font-medium text-neutral-300">
+                    <span className="text-sm font-medium text-[var(--app-text)]">
                       Force Emotion
                     </span>
-                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                    <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
                       Instantly set Clawster's current mood state
                     </p>
                   </div>
@@ -1261,7 +1290,7 @@ export const Assistant: React.FC = () => {
                         onClick={() => {
                           window.clawster.executePetAction({ type: 'set_mood', value: mood });
                         }}
-                        className="px-2.5 py-2 bg-white/5 border border-white/10 rounded-md hover:bg-white/10 text-xs font-medium text-neutral-300 transition-colors"
+                        className="px-2.5 py-2 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-md hover:bg-[var(--app-surface-hover)] text-xs font-medium text-[var(--app-text)] transition-colors"
                       >
                         {mood}
                       </button>
@@ -1274,13 +1303,13 @@ export const Assistant: React.FC = () => {
                   onClick={() => {
                     void window.clawster.forceActiveAppComment();
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+                  className="w-full flex items-center justify-between px-3 py-2.5 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-surface-hover)] transition-colors group"
                 >
                   <div className="flex items-center gap-2">
-                    <Icon icon="solar:monitor-smartphone-linear" className="text-neutral-400 group-hover:text-neutral-300" />
-                    <span className="text-sm font-medium text-neutral-300">Test Active App Comment</span>
+                    <Icon icon="solar:monitor-smartphone-linear" className="text-[var(--app-muted)] group-hover:text-[var(--app-text)]" />
+                    <span className="text-sm font-medium text-[var(--app-text)]">Test Active App Comment</span>
                   </div>
-                  <span className="text-[10px] text-neutral-500">Dev action</span>
+                  <span className="text-[10px] text-[var(--app-muted)]">Dev action</span>
                 </button>
               )}
               {isDevEnvironment && (
@@ -1288,13 +1317,13 @@ export const Assistant: React.FC = () => {
                   onClick={() => {
                     window.clawster.forcePetSleep();
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+                  className="w-full flex items-center justify-between px-3 py-2.5 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-surface-hover)] transition-colors group"
                 >
                   <div className="flex items-center gap-2">
-                    <Icon icon="solar:sleeping-linear" className="text-neutral-400 group-hover:text-neutral-300" />
-                    <span className="text-sm font-medium text-neutral-300">Set Clawster to Sleep</span>
+                    <Icon icon="solar:sleeping-linear" className="text-[var(--app-muted)] group-hover:text-[var(--app-text)]" />
+                    <span className="text-sm font-medium text-[var(--app-text)]">Set Clawster to Sleep</span>
                   </div>
-                  <span className="text-[10px] text-neutral-500">Dev action</span>
+                  <span className="text-[10px] text-[var(--app-muted)]">Dev action</span>
                 </button>
               )}
               <button
@@ -1302,13 +1331,13 @@ export const Assistant: React.FC = () => {
                   window.clawster.replayTutorial();
                   window.clawster.closeAssistant();
                 }}
-                className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-surface-hover)] transition-colors group"
               >
                 <div className="flex items-center gap-2">
-                  <Icon icon="solar:play-circle-linear" className="text-neutral-400 group-hover:text-neutral-300" />
-                  <span className="text-sm font-medium text-neutral-300">Replay Tutorial</span>
+                  <Icon icon="solar:play-circle-linear" className="text-[var(--app-muted)] group-hover:text-[var(--app-text)]" />
+                  <span className="text-sm font-medium text-[var(--app-text)]">Replay Tutorial</span>
                 </div>
-                <span className="text-[10px] text-neutral-500">Interactive guide</span>
+                <span className="text-[10px] text-[var(--app-muted)]">Interactive guide</span>
               </button>
               <button
                 onClick={() => {
@@ -1316,13 +1345,13 @@ export const Assistant: React.FC = () => {
                     window.clawster.resetOnboarding();
                   }
                 }}
-                className="w-full flex items-center justify-between px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-surface-hover)] transition-colors group"
               >
                 <div className="flex items-center gap-2">
-                  <Icon icon="solar:restart-linear" className="text-neutral-400 group-hover:text-neutral-300" />
-                  <span className="text-sm font-medium text-neutral-300">Reset Onboarding</span>
+                  <Icon icon="solar:restart-linear" className="text-[var(--app-muted)] group-hover:text-[var(--app-text)]" />
+                  <span className="text-sm font-medium text-[var(--app-text)]">Reset Onboarding</span>
                 </div>
-                <span className="text-[10px] text-neutral-500">Restart required</span>
+                <span className="text-[10px] text-[var(--app-muted)]">Restart required</span>
               </button>
             </div>
           </div>
