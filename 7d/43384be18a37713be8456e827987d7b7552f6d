@@ -1,0 +1,35 @@
+README.md
+  s_5b0b27c3055330::t_f1cf296e314d77 134
+AGENTS.md
+  s_5b0b27c3055330::t_7fd0a33497cfcd 54
+e2e/mute-toggle.spec.ts
+  s_e8bc850fce53d3::t_8d7babe4d6bf26 181-185,187-193,196-202
+  s_e8bc850fce53d3::t_5efcc45a311234 1-109,112-130,139-180,194-195,203-204
+  s_e8bc850fce53d3::t_321990dda16a7d 131-138
+  s_e8bc850fce53d3::t_9bb69a81f24eb4 186
+  s_e8bc850fce53d3::t_d7bbd6b3e095fc 110-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7d43384be18a37713be8456e827987d7b7552f6d",
+  "prompts": {},
+  "sessions": {
+    "s_5b0b27c3055330": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "137bbaaa-aa8c-42a7-8280-00f6f4449e89",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_e8bc850fce53d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b989cd9-7337-49e0-8dc7-cecea97831e9",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

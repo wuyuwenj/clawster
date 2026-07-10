@@ -1,0 +1,44 @@
+src/renderer/utils/animalese.ts
+  s_ff31eba4db8a59::t_8c42d5536b0144 234
+  s_ff31eba4db8a59::t_1d4197e2498efc 75-76
+  s_ff31eba4db8a59::t_d49fc1d0d82c3a 199
+  s_ff31eba4db8a59::t_e89de83d0044f6 115,118,121
+  s_ff31eba4db8a59::t_cb5a639332ff60 163,165-171,174-176,178,180-181,183
+  s_ff31eba4db8a59::t_5f2473c6316ae8 233,235-236
+src/main/chat/index.ts
+  s_ff31eba4db8a59::t_79b8fc6974ccdd 6
+src/renderer/pet-chat/PetChat.tsx
+  s_ff31eba4db8a59::t_d3c6675210b89c 66-72
+test/mute-toggle.test.ts
+  s_ff31eba4db8a59::t_b0df0feee79a5b 5-17,20
+  s_ff31eba4db8a59::t_c112741f9a4241 158-277
+src/main/main.ts
+  s_ff31eba4db8a59::t_c83df71eb71df9 22
+  s_ff31eba4db8a59::t_747ca81b1bee31 396-397
+  s_ff31eba4db8a59::t_439f6251ab0c57 672-677
+src/renderer/vite-env.d.ts
+  s_ff31eba4db8a59::t_1cf5e53572f46c 113
+src/main/chat/tool-executor.ts
+  s_ff31eba4db8a59::t_fd6f3c4843baf7 20-35
+  s_ff31eba4db8a59::t_8c42d5536b0144 80
+src/main/preload.ts
+  s_ff31eba4db8a59::t_4b0ab3cdd55a61 377
+  s_ff31eba4db8a59::t_6f6f28a4981ef8 181-183
+  s_ff31eba4db8a59::t_3584425fcf7757 261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a84468e53959b06dab41235d34e52dbc7df5815f",
+  "prompts": {},
+  "sessions": {
+    "s_ff31eba4db8a59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "49ffde1b-78bb-4340-8959-eeb0ddc4d146",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
