@@ -1,6 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import Store from 'electron-store';
 import type { StoreSchema } from './store';
+import type { MoveOutcome } from './pet-behaviors';
 
 export type TutorialStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
@@ -44,7 +45,7 @@ export class TutorialManager {
   private cursorTrackingInterval: NodeJS.Timeout | null = null;
   private followInterval: NodeJS.Timeout | null = null;
   private fallbackTimer: NodeJS.Timeout | null = null;
-  private animateMoveTo: ((x: number, y: number, duration: number) => Promise<void>) | null = null;
+  private animateMoveTo: ((x: number, y: number, duration: number) => Promise<MoveOutcome>) | null = null;
   private expandWindow: (() => void) | null = null;
   private contractWindow: (() => void) | null = null;
 
@@ -62,7 +63,7 @@ export class TutorialManager {
   /**
    * Set the animation function for moving the pet
    */
-  setAnimateMoveTo(fn: (x: number, y: number, duration: number) => Promise<void>): void {
+  setAnimateMoveTo(fn: (x: number, y: number, duration: number) => Promise<MoveOutcome>): void {
     this.animateMoveTo = fn;
   }
 

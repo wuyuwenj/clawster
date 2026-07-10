@@ -4,8 +4,8 @@ export type IrritationEscalationLevel = Exclude<IrritationLevel, 'calm'>;
 export interface ClickIrritationState {
   level: IrritationLevel;
   recentClickTimes: number[];
-  /** Time of the most recent click that landed inside a rapid burst */
-  lastRapidClickAt: number | null;
+  /** Time of the most recent click that was part of a burst (see `isBurstClick`) */
+  lastBurstClickAt: number | null;
 }
 
 export interface ClickIrritationResult {
@@ -17,52 +17,50 @@ export interface ClickIrritationResult {
 export const IRRITATION_CLICK_THRESHOLD = 5;
 export const IRRITATION_WINDOW_MS = 3000;
 export const IRRITATION_COOLDOWN_MS = 10000;
-/**
- * Widest gap between consecutive clicks that still counts as rapid: the spacing
- * at which IRRITATION_CLICK_THRESHOLD clicks fit inside IRRITATION_WINDOW_MS.
- * Derived from the escalation constants so a burst can only be sustained at the
- * same cadence that could have built it.
- */
-export const IRRITATION_SUSTAIN_MS = IRRITATION_WINDOW_MS / (IRRITATION_CLICK_THRESHOLD - 1);
 
 export const INITIAL_CLICK_IRRITATION_STATE: ClickIrritationState = {
   level: 'calm',
   recentClickTimes: [],
-  lastRapidClickAt: null,
+  lastBurstClickAt: null,
 };
+
+/**
+ * A click is part of a burst when the rolling window it closes holds enough
+ * clicks to escalate. Sustaining and escalating therefore read the same
+ * evidence: anything too slow to have built the tantrum is too slow to keep it
+ * alive, and no cadence between the two can hold Clawster in a permanent one.
+ */
+function isBurstClick(clickTimesInWindow: number[]): boolean {
+  return clickTimesInWindow.length >= IRRITATION_CLICK_THRESHOLD;
+}
 
 export function recordPetClick(
   state: ClickIrritationState,
   now: number
 ): ClickIrritationResult {
-  // Irritation builds from rapid clicking and cools once the rapid clicking
-  // stops, so the cooldown runs from the last click that was itself part of a
-  // rapid burst. Measuring from the last click of any kind would let slow,
-  // isolated poking hold the tantrum open forever; measuring from the last
-  // escalation would let it expire mid-burst, because escalation stops once
-  // the level tops out.
-  const previousClickAt =
-    state.recentClickTimes.length > 0
-      ? state.recentClickTimes[state.recentClickTimes.length - 1]
-      : null;
-  const isRapidClick = previousClickAt !== null && now - previousClickAt <= IRRITATION_SUSTAIN_MS;
-
-  const cooledDown =
-    state.lastRapidClickAt !== null && now - state.lastRapidClickAt >= IRRITATION_COOLDOWN_MS;
-  const baseState = cooledDown ? INITIAL_CLICK_IRRITATION_STATE : state;
   const recentClickTimes = [
-    ...baseState.recentClickTimes.filter((clickAt) => now - clickAt <= IRRITATION_WINDOW_MS),
+    ...state.recentClickTimes.filter((clickAt) => now - clickAt <= IRRITATION_WINDOW_MS),
     now,
   ];
+  const burstClick = isBurstClick(recentClickTimes);
 
-  let level = baseState.level;
+  // Irritation builds from rapid clicking and cools once the rapid clicking
+  // stops, so the cooldown runs from the last click that was itself part of a
+  // burst. Measuring from the last click of any kind would let slow poking hold
+  // the tantrum open forever; measuring from the last escalation would let it
+  // expire mid-burst, because escalation stops once the level tops out.
+  const cooledDown =
+    state.lastBurstClickAt !== null && now - state.lastBurstClickAt >= IRRITATION_COOLDOWN_MS;
+  const baseLevel: IrritationLevel = cooledDown ? 'calm' : state.level;
+
+  let level = baseLevel;
   let changedTo: IrritationEscalationLevel | null = null;
 
-  if (recentClickTimes.length >= IRRITATION_CLICK_THRESHOLD) {
-    if (baseState.level === 'calm') {
+  if (burstClick) {
+    if (baseLevel === 'calm') {
       level = 'mildly-annoyed';
       changedTo = level;
-    } else if (baseState.level === 'mildly-annoyed') {
+    } else if (baseLevel === 'mildly-annoyed') {
       level = 'very-annoyed';
       changedTo = level;
     }
@@ -72,7 +70,7 @@ export function recordPetClick(
     state: {
       level,
       recentClickTimes,
-      lastRapidClickAt: isRapidClick ? now : baseState.lastRapidClickAt,
+      lastBurstClickAt: burstClick ? now : cooledDown ? null : state.lastBurstClickAt,
     },
     changedTo,
     reaction: level === 'calm' ? null : level,

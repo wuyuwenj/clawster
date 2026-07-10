@@ -277,6 +277,38 @@ describe('drag reaction variant selection (CLA-6)', () => {
   });
 });
 
+describe('the gesture owns whether a press became a drag (CLA-6)', () => {
+  it('reports no drag for a press that stays under the movement threshold', () => {
+    const gesture = new DragGesture();
+    pressAt(gesture, { x: 100, y: 100, now: 1000, moving: false });
+    gesture.move({ x: 101, y: 100, now: 1010 });
+
+    expect(gesture.hasDragged).toBe(false);
+    gesture.release(1020);
+    expect(gesture.hasDragged).toBe(false);
+  });
+
+  it('still reports the drag after release, so the trailing click is not a poke', () => {
+    const gesture = new DragGesture();
+    pressAt(gesture, { x: 100, y: 100, now: 1000, moving: false });
+    gesture.move({ x: 140, y: 100, now: 1050 });
+
+    expect(gesture.hasDragged).toBe(true);
+    gesture.release(1100);
+    expect(gesture.hasDragged).toBe(true);
+  });
+
+  it('clears the drag on the next press', () => {
+    const gesture = new DragGesture();
+    pressAt(gesture, { x: 100, y: 100, now: 1000, moving: false });
+    gesture.move({ x: 140, y: 100, now: 1050 });
+    gesture.release(1100);
+
+    pressAt(gesture, { x: 140, y: 100, now: 2000, moving: false });
+    expect(gesture.hasDragged).toBe(false);
+  });
+});
+
 describe('the component defers the whole gesture to the state machine (CLA-6/CLA-7)', () => {
   const pet = readFileSync(new URL('../src/renderer/pet/Pet.tsx', import.meta.url), 'utf8');
 
@@ -285,6 +317,12 @@ describe('the component defers the whole gesture to the state machine (CLA-6/CLA
     expect(pet).toContain('dragGesture.release(');
     expect(pet).toContain('dragGesture.timeout(');
     expect(pet).toContain('dragGesture.press({');
+  });
+
+  it('keeps a single source of truth for whether the press became a drag', () => {
+    expect(pet).not.toContain('didDragRef');
+    expect(pet).toContain('if (dragGesture.hasDragged) return;');
+    expect(pet).toContain('if (!dragGesture.hasDragged) {');
   });
 
   it('schedules the resist window rather than sampling it on mousemove', () => {

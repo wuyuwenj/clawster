@@ -1126,18 +1126,21 @@ function setupIPC() {
 
   // Execute pet action directly
   ipcMain.handle('execute-pet-action', async (_event, action: PetAction) => {
-    await executePetAction(action);
+    const outcome = await executePetAction(action);
     if (action.type === 'set_mood') trackPetInteraction('mood_change');
+    return { completed: outcome === 'completed' };
   });
 
   // Move pet to position
   ipcMain.handle('move-pet-to', async (_event, x: number, y: number, duration?: number) => {
-    await animateMoveTo(x, y, duration || 1000);
+    const outcome = await animateMoveTo(x, y, duration || 1000);
+    return { completed: outcome === 'completed' };
   });
 
   // Move pet to cursor
   ipcMain.handle('move-pet-to-cursor', async () => {
-    await executePetAction({ type: 'move_to_cursor' });
+    const outcome = await executePetAction({ type: 'move_to_cursor' });
+    return { completed: outcome === 'completed' };
   });
 
   // Get ClawBot status (returns detailed status)

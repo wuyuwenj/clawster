@@ -116,6 +116,7 @@ export class DragGesture {
   private lastX = 0;
   private lastY = 0;
   private movingAutonomously = false;
+  private dragged = false;
   private dragStartedAt = 0;
   private resistWon = true;
   private reactionFlushed = true;
@@ -131,8 +132,13 @@ export class DragGesture {
     return this.phase === 'pressed' || this.phase === 'dragging';
   }
 
+  /**
+   * Whether the current press ever crossed the movement threshold. Survives
+   * `release()` so the click that follows a drag can tell itself apart from a
+   * poke; `press()` clears it for the next gesture.
+   */
   get hasDragged(): boolean {
-    return this.phase === 'dragging';
+    return this.dragged;
   }
 
   press(options: { x: number; y: number; now: number; movingAutonomously: boolean }): void {
@@ -142,6 +148,7 @@ export class DragGesture {
     this.lastX = options.x;
     this.lastY = options.y;
     this.movingAutonomously = options.movingAutonomously;
+    this.dragged = false;
     this.dragStartedAt = options.now;
     this.resistWon = !options.movingAutonomously;
     this.reactionFlushed = false;
@@ -161,6 +168,7 @@ export class DragGesture {
         return IDLE_UPDATE;
       }
       this.phase = 'dragging';
+      this.dragged = true;
       // The speed clock starts at the first movement, not at the press: button
       // dwell before the flick is not part of how fast the flick was.
       this.dragStartedAt = options.now;

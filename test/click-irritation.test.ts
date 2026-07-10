@@ -4,10 +4,13 @@ import {
   INITIAL_CLICK_IRRITATION_STATE,
   IRRITATION_CLICK_THRESHOLD,
   IRRITATION_COOLDOWN_MS,
-  IRRITATION_SUSTAIN_MS,
   IRRITATION_WINDOW_MS,
   recordPetClick,
 } from '../src/renderer/pet/click-irritation';
+
+// The widest even spacing at which IRRITATION_CLICK_THRESHOLD clicks still fit
+// inside IRRITATION_WINDOW_MS — the slowest cadence that can build a tantrum.
+const ESCALATE_CADENCE_MS = IRRITATION_WINDOW_MS / (IRRITATION_CLICK_THRESHOLD - 1);
 
 describe('click irritation state machine (CLA-8)', () => {
   it('stays calm below 5 clicks within 3 seconds', () => {
@@ -71,7 +74,7 @@ describe('click irritation state machine (CLA-8)', () => {
 
     expect(state.level).toBe('very-annoyed');
 
-    const result = recordPetClick(state, state.lastRapidClickAt! + IRRITATION_COOLDOWN_MS);
+    const result = recordPetClick(state, state.lastBurstClickAt! + IRRITATION_COOLDOWN_MS);
 
     expect(result.state.level).toBe('calm');
     expect(result.reaction).toBeNull();
@@ -87,7 +90,7 @@ describe('click irritation state machine (CLA-8)', () => {
 
     expect(state.level).toBe('very-annoyed');
 
-    const result = recordPetClick(state, state.lastRapidClickAt! + 300);
+    const result = recordPetClick(state, state.lastBurstClickAt! + 300);
 
     expect(result.changedTo).toBeNull();
     expect(result.reaction).toBe('very-annoyed');
@@ -139,12 +142,12 @@ describe('click irritation state machine (CLA-8)', () => {
     }
 
     expect(state.level).toBe('very-annoyed');
-    const lastRapidAt = state.lastRapidClickAt!;
+    const lastRapidAt = state.lastBurstClickAt!;
 
     // A lone click 9s after the burst is still inside the cooldown.
     const stillAnnoyed = recordPetClick(state, lastRapidAt + 9000);
     expect(stillAnnoyed.reaction).toBe('very-annoyed');
-    expect(stillAnnoyed.state.lastRapidClickAt).toBe(lastRapidAt);
+    expect(stillAnnoyed.state.lastBurstClickAt).toBe(lastRapidAt);
     state = stillAnnoyed.state;
 
     // The next lone click is past the cooldown measured from the last rapid
@@ -183,22 +186,22 @@ describe('click irritation state machine (CLA-8)', () => {
   });
 
   it('sustains and escalates at exactly the same cadence', () => {
-    // A burst spaced at IRRITATION_SUSTAIN_MS is the slowest one that can still
+    // A burst spaced at ESCALATE_CADENCE_MS is the slowest one that can still
     // escalate, so it must also be the slowest one that can keep the tantrum
     // alive. One millisecond slower and neither happens.
     let escalating = INITIAL_CLICK_IRRITATION_STATE;
     let tooSlow = INITIAL_CLICK_IRRITATION_STATE;
 
     for (let i = 0; i < IRRITATION_CLICK_THRESHOLD; i += 1) {
-      escalating = recordPetClick(escalating, 1000 + i * IRRITATION_SUSTAIN_MS).state;
-      tooSlow = recordPetClick(tooSlow, 1000 + i * (IRRITATION_SUSTAIN_MS + 1)).state;
+      escalating = recordPetClick(escalating, 1000 + i * ESCALATE_CADENCE_MS).state;
+      tooSlow = recordPetClick(tooSlow, 1000 + i * (ESCALATE_CADENCE_MS + 1)).state;
     }
 
     expect(escalating.level).toBe('mildly-annoyed');
-    expect(escalating.lastRapidClickAt).not.toBeNull();
+    expect(escalating.lastBurstClickAt).not.toBeNull();
 
     expect(tooSlow.level).toBe('calm');
-    expect(tooSlow.lastRapidClickAt).toBeNull();
+    expect(tooSlow.lastBurstClickAt).toBeNull();
   });
 
   it('never cools off mid-tantrum while spam continues at the escalate cadence', () => {
@@ -208,7 +211,7 @@ describe('click irritation state machine (CLA-8)', () => {
     for (let i = 0; i < 100; i += 1) {
       const result = recordPetClick(state, now);
       state = result.state;
-      now += IRRITATION_SUSTAIN_MS;
+      now += ESCALATE_CADENCE_MS;
 
       if (i >= IRRITATION_CLICK_THRESHOLD - 1) {
         expect(state.level).not.toBe('calm');
@@ -230,10 +233,10 @@ describe('click irritation state machine (CLA-8)', () => {
     }
 
     expect(state.level).toBe('very-annoyed');
-    const lastRapidAt = state.lastRapidClickAt!;
+    const lastRapidAt = state.lastBurstClickAt!;
 
     // Poking just under the 3s rapid-click window could never escalate, so it
-    // must not sustain either: lastRapidClickAt stops advancing and the
+    // must not sustain either: lastBurstClickAt stops advancing and the
     // cooldown eventually elapses.
     const slowGapMs = IRRITATION_WINDOW_MS - 100;
     now = lastRapidAt + slowGapMs;
@@ -241,7 +244,7 @@ describe('click irritation state machine (CLA-8)', () => {
     while (now - lastRapidAt < IRRITATION_COOLDOWN_MS) {
       const result = recordPetClick(state, now);
       state = result.state;
-      expect(state.lastRapidClickAt).toBe(lastRapidAt);
+      expect(state.lastBurstClickAt).toBe(lastRapidAt);
       now += slowGapMs;
     }
 
@@ -249,5 +252,36 @@ describe('click irritation state machine (CLA-8)', () => {
 
     expect(calmed.state.level).toBe('calm');
     expect(calmed.reaction).toBeNull();
+  });
+
+  it('decays back to calm when only slow double-clicks follow the tantrum', () => {
+    let state = INITIAL_CLICK_IRRITATION_STATE;
+    let now = 1000;
+
+    for (let i = 0; i < IRRITATION_CLICK_THRESHOLD + 1; i += 1) {
+      state = recordPetClick(state, now).state;
+      now += 300;
+    }
+
+    expect(state.level).toBe('very-annoyed');
+    const lastBurstAt = state.lastBurstClickAt!;
+
+    // A pair of clicks is far too few to have built the tantrum, so however
+    // tightly spaced the pair is, it must not keep the tantrum alive either.
+    let pairStart = lastBurstAt + 9000;
+    while (pairStart - lastBurstAt < IRRITATION_COOLDOWN_MS) {
+      for (const offset of [0, 200]) {
+        const result = recordPetClick(state, pairStart + offset);
+        state = result.state;
+        expect(state.lastBurstClickAt).toBe(lastBurstAt);
+      }
+      pairStart += 9000;
+    }
+
+    const calmed = recordPetClick(state, pairStart);
+
+    expect(calmed.state.level).toBe('calm');
+    expect(calmed.reaction).toBeNull();
+    expect(calmed.changedTo).toBeNull();
   });
 });

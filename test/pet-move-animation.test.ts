@@ -58,7 +58,17 @@ describe('autonomous move animation cancellation (CLA-7)', () => {
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(petWindow.getPosition()).toEqual(positionAtCancel);
-    await expect(move).resolves.toBeUndefined();
+    // The awaiter must be able to tell an out-dragged move from an arrival.
+    await expect(move).resolves.toBe('cancelled');
+  });
+
+  it('reports a move that reaches its target as completed', async () => {
+    const move = animateMoveTo(500, 500, 200);
+
+    await vi.advanceTimersByTimeAsync(300);
+
+    await expect(move).resolves.toBe('completed');
+    expect(petWindow.getPosition()).toEqual([500, 500]);
   });
 
   it('persists the dragged-to position and tells the renderer it stopped walking', async () => {
@@ -113,10 +123,10 @@ describe('autonomous move animation cancellation (CLA-7)', () => {
     await vi.advanceTimersByTimeAsync(100);
 
     const second = animateMoveTo(200, 200, 200);
-    await expect(first).resolves.toBeUndefined();
+    await expect(first).resolves.toBe('cancelled');
 
     await vi.advanceTimersByTimeAsync(300);
-    await expect(second).resolves.toBeUndefined();
+    await expect(second).resolves.toBe('completed');
     expect(petWindow.getPosition()).toEqual([200, 200]);
   });
 });

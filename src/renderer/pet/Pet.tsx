@@ -246,7 +246,6 @@ export const Pet: React.FC = () => {
   const [chatbarOpen, setChatbarOpen] = useState(false);
   const [emoteBubble, setEmoteBubble] = useState<{ id: number; text: string; durationMs: number } | null>(null);
   const [dragVisual, setDragVisual] = useState<DragVisualState>({ dragging: false, resisting: false, reaction: null });
-  const didDragRef = useRef(false);
   const isWalkingRef = useRef(false);
   const dragGestureRef = useRef<DragGesture | null>(null);
   if (dragGestureRef.current === null) {
@@ -343,7 +342,6 @@ export const Pet: React.FC = () => {
   // speed-sample window, so neither depends on further pointer events.
   const applyDragUpdate = useCallback(function apply(update: DragGestureUpdate) {
     if (update.startedDragging) {
-      didDragRef.current = true;
       if (update.takeOverMoveAnimation) {
         // Take the window position over from main's eased move interval before
         // the first resisted delta, or the 16ms absolute writes overwrite it.
@@ -734,7 +732,6 @@ export const Pet: React.FC = () => {
   // Handle dragging - use document-level events to track fast mouse movements
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    didDragRef.current = false;
     if (dragGestureTimeoutRef.current) {
       clearTimeout(dragGestureTimeoutRef.current);
       dragGestureTimeoutRef.current = null;
@@ -788,7 +785,7 @@ export const Pet: React.FC = () => {
 
   // Single click = poke animation
   const handleClick = useCallback(() => {
-    if (didDragRef.current) return;
+    if (dragGesture.hasDragged) return;
 
     // Notify tutorial if active
     if (tutorialActive) {
@@ -832,16 +829,16 @@ export const Pet: React.FC = () => {
 
     // Notify main process (optional - for sound effects or other reactions)
     window.clawster.petClicked?.();
-  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction, applyIrritationReaction, pokeTimers]);
+  }, [setPetMood, tutorialActive, maybeShowEmoteBubble, revertMoodAfterReaction, applyIrritationReaction, pokeTimers, dragGesture]);
 
   // Right click = open custom context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    if (!didDragRef.current) {
+    if (!dragGesture.hasDragged) {
       window.clawster.petClicked?.();
       window.clawster.showPetContextMenu(e.screenX, e.screenY);
     }
-  }, []);
+  }, [dragGesture]);
 
   return (
     <div

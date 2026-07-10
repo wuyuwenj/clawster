@@ -364,9 +364,9 @@ export interface ClawsterAPI {
   onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => ListenerCleanup;
   onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => ListenerCleanup;
   copyToClipboard: (text: string) => Promise<boolean>;
-  executePetAction: (action: PetAction) => Promise<void>;
-  movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
-  movePetToCursor: () => Promise<void>;
+  executePetAction: (action: PetAction) => Promise<{ completed: boolean }>;
+  movePetTo: (x: number, y: number, duration?: number) => Promise<{ completed: boolean }>;
+  movePetToCursor: () => Promise<{ completed: boolean }>;
   getCursorPosition: () => Promise<{ x: number; y: number }>;
   getPetPosition: () => Promise<[number, number]>;
   onActivityEvent: (callback: (event: unknown) => void) => void;
