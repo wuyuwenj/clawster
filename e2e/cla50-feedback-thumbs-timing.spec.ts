@@ -42,6 +42,10 @@ test.beforeAll(async () => {
       // Onboarding + tutorial complete so showPetChat isn't suppressed.
       onboarding: { completed: true, skipped: false },
       tutorial: { version: 1, completedAt: 1751500000000, wasInterrupted: false, lastStep: 99 },
+      // The first-launch permissions hint fires 5s after main starts and pushes
+      // its own chat-popup, which would replace the popup under test and reset
+      // feedbackSent mid-assertion. Mark it shown so it never fires.
+      permissionDeclines: { hintShown: true },
     }),
   );
 

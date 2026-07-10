@@ -87,6 +87,9 @@ test.beforeAll(async () => {
       // Onboarding + tutorial complete so showPetChat isn't suppressed.
       onboarding: { completed: true, skipped: false },
       tutorial: { version: 1, completedAt: 1751500000000, wasInterrupted: false, lastStep: 99 },
+      // The first-launch permissions hint fires 5s after main starts and pushes
+      // its own chat-popup, which would replace the bubble being screenshotted.
+      permissionDeclines: { hintShown: true },
     }),
   );
 
