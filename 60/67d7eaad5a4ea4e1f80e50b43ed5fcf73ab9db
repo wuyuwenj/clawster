@@ -1,0 +1,21 @@
+src/main/chat/chat-router.ts
+  s_e402d29ec1eb3a::t_7452f6bfd36b8c 29-32,37-40,42-44
+test/identity-probe.test.ts
+  s_e402d29ec1eb3a::t_c90044925dd4b8 45-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6067d7eaad5a4ea4e1f80e50b43ed5fcf73ab9db",
+  "prompts": {},
+  "sessions": {
+    "s_e402d29ec1eb3a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5551b82-23b0-4be1-b806-b55be7ac90a1",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
