@@ -55,7 +55,7 @@ User message
 - Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 - The `pet.muted` setting (Assistant panel toggle) silences both of Clawster's sound sources (CLA-52). Main pushes changes to the **pet-chat** window on the `pet-muted-changed` channel — that window owns the Animalese engine, so sending to the pet window would never gate the voice — and `main.ts` calls `setMutedProvider` so `chat/tool-executor.ts` can raise notifications with `silent: true`. The engine seeds itself from persisted settings on the first utterance and applies later changes mid-utterance; character timing is unchanged when muted
 - The chatbar and pet-chat surfaces use the **Tidepool** design tokens in `src/renderer/styles/tidepool.css` (CSS variables: shell cream, ink outline, coral = acting/chosen, teal = utility, one spring easing) with Nunito bundled via `@fontsource/nunito` — no runtime font fetches (CLA-58)
-- The chatbar `BrowserWindow` is opaque (`transparent: false`, fixed 650×300, no renderer resize IPC) — the renderer must paint the entire window an opaque surface; the pet-chat window IS transparent and self-resizes via `resize-pet-chat`
+- The chatbar `BrowserWindow` is opaque (`transparent: false`, `backgroundColor` = shell cream `#FFF9F2`, opens at 650×300, user-resizable down to 300×80, no renderer resize IPC) — the renderer must paint the entire window an opaque surface; the pet-chat window IS transparent and self-resizes via `resize-pet-chat`
 
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)
@@ -74,6 +74,8 @@ User message
 - Integration tests (`test/e2e-*.test.ts`) need Ollama running — they skip gracefully if unavailable
 - E2E tests use `CLAWSTER_DATA_DIR` env var to isolate test data from real user data
 - E2E specs save screenshots when the `EVIDENCE_DIR` env var is set (skipped otherwise) — evidence for PR review is committed under `.no-mistakes/evidence/`
+- E2E specs that assert on a chat popup must seed `permissionDeclines: { hintShown: true }` into `clawster-config.json` alongside the `onboarding`/`tutorial` flags — otherwise the first-launch permissions hint fires ~5s in, pushes its own popup, and replaces the bubble under test (see `e2e/cla58-tidepool-restyle.spec.ts`)
+- E2E specs that compare screenshots diff them with `pixelmatch` + `pngjs` (dev dependencies). `e2e/cla58-tidepool-restyle.spec.ts` writes captures to `test-results/cla58/` by default; set `CAPTURE_BASELINE=1` (before-shots) or `CAPTURE_EVIDENCE=1` (after-shots) to redirect them to `.no-mistakes/evidence/cla58/` instead
 
 ### Model Conversion Pipeline
 When fine-tuning a new local model:
