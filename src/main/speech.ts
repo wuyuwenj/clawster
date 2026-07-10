@@ -48,8 +48,16 @@ export function isSpeechModelLoadFailure(message: unknown): boolean {
   return typeof message === 'string' && /failed to load the speech model/i.test(message);
 }
 
+/** The cached model was corrupt and has been removed, so the next press re-downloads it. */
 export const SPEECH_MODEL_LOAD_USER_MESSAGE =
   "Clawster's voice needs setting up again — tap the mic to retry.";
+
+/**
+ * The model is intact, so whisper failed for a reason retrying cannot fix — a
+ * Metal backend that will not initialise, an OOM, a sandbox denial.
+ */
+export const SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE =
+  "Clawster's voice can't start on this Mac right now.";
 
 /**
  * The helper names the model's absolute path on a load failure, which would put
@@ -113,7 +121,11 @@ export function handleSpeechHelperMessage(msg: any): void {
     speechStartPending = false;
     speechSessionActive = false;
 
-    if (sender) {
+    // A model-load failure kills the helper before it ever reports `ready`, so it
+    // is a startup failure: `speech-start` rejects with the same friendly text.
+    // Sending it here as well would give the user two identical bubbles.
+    const startupPending = speechHelperStartup !== null;
+    if (sender && !(startupPending && isSpeechModelLoadFailure(msg.message))) {
       sender.send('speech-error', { ...msg, message: userFacingSpeechError(msg.message) });
     }
     speechSender = null;
@@ -130,29 +142,37 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
   }
 
   const helperPath = getSpeechHelperPath();
-  speechHelperStartup = new Promise((resolve, reject) => {
+  let startupPromise: Promise<ChildProcess> | undefined;
+
+  startupPromise = new Promise((resolve, reject) => {
     // The helper loads the Whisper model before it reports "ready", so the model
     // must already be on disk by the time we spawn it.
     const child = spawn(helperPath, ['--model', whisperModelPath()]);
     let startupSettled = false;
-    let modelLoadFailed = false;
+    let modelVerification: Promise<boolean> | null = null;
     let buffer = '';
 
     speechProcess = child;
     speechHelperReady = false;
     speechProcessExitExpected = false;
 
+    // The model-load path settles asynchronously, so a newer startup may already
+    // own the module slot by then; never clear someone else's.
+    const releaseStartupSlot = () => {
+      if (speechHelperStartup === startupPromise) speechHelperStartup = null;
+    };
+
     const resolveStartup = () => {
       if (startupSettled) return;
       startupSettled = true;
-      speechHelperStartup = null;
+      releaseStartupSlot();
       resolve(child);
     };
 
     const rejectStartup = (error: Error) => {
       if (startupSettled) return;
       startupSettled = true;
-      speechHelperStartup = null;
+      releaseStartupSlot();
       reject(error);
     };
 
@@ -170,13 +190,13 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
             resolveStartup();
           }
           if (msg.type === 'error' && isSpeechModelLoadFailure(msg.message)) {
-            // The helper exits(1) straight after, so remember why: the generic
-            // exit-code text would otherwise be the last thing the user sees.
-            modelLoadFailed = true;
-            // Only a checksum mismatch means the cached file is at fault; the
-            // error itself also covers failures that re-downloading cannot fix.
-            deleteWhisperModelIfCorrupt().catch((error: unknown) => {
+            // The helper exits(1) straight after. Only a checksum mismatch means
+            // the cached file is at fault — the same error also covers failures
+            // that re-downloading cannot fix — so the verdict decides both
+            // whether the model is deleted and what the user is told.
+            modelVerification = deleteWhisperModelIfCorrupt().catch((error: unknown) => {
               console.error('speech-helper model verification failed:', error);
+              return false;
             });
           }
           handleSpeechHelperMessage(msg);
@@ -202,15 +222,25 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     });
 
     child.on('exit', (code, signal) => {
-      const exitMessage = modelLoadFailed
-        ? SPEECH_MODEL_LOAD_USER_MESSAGE
-        : formatSpeechHelperExit(code, signal);
       const sender = getSpeechEventSender();
       const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
 
       console.log('[Speech] exited:', { code, signal, expected: speechProcessExitExpected });
 
       resetSpeechHelperState();
+
+      if (modelVerification) {
+        // The helper never reached `ready`, so nothing is listening on
+        // `speech-error`; the rejection below is the user's single message.
+        void modelVerification.then((deleted) => {
+          rejectStartup(
+            new Error(deleted ? SPEECH_MODEL_LOAD_USER_MESSAGE : SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE)
+          );
+        });
+        return;
+      }
+
+      const exitMessage = formatSpeechHelperExit(code, signal);
       rejectStartup(new Error(exitMessage));
 
       if (shouldNotify) {
@@ -219,7 +249,8 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     });
   });
 
-  return speechHelperStartup;
+  speechHelperStartup = startupPromise;
+  return startupPromise;
 }
 
 // State accessors for use by IPC handlers in main.ts

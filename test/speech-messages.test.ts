@@ -13,8 +13,10 @@ vi.mock('../src/main/whisper-model', () => ({
 }));
 
 import { spawn } from 'child_process';
+import { deleteWhisperModelIfCorrupt } from '../src/main/whisper-model';
 import {
   SPEECH_MODEL_LOAD_USER_MESSAGE,
+  SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE,
   ensureSpeechHelper,
   handleSpeechHelperMessage,
   isSpeechModelLoadFailure,
@@ -52,6 +54,7 @@ function beginSession(sender: Electron.WebContents) {
 
 beforeEach(() => {
   resetSpeechHelperState();
+  vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(false);
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -179,24 +182,59 @@ describe('handleSpeechHelperMessage', () => {
 });
 
 describe('ensureSpeechHelper startup failures', () => {
+  const MODEL_LOAD_ERROR = {
+    type: 'error',
+    message: 'Failed to load the speech model at /Users/kid/.clawster/models/whisper/x.bin',
+  };
+
   function emitLine(child: { stdout: EventEmitter }, msg: unknown) {
     child.stdout.emit('data', Buffer.from(`${JSON.stringify(msg)}\n`));
   }
 
-  it('surfaces the friendly retry message when a model-load failure kills the helper', async () => {
+  /** Drives the helper through the model-load failure it always follows with exit(1). */
+  async function failToLoadModel(sender?: Electron.WebContents): Promise<Error> {
     const child = fakeChild();
     const startup = ensureSpeechHelper().catch((error: Error) => error);
+    if (sender) beginSession(sender);
 
-    // The helper reports the failure, then exits(1) milliseconds later.
-    emitLine(child, {
-      type: 'error',
-      message: 'Failed to load the speech model at /Users/kid/.clawster/models/whisper/x.bin',
-    });
+    emitLine(child, MODEL_LOAD_ERROR);
     child.emit('exit', 1, null);
 
-    const error = await startup;
+    return (await startup) as Error;
+  }
+
+  it('tells the user to retry once the corrupt model has been removed', async () => {
+    vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(true);
+
+    const error = await failToLoadModel();
+
     expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
+    expect(error.message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
+  });
+
+  it('does not promise a retry when the model checksum is still valid', async () => {
+    vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(false);
+
+    const error = await failToLoadModel();
+
+    expect(error.message).toBe(SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE);
+  });
+
+  it('keeps the model-load path free of the absolute model path', () => {
+    expect(SPEECH_MODEL_LOAD_USER_MESSAGE).not.toMatch(/\//);
+    expect(SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE).not.toMatch(/\//);
+  });
+
+  it('surfaces a model-load failure exactly once, not on speech-error as well', async () => {
+    vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(true);
+    const sender = fakeSender();
+
+    const error = await failToLoadModel(sender);
+
+    // `speech-start` rejects with the message; a `speech-error` too would render
+    // a second, identical bubble.
+    expect(error.message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
+    expect(sender.send).not.toHaveBeenCalled();
   });
 
   it('still reports the raw exit for failures unrelated to the model', async () => {

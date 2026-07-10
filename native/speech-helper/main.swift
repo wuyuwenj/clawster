@@ -398,8 +398,10 @@ final class SpeechManager {
         // Whisper hallucinates confident phrases ("Thank you.") from pure room
         // tone, so a session with no voice activity never reaches it. Report that
         // as an error rather than an empty final: a silent result is
-        // indistinguishable from the app being broken.
-        guard sawVoice, snapshot.count >= kMinSamples / 2 else {
+        // indistinguishable from the app being broken. Length is not checked —
+        // `transcribe` zero-pads short utterances, and a quick "yes" clears the
+        // voiced budget long before it reaches kMinSamples.
+        guard sawVoice else {
             emitError("I didn't catch that — try again!")
             emitStatus("stopped")
             return
