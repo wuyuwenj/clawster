@@ -158,7 +158,9 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
           if (msg.type === 'error' && isSpeechModelLoadFailure(msg.message)) {
             // Only a checksum mismatch means the cached file is at fault; the
             // error itself also covers failures that re-downloading cannot fix.
-            void deleteWhisperModelIfCorrupt();
+            deleteWhisperModelIfCorrupt().catch((error: unknown) => {
+              console.error('speech-helper model verification failed:', error);
+            });
           }
           handleSpeechHelperMessage(msg);
         } catch {

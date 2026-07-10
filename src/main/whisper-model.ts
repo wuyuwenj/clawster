@@ -66,16 +66,9 @@ export function deleteWhisperModel(modelPath = whisperModelPath()): void {
   fs.rmSync(modelPath, { force: true });
 }
 
-/**
- * Removes the cached model only if its bytes no longer match `spec.sha256`.
- * The helper reports the same load failure for environmental problems (Metal
- * backend init, OOM, a sandbox denial), and deleting a healthy model on those
- * would re-download ~148 MB on every mic press without ever succeeding.
- */
-export async function deleteWhisperModelIfCorrupt(
-  spec: WhisperModelSpec = WHISPER_MODEL,
-  modelPath = whisperModelPath()
-): Promise<boolean> {
+let corruptionCheck: Promise<boolean> | null = null;
+
+async function verifyAndDelete(spec: WhisperModelSpec, modelPath: string): Promise<boolean> {
   let actual: string;
   try {
     actual = await fileSha256(modelPath);
@@ -85,8 +78,36 @@ export async function deleteWhisperModelIfCorrupt(
 
   if (actual === spec.sha256) return false;
 
-  deleteWhisperModel(modelPath);
+  try {
+    deleteWhisperModel(modelPath);
+  } catch (error) {
+    console.error('Failed to remove the corrupt speech model:', error);
+    return false;
+  }
   return true;
+}
+
+/**
+ * Removes the cached model only if its bytes no longer match `spec.sha256`.
+ * The helper reports the same load failure for environmental problems (Metal
+ * backend init, OOM, a sandbox denial), and deleting a healthy model on those
+ * would re-download ~148 MB on every mic press without ever succeeding.
+ *
+ * Hashing ~148 MB outlives the helper's exit, so overlapping mic presses share
+ * one pass rather than each starting their own. Never rejects: a delete that
+ * fails resolves `false`, leaving the model in place.
+ */
+export function deleteWhisperModelIfCorrupt(
+  spec: WhisperModelSpec = WHISPER_MODEL,
+  modelPath = whisperModelPath()
+): Promise<boolean> {
+  if (corruptionCheck) return corruptionCheck;
+
+  const check = verifyAndDelete(spec, modelPath).finally(() => {
+    if (corruptionCheck === check) corruptionCheck = null;
+  });
+  corruptionCheck = check;
+  return check;
 }
 
 /** Compares a `major.minor.patch` macOS version against MIN_MACOS_VERSION. */
@@ -200,10 +221,11 @@ export async function downloadModel(
 let activeDownload: { promise: Promise<unknown>; percent: number } | null = null;
 let lastError: string | null = null;
 
-/** Test seam: forget any in-flight download or recorded failure. */
+/** Test seam: forget any in-flight download, corruption check, or recorded failure. */
 export function resetWhisperModelState(): void {
   activeDownload = null;
   lastError = null;
+  corruptionCheck = null;
 }
 
 /**

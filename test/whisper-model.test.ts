@@ -228,6 +228,40 @@ describe('deleteWhisperModelIfCorrupt', () => {
   it('is a no-op when nothing is cached', async () => {
     await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(false);
   });
+
+  it('shares one pass between overlapping callers rather than hashing twice', async () => {
+    fs.writeFileSync(modelPath(), body);
+
+    const first = deleteWhisperModelIfCorrupt(spec, modelPath());
+    const second = deleteWhisperModelIfCorrupt(spec, modelPath());
+
+    expect(second).toBe(first);
+    await expect(first).resolves.toBe(false);
+  });
+
+  it('resolves false instead of rejecting when the model cannot be removed', async () => {
+    const lockedDir = path.join(dataDir, 'locked');
+    const lockedModel = path.join(lockedDir, spec.name);
+    fs.mkdirSync(lockedDir);
+    fs.writeFileSync(lockedModel, 'corrupted in place');
+    fs.chmodSync(lockedDir, 0o555);
+
+    try {
+      await expect(deleteWhisperModelIfCorrupt(spec, lockedModel)).resolves.toBe(false);
+      expect(fs.existsSync(lockedModel)).toBe(true);
+    } finally {
+      fs.chmodSync(lockedDir, 0o755);
+    }
+  });
+
+  it('retries on a later call once an earlier pass has settled', async () => {
+    fs.writeFileSync(modelPath(), 'corrupted in place');
+    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(true);
+
+    fs.writeFileSync(modelPath(), 'corrupted again');
+    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(true);
+    expect(fs.existsSync(modelPath())).toBe(false);
+  });
 });
 
 describe('fileSha256', () => {

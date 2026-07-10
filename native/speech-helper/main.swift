@@ -20,10 +20,15 @@ import whisper
 let kSampleRate: Double = 16000
 // Whisper pads short inputs poorly; keep at least one second of audio.
 let kMinSamples = Int(kSampleRate)
-// Root-mean-square level above which a chunk counts as speech rather than room tone.
-// ~-50 dBFS: low enough for a soft-spoken kid sitting back from a built-in mic,
-// still above the noise floor whisper hallucinates confident phrases from.
-let kVoiceRMSThreshold: Float = 0.003
+// Voice activity uses hysteresis. A chunk at or above the arm threshold (~-44 dBFS)
+// counts toward the voiced budget; a session only transcribes once that budget is
+// met, so a single ~85 ms click cannot arm whisper on otherwise-silent room tone.
+// Once armed, the lower sustain threshold (~-50 dBFS) keeps the silence timeout at
+// bay, low enough for a soft-spoken kid sitting back from a built-in mic.
+let kVoiceArmRMSThreshold: Float = 0.006
+let kVoiceSustainRMSThreshold: Float = 0.003
+// ~250 ms of voiced audio, far longer than a keyboard click or a chair creak.
+let kMinVoicedSamplesToArm = Int(kSampleRate * 0.25)
 // Stop automatically once the user has been quiet for this long (matches the old helper).
 let kSilenceTimeout: TimeInterval = 1.5
 // Re-transcribe the buffer this often to produce interim results.
@@ -169,6 +174,7 @@ final class SpeechManager {
     private var partialTimer: DispatchSourceTimer?
     private var silenceTimer: DispatchWorkItem?
     private var heardVoice = false
+    private var voicedSamples = 0
 
     init(engine: WhisperEngine) {
         self.engine = engine
@@ -211,6 +217,7 @@ final class SpeechManager {
         samples.removeAll(keepingCapacity: true)
         samplesLock.unlock()
         heardVoice = false
+        voicedSamples = 0
 
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
@@ -277,12 +284,28 @@ final class SpeechManager {
             return
         }
 
-        if rms > kVoiceRMSThreshold {
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self, self.isRecording else { return }
-                self.heardVoice = true
-                self.resetSilenceTimer()
-            }
+        let frames = chunk.count
+        DispatchQueue.main.async { [weak self] in
+            self?.trackVoiceActivity(rms: rms, frames: frames)
+        }
+    }
+
+    /// Arms transcription only after enough voiced audio has accumulated, then keeps
+    /// the silence timeout alive while the speaker trails off below the arm level.
+    private func trackVoiceActivity(rms: Float, frames: Int) {
+        guard isRecording else { return }
+
+        guard heardVoice else {
+            guard rms >= kVoiceArmRMSThreshold else { return }
+            voicedSamples += frames
+            guard voicedSamples >= kMinVoicedSamplesToArm else { return }
+            heardVoice = true
+            resetSilenceTimer()
+            return
+        }
+
+        if rms >= kVoiceSustainRMSThreshold {
+            resetSilenceTimer()
         }
     }
 
