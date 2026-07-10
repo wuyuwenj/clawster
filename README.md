@@ -40,6 +40,7 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Customizable Personality** | Edit IDENTITY.md and SOUL.md to shape behavior | — |
 | **Attention Seeking** | Scuttles toward your cursor when feeling lonely | — |
 | **Emote Speech Bubbles** | Little frosted-glass bubbles when the pet emotes — "Boo!", "Wheee!", "zzz" | — |
+| **Light Theme** | Toggle the warm "Tidepool" light look across every window (dark by default) | — |
 | **Guided Onboarding** | Setup wizard with permission grants, no terminal required | — |
 
 ## Animations
@@ -130,6 +131,7 @@ Make it a strict code reviewer, a cheerful assistant, a sarcastic debugger, or a
 
 ### Behaviors
 In the Assistant panel settings, you can:
+- Switch between the default dark look and the warm "Tidepool" light theme (Appearance)
 - Enable/disable attention seeking behavior
 - Mute Clawster's voice and notification sounds
 - Configure watched folders for file change notifications
@@ -180,7 +182,7 @@ clawster/
 │       ├── pet-chat/      # Speech-bubble popup above the pet
 │       ├── assistant/     # Full assistant panel
 │       ├── onboarding/    # First-launch setup wizard
-│       └── styles/        # Tidepool design tokens (tidepool.css)
+│       └── styles/        # Theme tokens (theme.css) + Tidepool styles (tidepool.css)
 ├── proxy/                 # Cloudflare Worker proxy
 │   └── src/index.ts       # HMAC auth, rate limiting, moderation
 ├── eval/                  # Model evaluation framework
