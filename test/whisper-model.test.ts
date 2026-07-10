@@ -7,7 +7,7 @@ import {
   WHISPER_MODEL,
   MIN_MACOS_VERSION,
   deleteWhisperModel,
-  deleteWhisperModelIfCorrupt,
+  verifyCachedWhisperModel,
   downloadModel,
   downloadPercent,
   ensureWhisperModel,
@@ -201,7 +201,7 @@ describe('deleteWhisperModel', () => {
   });
 });
 
-describe('deleteWhisperModelIfCorrupt', () => {
+describe('verifyCachedWhisperModel', () => {
   const body = Buffer.from('pretend ggml weights');
   const spec = {
     name: 'test-model.bin',
@@ -214,32 +214,32 @@ describe('deleteWhisperModelIfCorrupt', () => {
   it('deletes a model whose bytes no longer match the checksum', async () => {
     fs.writeFileSync(modelPath(), 'corrupted in place');
 
-    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(true);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('corrupt');
     expect(fs.existsSync(modelPath())).toBe(false);
   });
 
   it('keeps a healthy model, so an environmental failure cannot loop re-downloading', async () => {
     fs.writeFileSync(modelPath(), body);
 
-    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(false);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('unrecoverable');
     expect(fs.existsSync(modelPath())).toBe(true);
   });
 
-  it('is a no-op when nothing is cached', async () => {
-    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(false);
+  it('reports a missing model as absent rather than as an unusable machine', async () => {
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('absent');
   });
 
   it('shares one pass between overlapping callers rather than hashing twice', async () => {
     fs.writeFileSync(modelPath(), body);
 
-    const first = deleteWhisperModelIfCorrupt(spec, modelPath());
-    const second = deleteWhisperModelIfCorrupt(spec, modelPath());
+    const first = verifyCachedWhisperModel(spec, modelPath());
+    const second = verifyCachedWhisperModel(spec, modelPath());
 
     expect(second).toBe(first);
-    await expect(first).resolves.toBe(false);
+    await expect(first).resolves.toBe('unrecoverable');
   });
 
-  it('resolves false instead of rejecting when the model cannot be removed', async () => {
+  it('reports unrecoverable instead of rejecting when the model cannot be removed', async () => {
     const lockedDir = path.join(dataDir, 'locked');
     const lockedModel = path.join(lockedDir, spec.name);
     fs.mkdirSync(lockedDir);
@@ -247,7 +247,7 @@ describe('deleteWhisperModelIfCorrupt', () => {
     fs.chmodSync(lockedDir, 0o555);
 
     try {
-      await expect(deleteWhisperModelIfCorrupt(spec, lockedModel)).resolves.toBe(false);
+      await expect(verifyCachedWhisperModel(spec, lockedModel)).resolves.toBe('unrecoverable');
       expect(fs.existsSync(lockedModel)).toBe(true);
     } finally {
       fs.chmodSync(lockedDir, 0o755);
@@ -256,10 +256,10 @@ describe('deleteWhisperModelIfCorrupt', () => {
 
   it('retries on a later call once an earlier pass has settled', async () => {
     fs.writeFileSync(modelPath(), 'corrupted in place');
-    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(true);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('corrupt');
 
     fs.writeFileSync(modelPath(), 'corrupted again');
-    await expect(deleteWhisperModelIfCorrupt(spec, modelPath())).resolves.toBe(true);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('corrupt');
     expect(fs.existsSync(modelPath())).toBe(false);
   });
 });
@@ -279,6 +279,20 @@ describe('ensureWhisperModel', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     expect(ensureWhisperModel()).toEqual({ status: 'ready', modelPath: whisperModelPath() });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('withholds ready while a corruption check may still unlink the model', async () => {
+    writeSparseModel();
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    // The sparse bytes cannot match the real checksum, so this pass deletes them.
+    const verification = verifyCachedWhisperModel();
+
+    expect(ensureWhisperModel()).toEqual({ status: 'downloading', percent: 0 });
+
+    await expect(verification).resolves.toBe('corrupt');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

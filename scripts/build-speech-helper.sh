@@ -1,6 +1,19 @@
 #!/bin/bash
 set -e
 
+UNIVERSAL=0
+for arg in "$@"; do
+  case "$arg" in
+    --universal)
+      UNIVERSAL=1
+      ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Skipping speech-helper build on non-macOS host."
   exit 0
@@ -72,9 +85,9 @@ cp -R "$FRAMEWORK_SLICE/whisper.framework" "$NATIVE_DIR/whisper.framework"
 # --- Build the helper ----------------------------------------------------------
 
 # whisper.framework is universal, and package.json still ships an x64 dmg/zip, so
-# release builds set SPEECH_HELPER_UNIVERSAL=1 to make the helper universal too —
-# otherwise the Intel bundle gets an arm64-only binary. `npm run dev` leaves it
-# unset and pays for one compile.
+# release builds pass --universal to make the helper universal too — otherwise the
+# Intel bundle gets an arm64-only binary. `npm run dev` omits it and pays for one
+# compile. A flag rather than an env var so the npm scripts work under cmd.exe.
 build_slice() {
   swiftc "$NATIVE_DIR/main.swift" \
     -o "$2" \
@@ -90,7 +103,7 @@ build_slice() {
 BUILD_DIR="$(mktemp -d)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
-if [[ "${SPEECH_HELPER_UNIVERSAL:-}" == "1" ]]; then
+if [[ "$UNIVERSAL" == "1" ]]; then
   ARCHS=(arm64 x86_64)
 else
   ARCHS=("$TARGET_ARCH")

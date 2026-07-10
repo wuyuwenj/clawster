@@ -66,25 +66,40 @@ export function deleteWhisperModel(modelPath = whisperModelPath()): void {
   fs.rmSync(modelPath, { force: true });
 }
 
-let corruptionCheck: Promise<boolean> | null = null;
+/**
+ * What a helper load failure says about the cached model.
+ *
+ * `absent` and `corrupt` are recoverable — the next mic press re-downloads.
+ * `unrecoverable` covers a model whose checksum matches (so whisper failed for
+ * a reason on this machine that a fresh copy cannot fix) and a corrupt one that
+ * resisted deletion (so the next press would hit the identical failure).
+ */
+export type WhisperModelVerdict = 'absent' | 'corrupt' | 'unrecoverable';
 
-async function verifyAndDelete(spec: WhisperModelSpec, modelPath: string): Promise<boolean> {
+let corruptionCheck: Promise<WhisperModelVerdict> | null = null;
+
+async function verifyAndDelete(
+  spec: WhisperModelSpec,
+  modelPath: string
+): Promise<WhisperModelVerdict> {
   let actual: string;
   try {
     actual = await fileSha256(modelPath);
-  } catch {
-    return false;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent';
+    console.error('Failed to hash the cached speech model:', error);
+    return 'unrecoverable';
   }
 
-  if (actual === spec.sha256) return false;
+  if (actual === spec.sha256) return 'unrecoverable';
 
   try {
     deleteWhisperModel(modelPath);
   } catch (error) {
     console.error('Failed to remove the corrupt speech model:', error);
-    return false;
+    return 'unrecoverable';
   }
-  return true;
+  return 'corrupt';
 }
 
 /**
@@ -94,13 +109,12 @@ async function verifyAndDelete(spec: WhisperModelSpec, modelPath: string): Promi
  * would re-download ~148 MB on every mic press without ever succeeding.
  *
  * Hashing ~148 MB outlives the helper's exit, so overlapping mic presses share
- * one pass rather than each starting their own. Never rejects: a delete that
- * fails resolves `false`, leaving the model in place.
+ * one pass rather than each starting their own. Never rejects.
  */
-export function deleteWhisperModelIfCorrupt(
+export function verifyCachedWhisperModel(
   spec: WhisperModelSpec = WHISPER_MODEL,
   modelPath = whisperModelPath()
-): Promise<boolean> {
+): Promise<WhisperModelVerdict> {
   if (corruptionCheck) return corruptionCheck;
 
   const check = verifyAndDelete(spec, modelPath).finally(() => {
@@ -235,6 +249,13 @@ export function resetWhisperModelState(): void {
  */
 export function ensureWhisperModel(): VoiceSetupState {
   const modelPath = whisperModelPath();
+
+  // Hashing ~148 MB outlives the helper's exit, so the file can still be its
+  // full size while a verification pass is about to unlink it. Reporting `ready`
+  // here would spawn a helper against a model that is on its way out.
+  if (corruptionCheck) {
+    return { status: 'downloading', percent: activeDownload?.percent ?? 0 };
+  }
 
   if (isWhisperModelInstalled(modelPath)) {
     return { status: 'ready', modelPath };

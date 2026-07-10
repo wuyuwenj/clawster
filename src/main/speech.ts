@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
-import { deleteWhisperModelIfCorrupt, whisperModelPath } from './whisper-model';
+import { verifyCachedWhisperModel, whisperModelPath, WhisperModelVerdict } from './whisper-model';
 import { sanitizeTranscript } from './whisper-transcript';
 
 // Speech recognition state
@@ -48,7 +48,7 @@ export function isSpeechModelLoadFailure(message: unknown): boolean {
   return typeof message === 'string' && /failed to load the speech model/i.test(message);
 }
 
-/** The cached model was corrupt and has been removed, so the next press re-downloads it. */
+/** The cached model is missing or was corrupt and removed, so the next press re-downloads it. */
 export const SPEECH_MODEL_LOAD_USER_MESSAGE =
   "Clawster's voice needs setting up again — tap the mic to retry.";
 
@@ -58,6 +58,13 @@ export const SPEECH_MODEL_LOAD_USER_MESSAGE =
  */
 export const SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE =
   "Clawster's voice can't start on this Mac right now.";
+
+/** Only an intact (or unremovable) cached model makes a retry pointless. */
+export function speechModelVerdictMessage(verdict: WhisperModelVerdict): string {
+  return verdict === 'unrecoverable'
+    ? SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE
+    : SPEECH_MODEL_LOAD_USER_MESSAGE;
+}
 
 /**
  * The helper names the model's absolute path on a load failure, which would put
@@ -149,7 +156,7 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     // must already be on disk by the time we spawn it.
     const child = spawn(helperPath, ['--model', whisperModelPath()]);
     let startupSettled = false;
-    let modelVerification: Promise<boolean> | null = null;
+    let modelVerification: Promise<WhisperModelVerdict> | null = null;
     let buffer = '';
 
     speechProcess = child;
@@ -190,13 +197,13 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
             resolveStartup();
           }
           if (msg.type === 'error' && isSpeechModelLoadFailure(msg.message)) {
-            // The helper exits(1) straight after. Only a checksum mismatch means
-            // the cached file is at fault — the same error also covers failures
-            // that re-downloading cannot fix — so the verdict decides both
-            // whether the model is deleted and what the user is told.
-            modelVerification = deleteWhisperModelIfCorrupt().catch((error: unknown) => {
+            // The helper exits(1) straight after. The same error covers a missing
+            // model, a corrupt one, and failures re-downloading cannot fix, so the
+            // verdict decides both whether the model is deleted and what the user
+            // is told.
+            modelVerification = verifyCachedWhisperModel().catch((error: unknown) => {
               console.error('speech-helper model verification failed:', error);
-              return false;
+              return 'unrecoverable' as const;
             });
           }
           handleSpeechHelperMessage(msg);
@@ -232,10 +239,8 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
       if (modelVerification) {
         // The helper never reached `ready`, so nothing is listening on
         // `speech-error`; the rejection below is the user's single message.
-        void modelVerification.then((deleted) => {
-          rejectStartup(
-            new Error(deleted ? SPEECH_MODEL_LOAD_USER_MESSAGE : SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE)
-          );
+        void modelVerification.then((verdict) => {
+          rejectStartup(new Error(speechModelVerdictMessage(verdict)));
         });
         return;
       }

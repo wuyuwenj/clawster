@@ -9,11 +9,11 @@ vi.mock('child_process', () => ({ spawn: vi.fn() }));
 
 vi.mock('../src/main/whisper-model', () => ({
   whisperModelPath: () => '/tmp/ggml-base.en.bin',
-  deleteWhisperModelIfCorrupt: vi.fn(async () => false),
+  verifyCachedWhisperModel: vi.fn(async () => 'unrecoverable' as const),
 }));
 
 import { spawn } from 'child_process';
-import { deleteWhisperModelIfCorrupt } from '../src/main/whisper-model';
+import { verifyCachedWhisperModel } from '../src/main/whisper-model';
 import {
   SPEECH_MODEL_LOAD_USER_MESSAGE,
   SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE,
@@ -54,7 +54,7 @@ function beginSession(sender: Electron.WebContents) {
 
 beforeEach(() => {
   resetSpeechHelperState();
-  vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(false);
+  vi.mocked(verifyCachedWhisperModel).mockResolvedValue('unrecoverable');
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -204,7 +204,7 @@ describe('ensureSpeechHelper startup failures', () => {
   }
 
   it('tells the user to retry once the corrupt model has been removed', async () => {
-    vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(true);
+    vi.mocked(verifyCachedWhisperModel).mockResolvedValue('corrupt');
 
     const error = await failToLoadModel();
 
@@ -212,8 +212,16 @@ describe('ensureSpeechHelper startup failures', () => {
     expect(error.message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
   });
 
+  it('tells the user to retry when the model is simply missing', async () => {
+    vi.mocked(verifyCachedWhisperModel).mockResolvedValue('absent');
+
+    const error = await failToLoadModel();
+
+    expect(error.message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
+  });
+
   it('does not promise a retry when the model checksum is still valid', async () => {
-    vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(false);
+    vi.mocked(verifyCachedWhisperModel).mockResolvedValue('unrecoverable');
 
     const error = await failToLoadModel();
 
@@ -226,7 +234,7 @@ describe('ensureSpeechHelper startup failures', () => {
   });
 
   it('surfaces a model-load failure exactly once, not on speech-error as well', async () => {
-    vi.mocked(deleteWhisperModelIfCorrupt).mockResolvedValue(true);
+    vi.mocked(verifyCachedWhisperModel).mockResolvedValue('corrupt');
     const sender = fakeSender();
 
     const error = await failToLoadModel(sender);
