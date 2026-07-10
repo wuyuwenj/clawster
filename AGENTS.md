@@ -50,6 +50,8 @@ User message
 - HMAC authentication links the client and proxy (shared secret)
 - Local model requires Ollama running at `localhost:11434`
 - Electron's native `win.setPosition(x, y)` throws a hard `TypeError` on a non-finite arg. Any code that computes a window position (movement in `pet-behaviors.ts`, drag in `main.ts`, window creation in `windows.ts`) must validate coords with `Number.isFinite` before calling `setPosition` or persisting `pet.position` — a NaN saved to the store poisons the next launch's window geometry (CLA-56)
+- Renderer behavior that needs unit tests lives in pure logic modules (no React/Electron imports) next to the component, e.g. `src/renderer/pet/emote-bubbles.ts` — the Vitest suite runs in a node environment with no DOM
+- Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
 
 ### Testing Requirements
 - `npm test` — Vitest unit tests (no external services needed)

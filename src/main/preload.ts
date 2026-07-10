@@ -184,6 +184,9 @@ contextBridge.exposeInMainWorld('clawster', {
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => {
     ipcRenderer.on('idle-behavior', (_event, data) => callback(data));
   },
+  onPetUiVisibility: (callback: (data: { chatbarOpen: boolean; petChatOpen: boolean; assistantOpen: boolean }) => void) => {
+    ipcRenderer.on('pet-ui-visibility', (_event, data) => callback(data));
+  },
   onChatSync: (callback: () => void) => {
     return onIpcNoArgs('chat-sync', callback);
   },
@@ -254,6 +257,7 @@ contextBridge.exposeInMainWorld('clawster', {
     ipcRenderer.removeAllListeners('pet-transparent-sleep-changed');
     ipcRenderer.removeAllListeners('dev-show-pet-mode-overlay-changed');
     ipcRenderer.removeAllListeners('idle-behavior');
+    ipcRenderer.removeAllListeners('pet-ui-visibility');
     ipcRenderer.removeAllListeners('chat-sync');
     ipcRenderer.removeAllListeners('switch-to-chat');
     ipcRenderer.removeAllListeners('switch-to-settings');
@@ -368,6 +372,7 @@ export interface ClawsterAPI {
   onPetTransparentSleepChanged: (callback: (enabled: boolean) => void) => void;
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => void;
   onIdleBehavior: (callback: (data: { type: string; direction?: string }) => void) => void;
+  onPetUiVisibility: (callback: (data: { chatbarOpen: boolean; petChatOpen: boolean; assistantOpen: boolean }) => void) => void;
   onChatSync: (callback: () => void) => ListenerCleanup;
   onSwitchToChat: (callback: () => void) => ListenerCleanup;
   onSwitchToSettings: (callback: () => void) => ListenerCleanup;

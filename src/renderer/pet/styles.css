@@ -41,6 +41,58 @@
   white-space: nowrap;
 }
 
+/* Emote speech bubble (CLA-13): frosted glass, floats above the lobster with
+   a small arrow, fades in/out over ~0.2s of its lifetime (duration set inline) */
+.emote-bubble {
+  position: absolute;
+  bottom: 126px;
+  left: 50%;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #2b2b3a;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 150;
+  animation: emote-bubble-life 1200ms ease-in-out forwards;
+}
+
+.emote-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.75);
+}
+
+@keyframes emote-bubble-life {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+}
+
 /* Chat popup */
 .chat-popup {
   position: absolute;
@@ -380,13 +432,44 @@
   animation: drip 1.5s infinite;
 }
 
-/* SNIP STATE (curious) */
-.lobster-container.state-snip .right-claw {
-  animation: snip 0.3s ease-in-out infinite;
+/* SNIP STATE (curious) — a big, unmistakable "ooh, what's this?!" reaction when
+   the chatbar opens (CLA-27). Bubbles are suppressed while chat is open, so the
+   sprite is the ONLY cue and it must read at a glance, obviously different from
+   idle: the whole body leans in toward the chat, the eyes go big and wide, both
+   claws fly up by the face, and the mouth makes a little "oh". Cute and calm for
+   the 10–14 audience — just unmistakable. Every cue below is held (not a brief
+   pulse) so the difference is obvious in any frame; the pupils are aimed up
+   toward the chat by the gaze in Pet.tsx. */
+.lobster-container.state-snip .body-group {
+  /* Lean the whole upper body in and hold it (overriding the idle breathe). */
+  animation: curiousTilt 2s ease-in-out infinite;
+  transform-origin: 64px 104px;
 }
 
-.lobster-container.state-snip .body-group {
+.lobster-container.state-snip .eye-open {
+  /* Eyes open a touch wider — alert, but natural and cute, not bug-eyed. The
+   * lean, raised claws, "oh" mouth and upward gaze carry the "curious" read. */
   animation: none;
+  transform: scale(1.12);
+  transform-origin: 64px 56px;
+}
+
+.lobster-container.state-snip .mouth-neutral {
+  /* Swap the calm smile for a little surprised "oh!". */
+  opacity: 0;
+}
+
+.lobster-container.state-snip .mouth-o {
+  opacity: 1;
+}
+
+.lobster-container.state-snip .left-claw {
+  /* Both claws fly up by the face — "ooh!". */
+  transform: translateY(-20px) rotate(-42deg);
+}
+
+.lobster-container.state-snip .right-claw {
+  animation: curiousClawR 0.9s ease-in-out infinite;
 }
 
 /* WALKING STATE - when pet is moving */
@@ -492,6 +575,31 @@
   }
   50% {
     transform: rotate(-25deg) scale(1.1);
+  }
+}
+
+/* CLA-27: a pronounced, curious lean — the lobster tips in to peer at the
+   chatbar. It stays leaned the whole time (never returns upright) so the tilt
+   reads clearly in any frame; the gentle sway keeps it alive, not stiff. */
+@keyframes curiousTilt {
+  0%,
+  100% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(14deg);
+  }
+}
+
+/* CLA-27: the right claw held up by the face with a soft, slow snip — paired
+   with the raised left claw it reads as an excited "ooh!". */
+@keyframes curiousClawR {
+  0%,
+  100% {
+    transform: translateY(-20px) rotate(42deg);
+  }
+  50% {
+    transform: translateY(-24px) rotate(28deg);
   }
 }
 

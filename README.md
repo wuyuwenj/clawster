@@ -26,7 +26,7 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 
 | Feature | Description | Shortcut |
 |---------|-------------|----------|
-| **Quick Chat** | Summon Clawster anywhere for context-aware help | `Cmd+Shift+Space` |
+| **Quick Chat** | Summon Clawster anywhere for context-aware help — the pet turns curious and watches while it's open | `Cmd+Shift+Space` |
 | **Screenshot Questions** | Snap any part of your screen and ask about it | `Cmd+Shift+/` |
 | **Full Assistant Panel** | Open the full assistant for longer conversations | `Cmd+Shift+A` or right-click pet |
 | **Chat Sessions** | Keep conversations separate — create, switch, and delete chats from the assistant panel | — |
@@ -39,6 +39,7 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Auto-Update** | In-app banner when a new version is available | — |
 | **Customizable Personality** | Edit IDENTITY.md and SOUL.md to shape behavior | — |
 | **Attention Seeking** | Scuttles toward your cursor when feeling lonely | — |
+| **Emote Speech Bubbles** | Little frosted-glass bubbles when the pet emotes — "Boo!", "Wheee!", "zzz" | — |
 | **Guided Onboarding** | Setup wizard with permission grants, no terminal required | — |
 
 ## Animations
