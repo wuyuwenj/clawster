@@ -12,6 +12,52 @@ interface ChatMessage {
 
 const DEFAULT_QUICK_REPLIES = ['Thanks!', 'Tell me more', 'Not now'];
 
+// The pet-chat window is driven by the `chat-message` IPC. While a response is
+// still loading or streaming, the bubble holds the '...' placeholder that
+// ChatBar opens the popup with (see ChatBar submit flow), and the real text is
+// only committed at stream end. During that window `isLoading` is false, so the
+// feedback thumbs must not gate on `!isLoading` alone or they flash over the
+// placeholder. A response is "complete" only once loading has ended AND the
+// final message text has been committed (matches the animalese guard that skips
+// speaking the '...' placeholder). Exported for unit testing.
+export function isResponseComplete(state: { isLoading: boolean; text?: string | null }): boolean {
+  return !state.isLoading && !!state.text && state.text !== '...';
+}
+
+interface FeedbackMessage {
+  text: string;
+  userInput?: string;
+  toolCall?: { tool: string | null; args?: Record<string, unknown> };
+}
+
+// Serializes the thumbs feedback exactly as the pet chat sends it to Clawbot.
+// Exported so the feedback payload stays verifiable without a DOM.
+export function buildFeedbackPayload(
+  type: 'positive' | 'negative',
+  message: FeedbackMessage,
+  detail?: { category?: string; note?: string },
+): string {
+  return JSON.stringify(
+    type === 'negative'
+      ? {
+          __feedback: true,
+          type,
+          category: detail?.category,
+          note: detail?.note,
+          userInput: message.userInput,
+          modelOutput: message.text,
+          toolCall: message.toolCall,
+        }
+      : {
+          __feedback: true,
+          type,
+          userInput: message.userInput,
+          modelOutput: message.text,
+          toolCall: message.toolCall,
+        },
+  );
+}
+
 export const PetChat: React.FC = () => {
   const [message, setMessage] = useState<ChatMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -130,13 +176,7 @@ export const PetChat: React.FC = () => {
     if (type === 'positive') {
       setFeedbackSent('positive');
       try {
-        await window.clawster.sendToClawbot(JSON.stringify({
-          __feedback: true,
-          type: 'positive',
-          userInput: message.userInput,
-          modelOutput: message.text,
-          toolCall: message.toolCall,
-        }));
+        await window.clawster.sendToClawbot(buildFeedbackPayload('positive', message));
       } catch { /* non-critical */ }
       return;
     }
@@ -148,15 +188,9 @@ export const PetChat: React.FC = () => {
     setFeedbackSent('negative');
     setShowFeedbackModal(false);
     try {
-      await window.clawster.sendToClawbot(JSON.stringify({
-        __feedback: true,
-        type: 'negative',
-        category: feedbackType,
-        note: feedbackNote,
-        userInput: message.userInput,
-        modelOutput: message.text,
-        toolCall: message.toolCall,
-      }));
+      await window.clawster.sendToClawbot(
+        buildFeedbackPayload('negative', message, { category: feedbackType, note: feedbackNote }),
+      );
     } catch { /* non-critical */ }
     setFeedbackNote('');
   }, [message, feedbackType, feedbackNote]);
@@ -234,6 +268,11 @@ export const PetChat: React.FC = () => {
 
   if (!message) return null;
 
+  // Feedback thumbs + quick replies only appear once the response has fully
+  // arrived — never over the loading dots, never over the '...' stream
+  // placeholder.
+  const responseComplete = isResponseComplete({ isLoading, text: message.text });
+
   return (
     <div className="w-full h-full flex items-end justify-center">
       <div ref={contentRef} className="flex flex-col max-h-full pb-3">
@@ -261,7 +300,7 @@ export const PetChat: React.FC = () => {
           </div>
 
           {/* Feedback + Quick Replies */}
-          {!isLoading && (
+          {responseComplete && (
             <div className="shrink-0 border-t border-white/5">
               {/* Feedback thumbs */}
               <div className="flex items-center justify-between px-3 pt-1.5 pb-1">
