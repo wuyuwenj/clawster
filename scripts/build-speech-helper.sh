@@ -71,15 +71,38 @@ cp -R "$FRAMEWORK_SLICE/whisper.framework" "$NATIVE_DIR/whisper.framework"
 
 # --- Build the helper ----------------------------------------------------------
 
-echo "Building speech-helper for $TARGET_ARCH..."
-swiftc "$NATIVE_DIR/main.swift" \
-  -o "$NATIVE_DIR/speech-helper" \
-  -F "$FRAMEWORK_SLICE" \
-  -framework whisper \
-  -framework AVFoundation \
-  -Xlinker -rpath -Xlinker "@executable_path" \
-  -Xlinker -rpath -Xlinker "@executable_path/../Frameworks" \
-  -target "$TARGET_ARCH-apple-macos$MACOS_DEPLOYMENT_TARGET" \
-  -O
+# whisper.framework is universal, and package.json still ships an x64 dmg/zip, so
+# the helper has to be universal too or the Intel bundle gets an arm64-only binary.
+build_slice() {
+  swiftc "$NATIVE_DIR/main.swift" \
+    -o "$2" \
+    -F "$FRAMEWORK_SLICE" \
+    -framework whisper \
+    -framework AVFoundation \
+    -Xlinker -rpath -Xlinker "@executable_path" \
+    -Xlinker -rpath -Xlinker "@executable_path/../Frameworks" \
+    -target "$1-apple-macos$MACOS_DEPLOYMENT_TARGET" \
+    -O
+}
 
-echo "Built: $NATIVE_DIR/speech-helper"
+BUILD_DIR="$(mktemp -d)"
+trap 'rm -rf "$BUILD_DIR"' EXIT
+
+SLICES=()
+for arch in arm64 x86_64; do
+  echo "Building speech-helper for $arch..."
+  if build_slice "$arch" "$BUILD_DIR/speech-helper-$arch"; then
+    SLICES+=("$BUILD_DIR/speech-helper-$arch")
+  elif [[ "$arch" == "$TARGET_ARCH" ]]; then
+    echo "Failed to build speech-helper for the host architecture ($arch)." >&2
+    exit 1
+  else
+    # `npm run dev` runs this on every start; a toolchain without the other
+    # slice's SDK support degrades to a host-only helper rather than failing.
+    echo "Warning: could not build the $arch slice; speech-helper will be $TARGET_ARCH-only." >&2
+  fi
+done
+
+lipo -create "${SLICES[@]}" -output "$NATIVE_DIR/speech-helper"
+
+echo "Built: $NATIVE_DIR/speech-helper ($(lipo -archs "$NATIVE_DIR/speech-helper"))"

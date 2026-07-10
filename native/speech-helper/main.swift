@@ -20,14 +20,15 @@ import whisper
 let kSampleRate: Double = 16000
 // Whisper pads short inputs poorly; keep at least one second of audio.
 let kMinSamples = Int(kSampleRate)
-// Voice activity uses hysteresis. A chunk at or above the arm threshold (~-44 dBFS)
-// counts toward the voiced budget; a session only transcribes once that budget is
-// met, so a single ~85 ms click cannot arm whisper on otherwise-silent room tone.
-// Once armed, the lower sustain threshold (~-50 dBFS) keeps the silence timeout at
-// bay, low enough for a soft-spoken kid sitting back from a built-in mic.
+// Voice activity uses hysteresis. Chunks at or above the arm threshold (~-44 dBFS)
+// extend a contiguous voiced run; a session only transcribes once one run reaches
+// the budget below, and any quieter chunk restarts the run from zero. Scattered
+// clicks therefore cannot arm whisper on otherwise-silent room tone. Once armed,
+// the lower sustain threshold (~-50 dBFS) keeps the silence timeout at bay, low
+// enough for a soft-spoken kid sitting back from a built-in mic.
 let kVoiceArmRMSThreshold: Float = 0.006
 let kVoiceSustainRMSThreshold: Float = 0.003
-// ~250 ms of voiced audio, far longer than a keyboard click or a chair creak.
+// ~250 ms of unbroken voiced audio, far longer than a keyboard click or a chair creak.
 let kMinVoicedSamplesToArm = Int(kSampleRate * 0.25)
 // Stop automatically once the user has been quiet for this long (matches the old helper).
 let kSilenceTimeout: TimeInterval = 1.5
@@ -290,13 +291,16 @@ final class SpeechManager {
         }
     }
 
-    /// Arms transcription only after enough voiced audio has accumulated, then keeps
+    /// Arms transcription only after an unbroken run of voiced audio, then keeps
     /// the silence timeout alive while the speaker trails off below the arm level.
     private func trackVoiceActivity(rms: Float, frames: Int) {
         guard isRecording else { return }
 
         guard heardVoice else {
-            guard rms >= kVoiceArmRMSThreshold else { return }
+            guard rms >= kVoiceArmRMSThreshold else {
+                voicedSamples = 0
+                return
+            }
             voicedSamples += frames
             guard voicedSamples >= kMinVoicedSamplesToArm else { return }
             heardVoice = true
@@ -388,9 +392,11 @@ final class SpeechManager {
         let sawVoice = heardVoice
 
         // Whisper hallucinates confident phrases ("Thank you.") from pure room
-        // tone, so a session with no voice activity resolves to empty text.
+        // tone, so a session with no voice activity never reaches it. Report that
+        // as an error rather than an empty final: a silent result is
+        // indistinguishable from the app being broken.
         guard sawVoice, snapshot.count >= kMinSamples / 2 else {
-            emitFinal("")
+            emitError("I didn't catch that — try again!")
             emitStatus("stopped")
             return
         }

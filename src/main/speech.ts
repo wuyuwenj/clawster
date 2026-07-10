@@ -48,6 +48,19 @@ export function isSpeechModelLoadFailure(message: unknown): boolean {
   return typeof message === 'string' && /failed to load the speech model/i.test(message);
 }
 
+export const SPEECH_MODEL_LOAD_USER_MESSAGE =
+  "Clawster's voice needs setting up again — tap the mic to retry.";
+
+/**
+ * The helper names the model's absolute path on a load failure, which would put
+ * `/Users/<name>/…` in front of a child. The raw message still reaches the
+ * main-process log; only the renderer sees the friendly form.
+ */
+export function userFacingSpeechError(message: unknown): string {
+  if (isSpeechModelLoadFailure(message)) return SPEECH_MODEL_LOAD_USER_MESSAGE;
+  return typeof message === 'string' ? message : 'Speech recognition failed';
+}
+
 export function resetSpeechHelperState(): void {
   speechProcess = null;
   speechSender = null;
@@ -101,7 +114,7 @@ export function handleSpeechHelperMessage(msg: any): void {
     speechSessionActive = false;
 
     if (sender) {
-      sender.send('speech-error', msg);
+      sender.send('speech-error', { ...msg, message: userFacingSpeechError(msg.message) });
     }
     speechSender = null;
   }

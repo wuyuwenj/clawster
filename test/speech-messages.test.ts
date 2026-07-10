@@ -5,6 +5,7 @@ vi.mock('electron', () => ({
 }));
 
 import {
+  SPEECH_MODEL_LOAD_USER_MESSAGE,
   handleSpeechHelperMessage,
   isSpeechModelLoadFailure,
   isSpeechSessionActive,
@@ -103,6 +104,39 @@ describe('handleSpeechHelperMessage', () => {
     });
     expect(isSpeechSessionActive()).toBe(false);
     expect(getSpeechEventSender()).toBeNull();
+  });
+
+  it('surfaces the helper’s "nothing heard" signal instead of a silent empty result', () => {
+    const sender = fakeSender();
+    beginSession(sender);
+    handleSpeechHelperMessage({ type: 'status', state: 'recording' });
+
+    handleSpeechHelperMessage({ type: 'error', message: "I didn't catch that — try again!" });
+    handleSpeechHelperMessage({ type: 'status', state: 'stopped' });
+
+    expect(sender.send).toHaveBeenCalledWith('speech-error', {
+      type: 'error',
+      message: "I didn't catch that — try again!",
+    });
+    expect(isSpeechSessionActive()).toBe(false);
+    expect(isSpeechStartPending()).toBe(false);
+    expect(getSpeechEventSender()).toBeNull();
+  });
+
+  it('replaces the model-load failure path with a friendly retry message', () => {
+    const sender = fakeSender();
+    beginSession(sender);
+
+    handleSpeechHelperMessage({
+      type: 'error',
+      message: 'Failed to load the speech model at /Users/kid/.clawster/models/whisper/x.bin',
+    });
+
+    expect(sender.send).toHaveBeenCalledWith('speech-error', {
+      type: 'error',
+      message: SPEECH_MODEL_LOAD_USER_MESSAGE,
+    });
+    expect(SPEECH_MODEL_LOAD_USER_MESSAGE).not.toMatch(/\//);
   });
 
   it('recognizes the helper message that means the cached model is unusable', () => {
