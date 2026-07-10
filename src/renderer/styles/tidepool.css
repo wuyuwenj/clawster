@@ -5,40 +5,9 @@
  *
  * Proportion rules: cream ~80% of any surface, ink outlines give structure,
  * coral only for "acting/chosen", teal only for utility/status/links. */
-:root {
-  /* Coral — primary / selected / acting */
-  --tp-coral: #FF8C69;
-  --tp-coral-deep: #F4744C;
-  --tp-coral-tint: #FFE3D7;
-
-  /* Ink — outlines and body text (warm, never pure black) */
-  --tp-ink: #8B3A3A;
-  --tp-text-ink: #4A2B26;
-
-  /* Shell — surfaces */
-  --tp-shell: #FFF9F2;
-  --tp-shell-deep: #FFF1E4;
-
-  /* Teal — utility / status / links */
-  --tp-teal: #0E8A8A;
-  --tp-teal-deep: #096B6B;
-
-  /* Driftwood — secondary text / placeholders */
-  --tp-driftwood: #8A5A4E;
-
-  /* Sticker shadow: hard ink offset + soft warm ambient */
-  --tp-sticker-shadow: 0 4px 0 rgba(139, 58, 58, 0.3);
-  --tp-ambient-shadow: 0 6px 14px -4px rgba(74, 43, 38, 0.25);
-
-  /* One spring for everything that moves (150–450ms) */
-  --tp-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  /* Rounded UI face for things Clawster says / the user presses (Nunito is
-   * bundled via @fontsource — no runtime font fetch); system sans for long
-   * message bodies. */
-  --tp-font-round: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --tp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
+/* All --tp-* tokens now live in ./theme.css, defined per theme (dark default /
+ * light Tidepool). Each entrypoint imports theme.css, so the classes below
+ * resolve to the active theme's values and flip automatically. */
 
 .tp-font-round {
   font-family: var(--tp-font-round);
@@ -54,7 +23,7 @@
  * advertising an affordance they don't have. */
 .tp-chip {
   background: var(--tp-shell);
-  border: 2px solid var(--tp-ink);
+  border: var(--tp-outline);
   color: var(--tp-teal);
   transition: transform 150ms var(--tp-spring), background-color 150ms ease;
 }
@@ -70,8 +39,8 @@ button.tp-chip:active:not(:disabled) {
 /* Candy chip: solid quick-reply buttons with a sticker edge that squishes
  * 2.5px on press (the shadow collapses as the chip sits down). */
 .tp-candy {
-  border: 2px solid var(--tp-ink);
-  box-shadow: 0 2.5px 0 var(--tp-ink);
+  border: var(--tp-outline);
+  box-shadow: var(--tp-candy-shadow);
   transition: transform 150ms var(--tp-spring), box-shadow 150ms var(--tp-spring), background-color 150ms ease;
 }
 
@@ -83,7 +52,7 @@ button.tp-chip:active:not(:disabled) {
 /* Warm selection + thin scrollbar, shared by both shell surfaces */
 .tp-surface ::selection,
 .tp-surface::selection {
-  background-color: var(--tp-coral-tint);
+  background-color: var(--tp-selection);
   color: inherit;
 }
 
@@ -96,12 +65,12 @@ button.tp-chip:active:not(:disabled) {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 58, 58, 0.25);
+  background: var(--tp-scroll-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 58, 58, 0.4);
+  background: var(--tp-scroll-thumb-hover);
 }
 
 /* Message links — teal is the utility/link color */
@@ -148,8 +117,8 @@ button.tp-chip:active:not(:disabled) {
 }
 
 .markdown-message pre {
-  background: rgba(139, 58, 58, 0.06);
-  border: 1px solid rgba(139, 58, 58, 0.25);
+  background: var(--tp-code-bg);
+  border: 1px solid var(--tp-code-border);
   border-radius: 0.5rem;
   padding: 0.75rem;
   overflow-x: auto;
@@ -165,7 +134,7 @@ button.tp-chip:active:not(:disabled) {
 }
 
 .markdown-message .md-inline-code {
-  background: rgba(139, 58, 58, 0.08);
+  background: var(--tp-inline-code-bg);
   padding: 0.15em 0.35em;
   border-radius: 0.25rem;
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
@@ -214,7 +183,7 @@ button.tp-chip:active:not(:disabled) {
 
 .markdown-message th,
 .markdown-message td {
-  border: 1px solid rgba(139, 58, 58, 0.3);
+  border: 1px solid var(--tp-hairline);
   padding: 0.35em 0.6em;
   text-align: left;
 }
@@ -226,6 +195,6 @@ button.tp-chip:active:not(:disabled) {
 
 .markdown-message hr {
   border: none;
-  border-top: 1px solid rgba(139, 58, 58, 0.3);
+  border-top: 1px solid var(--tp-hairline);
   margin: 0.5em 0;
 }

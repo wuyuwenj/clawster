@@ -90,6 +90,9 @@ test.beforeAll(async () => {
       // The first-launch permissions hint fires 5s after main starts and pushes
       // its own chat-popup, which would replace the bubble being screenshotted.
       permissionDeclines: { hintShown: true },
+      // Tidepool is now the opt-in Light theme (dark is the default), so this
+      // spec — which asserts the cream Tidepool surfaces — runs in Light.
+      appearance: { theme: 'light' },
     }),
   );
 

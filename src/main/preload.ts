@@ -26,8 +26,16 @@ function onIpcNoArgs(channel: string, callback: () => void): ListenerCleanup {
   };
 }
 
+// Audio output is muted in automated tests (and whenever CLAWSTER_MUTE_AUDIO=1),
+// so the e2e/screenshot suite never plays the Animalese voice on a real machine.
+// The renderer (animalese.ts) reads this before creating any AudioContext.
+const AUDIO_MUTED = process.env.NODE_ENV === 'test' || process.env.CLAWSTER_MUTE_AUDIO === '1';
+
 // Expose protected methods to renderer
 contextBridge.exposeInMainWorld('clawster', {
+  // True when audio output must be suppressed (test / CLAWSTER_MUTE_AUDIO).
+  audioMuted: AUDIO_MUTED,
+
   // Window controls
   toggleAssistant: () => ipcRenderer.send('toggle-assistant'),
   openAssistant: () => ipcRenderer.send('open-assistant'),
@@ -180,6 +188,9 @@ contextBridge.exposeInMainWorld('clawster', {
   },
   onPetMutedChanged: (callback: (muted: boolean) => void) => {
     ipcRenderer.on('pet-muted-changed', (_event, muted) => callback(Boolean(muted)));
+  },
+  onThemeChanged: (callback: (theme: 'dark' | 'light') => void) => {
+    ipcRenderer.on('theme-changed', (_event, theme) => callback(theme === 'light' ? 'light' : 'dark'));
   },
   onDevShowPetModeOverlayChanged: (callback: (enabled: boolean) => void) => {
     ipcRenderer.on('dev-show-pet-mode-overlay-changed', (_event, enabled) => callback(Boolean(enabled)));

@@ -1,0 +1,133 @@
+/* Theme tokens (CLA-58 Light theme) — the single source of truth for every
+ * surface's colors AND structure per theme.
+ *
+ * DARK is the default (bare :root): the flat pre-Tidepool look — dark slabs,
+ * near-white text, thin subtle borders, no sticker shadows, system font, coral
+ * + teal accents. Selecting LIGHT (:root[data-theme="light"]) swaps in the full
+ * Tidepool language: warm shell-cream surfaces, 2px ink outlines, sticker
+ * shadows, springy motion, Nunito.
+ *
+ * Because both the Tidepool component classes (.tp-capsule / .tp-bubble /
+ * .tp-chip / .tp-candy / .markdown-message) and the inline Tailwind
+ * arbitrary-value consumers resolve their surface, text, outline, shadow, font
+ * and motion through these tokens, flipping the token set flips the entire
+ * chatbar + pet-chat look with zero Tidepool bleed-through in dark.
+ *
+ * The remaining surfaces (assistant, onboarding, pet-context-menu,
+ * screenshot-question) keep their existing dark look untouched by default and
+ * pick up the --app-* semantic tokens only where they opt into Light. */
+
+:root {
+  /* ---- Tidepool tokens — DARK defaults (flat, pre-Tidepool look) ---- */
+  /* Coral — primary / selected / acting (unchanged across themes) */
+  --tp-coral: #FF8C69;
+  --tp-coral-deep: #F4744C;
+  --tp-coral-tint: rgba(255, 140, 105, 0.16);
+
+  /* Ink — in dark this is the OUTLINE/hairline color, a subtle white */
+  --tp-ink: rgba(255, 255, 255, 0.10);
+  /* Body text — near-white in dark */
+  --tp-text-ink: #F5F5F5;
+
+  /* Shell — surfaces are dark slabs */
+  --tp-shell: #0f0f0f;
+  --tp-shell-deep: #0a0a0a;
+
+  /* Teal — utility / status / links (classic dark teal) */
+  --tp-teal: #2AA9A9;
+  --tp-teal-deep: #4Fc9c9;
+
+  /* Driftwood — secondary text / placeholders (neutral gray in dark) */
+  --tp-driftwood: #a3a3a3;
+
+  /* Structure — flat in dark: thin border, no sticker/candy offset shadow */
+  --tp-outline: 1px solid rgba(255, 255, 255, 0.08);
+  --tp-sticker-shadow: none;
+  --tp-candy-shadow: none;
+  --tp-ambient-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.55);
+
+  /* Motion — plain ease-out in dark (no springy overshoot) */
+  --tp-spring: cubic-bezier(0.22, 0.9, 0.3, 1);
+
+  /* Fonts — system sans in dark (no rounded Nunito signature) */
+  --tp-font-round: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Warm-literal tokens (markdown / scrollbar / selection) — dark values */
+  --tp-hairline: rgba(255, 255, 255, 0.12);
+  --tp-code-bg: rgba(255, 255, 255, 0.05);
+  --tp-code-border: rgba(255, 255, 255, 0.10);
+  --tp-inline-code-bg: rgba(255, 255, 255, 0.08);
+  --tp-scroll-thumb: rgba(255, 255, 255, 0.20);
+  --tp-scroll-thumb-hover: rgba(255, 255, 255, 0.35);
+  --tp-selection: rgba(255, 140, 105, 0.30);
+
+  /* ---- App semantic tokens — DARK defaults (current look, untouched) ---- */
+  --app-bg: #0f0f0f;
+  --app-bg-elevated: #1a1a1a;
+  --app-surface: rgba(255, 255, 255, 0.05);
+  --app-surface-border: rgba(255, 255, 255, 0.08);
+  --app-text: #e5e5e5;
+  --app-text-strong: #ffffff;
+  --app-muted: #a3a3a3;
+  --app-border: rgba(255, 255, 255, 0.10);
+  --app-accent: #FF8C69;
+  --app-accent-contrast: #0f0f0f;
+  /* deeper slab (#0a0a0a input footer), control track (neutral-800),
+   * and translucent hover fill (white/10) — dark values match the literals
+   * they replace so dark is unchanged. */
+  --app-bg-deep: #0a0a0a;
+  --app-track: #262626;
+  --app-surface-hover: rgba(255, 255, 255, 0.10);
+}
+
+:root[data-theme="light"] {
+  /* ---- Tidepool tokens — LIGHT (the CLA-58 Tidepool look) ---- */
+  --tp-coral: #FF8C69;
+  --tp-coral-deep: #F4744C;
+  --tp-coral-tint: #FFE3D7;
+
+  --tp-ink: #8B3A3A;
+  --tp-text-ink: #4A2B26;
+
+  --tp-shell: #FFF9F2;
+  --tp-shell-deep: #FFF1E4;
+
+  --tp-teal: #0E8A8A;
+  --tp-teal-deep: #096B6B;
+
+  --tp-driftwood: #8A5A4E;
+
+  --tp-outline: 2px solid var(--tp-ink);
+  --tp-sticker-shadow: 0 4px 0 rgba(139, 58, 58, 0.3);
+  --tp-candy-shadow: 0 2.5px 0 var(--tp-ink);
+  --tp-ambient-shadow: 0 6px 14px -4px rgba(74, 43, 38, 0.25);
+
+  --tp-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --tp-font-round: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --tp-hairline: rgba(139, 58, 58, 0.30);
+  --tp-code-bg: rgba(139, 58, 58, 0.06);
+  --tp-code-border: rgba(139, 58, 58, 0.25);
+  --tp-inline-code-bg: rgba(139, 58, 58, 0.08);
+  --tp-scroll-thumb: rgba(139, 58, 58, 0.25);
+  --tp-scroll-thumb-hover: rgba(139, 58, 58, 0.40);
+  --tp-selection: var(--tp-coral-tint);
+
+  /* ---- App semantic tokens — LIGHT (Tidepool) ---- */
+  --app-bg: #FFF9F2;
+  --app-bg-elevated: #FFF1E4;
+  --app-surface: #FFFFFF;
+  --app-surface-border: rgba(139, 58, 58, 0.20);
+  --app-text: #4A2B26;
+  --app-text-strong: #4A2B26;
+  --app-muted: #8A5A4E;
+  --app-border: rgba(139, 58, 58, 0.22);
+  --app-accent: #FF8C69;
+  --app-accent-contrast: #FFF9F2;
+  --app-bg-deep: #FFF1E4;
+  --app-track: #E7DDD3;
+  --app-surface-hover: rgba(139, 58, 58, 0.08);
+}

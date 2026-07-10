@@ -232,3 +232,41 @@
     animation: none !important;
   }
 }
+
+/* Tidepool (light theme) overrides — CLA-58. Dark keeps the rules above
+ * untouched; these only apply when :root[data-theme="light"] is set. */
+:root[data-theme="light"] .message-link {
+  color: var(--tp-teal);
+  text-decoration-color: rgba(14, 138, 138, 0.4);
+}
+
+:root[data-theme="light"] .message-link:hover {
+  color: var(--tp-teal-deep);
+  text-decoration-color: rgba(9, 107, 107, 0.8);
+}
+
+:root[data-theme="light"] .markdown-message pre {
+  background: var(--tp-code-bg);
+  border-color: var(--tp-code-border);
+}
+
+:root[data-theme="light"] .markdown-message .md-inline-code {
+  background: var(--tp-inline-code-bg);
+}
+
+:root[data-theme="light"] .markdown-message blockquote {
+  color: var(--app-muted);
+}
+
+:root[data-theme="light"] .markdown-message th,
+:root[data-theme="light"] .markdown-message td {
+  border-color: var(--app-border);
+}
+
+:root[data-theme="light"] .markdown-message th {
+  background: var(--tp-code-bg);
+}
+
+:root[data-theme="light"] .markdown-message hr {
+  border-top-color: var(--app-border);
+}

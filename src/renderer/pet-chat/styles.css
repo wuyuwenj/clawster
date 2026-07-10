@@ -6,7 +6,7 @@
  * (hard ink offset + soft warm ambient). Fully opaque. */
 .tp-bubble {
   background: var(--tp-shell);
-  border: 2.5px solid var(--tp-ink);
+  border: var(--tp-outline);
   border-radius: 20px;
   box-shadow: var(--tp-sticker-shadow), var(--tp-ambient-shadow);
 }

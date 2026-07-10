@@ -17,7 +17,7 @@
  * sticker shadow. */
 .tp-capsule {
   background: var(--tp-shell);
-  border: 2px solid var(--tp-ink);
+  border: var(--tp-outline);
   border-radius: 24px;
   box-shadow: var(--tp-sticker-shadow);
   animation: capsuleIn 300ms var(--tp-spring);

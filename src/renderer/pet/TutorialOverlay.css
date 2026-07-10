@@ -340,3 +340,44 @@
   font-size: 10px;
   color: #ff8c69;
 }
+
+/* ===== Light theme (CLA-58 Tidepool) — additive; dark is untouched ===== */
+html[data-theme="light"] .tutorial-bubble,
+html[data-theme="light"] .tutorial-resume-prompt {
+  background: var(--tp-shell);
+  color: var(--tp-text-ink);
+  border: 2px solid var(--tp-ink);
+  box-shadow:
+    0 4px 0 rgba(139, 58, 58, 0.3),
+    0 6px 14px -4px rgba(74, 43, 38, 0.25);
+}
+
+html[data-theme="light"] .tutorial-bubble-text,
+html[data-theme="light"] .tutorial-resume-title {
+  color: var(--tp-text-ink);
+}
+
+html[data-theme="light"] .tutorial-bubble-arrow {
+  border-top-color: var(--tp-shell);
+}
+
+html[data-theme="light"] .tutorial-progress,
+html[data-theme="light"] .tutorial-buttons,
+html[data-theme="light"] .tutorial-resume-buttons {
+  border-top-color: var(--tp-hairline);
+}
+
+html[data-theme="light"] .tutorial-dot {
+  background: rgba(139, 58, 58, 0.25);
+}
+
+html[data-theme="light"] .tutorial-resume-btn.secondary {
+  background: var(--tp-coral-tint);
+  border-color: var(--tp-ink);
+  color: var(--tp-text-ink);
+}
+
+html[data-theme="light"] .kbd {
+  background: var(--tp-coral-tint);
+  border-color: var(--tp-ink);
+}

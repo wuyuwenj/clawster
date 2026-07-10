@@ -8,6 +8,16 @@
   --text-secondary: #a0a0a0;
 }
 
+:root[data-theme="light"] {
+  --salmon: #FF8C69;
+  --dark-red: #8B3A3A;
+  --teal: #0E8A8A;
+  --bg-dark: #FFF9F2;
+  --bg-input: #FFF1E4;
+  --text-primary: #4A2B26;
+  --text-secondary: #8A5A4E;
+}
+
 .screenshot-container {
   width: 100%;
   height: 100%;
