@@ -1,0 +1,33 @@
+
+ RUN  v4.1.9 /Users/jamesww/.treehouse/clawster-remove-openclaw-4827a9/4/clawster-remove-openclaw
+
+(node:84859) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/jamesww/.treehouse/clawster-remove-openclaw-4827a9/4/clawster-remove-openclaw/postcss.config.js?t=1783714249545 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/jamesww/.treehouse/clawster-remove-openclaw-4827a9/4/clawster-remove-openclaw/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ test/pet-movement-crash.test.ts (1 test | 1 failed) 5ms
+     × never hands -0 to the native setPosition when y eases across the top screen edge 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/pet-movement-crash.test.ts > animateMoveTo — negative-zero crash (CLA-56) > never hands -0 to the native setPosition when y eases across the top screen edge
+TypeError: Error processing argument at index 1, conversion failure from 0
+ ❯ test/pet-movement-crash.test.ts:29:13
+     27|   [x, y].forEach((v, i) => {
+     28|     if (!Number.isInteger(v) || Object.is(v, -0)) {
+     29|       throw new TypeError(`Error processing argument at index ${i}, co…
+       |             ^
+     30|     }
+     31|   });
+ ❯ nativeSetPositionValidation test/pet-movement-crash.test.ts:27:10
+ ❯ Object.<anonymous> test/pet-movement-crash.test.ts:44:7
+ ❯ src/main/pet-behaviors.ts:100:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  13:10:49
+   Duration  129ms (transform 23ms, setup 0ms, import 30ms, tests 5ms, environment 0ms)
+
