@@ -39,7 +39,9 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Auto-Update** | In-app banner when a new version is available | — |
 | **Customizable Personality** | Edit IDENTITY.md and SOUL.md to shape behavior | — |
 | **Attention Seeking** | Scuttles toward your cursor when feeling lonely | — |
-| **Emote Speech Bubbles** | Little frosted-glass bubbles when the pet emotes — "Boo!", "Wheee!", "zzz" | — |
+| **Drag Reactions** | Pick the pet up and it looks confused before settling in — fling it fast and it sometimes startles. Grab it mid-scuttle and it digs in its claws before giving in | — |
+| **Click Irritation** | Poke it five times in a few seconds and it huffs; keep going and it snips its claws in a full tantrum until you leave it alone | — |
+| **Emote Speech Bubbles** | Little frosted-glass bubbles when the pet emotes — "Boo!", "Wheee!", "Hmph!", "zzz" | — |
 | **Guided Onboarding** | Setup wizard with permission grants, no terminal required | — |
 
 ## Animations

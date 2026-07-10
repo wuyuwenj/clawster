@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld('clawster', {
 
   // Pet dragging
   dragPet: (deltaX: number, deltaY: number) => ipcRenderer.send('pet-drag', deltaX, deltaY),
+  // Cancels an in-flight autonomous move so it stops overwriting the dragged
+  // position. Sent once, on the event a drag begins during a walk.
   petDragTakeOver: () => ipcRenderer.send('pet-drag-take-over'),
   // Pet chat popup
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) =>

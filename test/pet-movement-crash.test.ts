@@ -15,7 +15,7 @@ vi.mock('electron-store', () => ({
   default: vi.fn().mockImplementation(() => ({ get: vi.fn(), set: vi.fn() })),
 }));
 
-import { animateMoveTo, initPetBehaviors, clearMoveAnimation, areUsableCoords } from '../src/main/pet-behaviors';
+import { animateMoveTo, initPetBehaviors, stopMoveAnimation, areUsableCoords } from '../src/main/pet-behaviors';
 import { resolvePetStartPosition, clampPetPosition } from '../src/main/windows';
 
 // Faithful emulation of Electron's native win.setPosition argument conversion
@@ -69,7 +69,7 @@ describe('animateMoveTo — negative-zero crash (CLA-56)', () => {
   });
 
   afterEach(() => {
-    clearMoveAnimation();
+    stopMoveAnimation();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
