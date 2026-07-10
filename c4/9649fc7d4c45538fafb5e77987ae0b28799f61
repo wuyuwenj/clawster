@@ -1,0 +1,23 @@
+README.md
+  s_9df8f1d9f7aa8f::t_9ce3b9a47968ac 179,181-182
+AGENTS.md
+  s_9df8f1d9f7aa8f::t_5780b87f109237 74
+  s_9df8f1d9f7aa8f::t_2caee96fbb1153 73
+  s_9df8f1d9f7aa8f::t_fd86b6f58084a8 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c49649fc7d4c45538fafb5e77987ae0b28799f61",
+  "prompts": {},
+  "sessions": {
+    "s_9df8f1d9f7aa8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd000223-637f-427e-bd91-e15007996f47",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

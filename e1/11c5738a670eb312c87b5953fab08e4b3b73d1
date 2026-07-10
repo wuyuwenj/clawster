@@ -1,0 +1,21 @@
+e2e/cla58-tidepool-restyle.spec.ts
+  s_c1c7df093aac19::t_678cbc85083503 90-92
+e2e/cla50-feedback-thumbs-timing.spec.ts
+  s_c1c7df093aac19::t_2503a81396456a 45-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e111c5738a670eb312c87b5953fab08e4b3b73d1",
+  "prompts": {},
+  "sessions": {
+    "s_c1c7df093aac19": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54e276f7-b034-4bf3-97c3-073a48300bdc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

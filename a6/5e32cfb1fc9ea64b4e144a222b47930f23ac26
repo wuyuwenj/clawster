@@ -1,0 +1,68 @@
+src/renderer/pet/Pet.tsx
+  s_d909f4656e57c0::t_ae1017047fdd6f 832,837,841
+  s_d909f4656e57c0::t_9037cb1f41ff83 788
+src/main/preload.ts
+  s_d909f4656e57c0::t_66b155bb13aef6 363-365
+src/renderer/pet/click-irritation.ts
+  s_d909f4656e57c0::t_4c3215e49e036e 7-8,24,27-36,42,45-54,56,59-60,63,73
+test/click-irritation.test.ts
+  s_d909f4656e57c0::t_0a1dd92e3a5ed6 189,196-197
+  s_d909f4656e57c0::t_440707bb02cd92 11-13
+  s_d909f4656e57c0::t_a0506dbea8606f 77,93,145,150,201,204,236,239,247
+  s_d909f4656e57c0::t_30526a08f57b70 214
+  s_d909f4656e57c0::t_5447dec79711bc 256-286
+  s_9df8f1d9f7aa8f::t_094beb7c55eda2 14
+src/main/tutorial.ts
+  s_d909f4656e57c0::t_d515e6db936241 48
+  s_d909f4656e57c0::t_54d120c28ed183 66
+  s_d909f4656e57c0::t_d6e6a37d15e93a 4
+src/renderer/pet/drag-interactions.ts
+  s_d909f4656e57c0::t_d4232f91e7b4b4 135-139,141
+  s_d909f4656e57c0::t_df7998d9819b6d 151
+  s_d909f4656e57c0::t_4a89a4a1409efb 171
+  s_d909f4656e57c0::t_b7547c943481b1 119
+src/renderer/vite-env.d.ts
+  s_d909f4656e57c0::t_489f2536177834 102-104
+src/main/main.ts
+  s_d909f4656e57c0::t_29e8945d825983 1120,1122,1127-1128,1133-1134
+test/drag-interactions.test.ts
+  s_d909f4656e57c0::t_2a863c8b4fced6 280-311,322-326
+  s_d909f4656e57c0::t_becff4d04bb587 327
+test/pet-move-animation.test.ts
+  s_d909f4656e57c0::t_ca2b5629c921b8 61-71
+  s_d909f4656e57c0::t_74cedf47785923 126,129
+src/main/pet-behaviors.ts
+  s_d909f4656e57c0::t_de9ff10f47bc64 413,417-418
+  s_d909f4656e57c0::t_8134a32d14e640 380,391
+  s_d909f4656e57c0::t_6a085b45a9a595 206
+  s_d909f4656e57c0::t_f2d825b6db3da0 248,252-254,256-260
+  s_d909f4656e57c0::t_4e88393ccab499 353-355,357,360
+  s_d909f4656e57c0::t_3695e0125d367a 22-25
+  s_d909f4656e57c0::t_e4805b02f106e6 104
+  s_d909f4656e57c0::t_c790623ad00d51 122
+  s_d909f4656e57c0::t_3fd258a96823e7 72-74,81,85,89,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a65e32cfb1fc9ea64b4e144a222b47930f23ac26",
+  "prompts": {},
+  "sessions": {
+    "s_9df8f1d9f7aa8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd000223-637f-427e-bd91-e15007996f47",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_d909f4656e57c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7e9fd612-3d2f-4ed5-aeab-c14c613ca78f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
