@@ -76,6 +76,12 @@ export const SPEECH_HELPER_STARTUP_TIMEOUT_MS = 30_000;
 export const SPEECH_HELPER_TIMEOUT_USER_MESSAGE =
   "Clawster's voice took too long to wake up — tap the mic to try again.";
 
+/**
+ * A helper wedged inside a driver call is precisely one that may never act on
+ * SIGTERM, and it holds the microphone and its whisper context until it dies.
+ */
+export const SPEECH_HELPER_SIGKILL_DELAY_MS = 3_000;
+
 /** Only an intact (or unremovable) cached model makes a retry pointless. */
 export function speechModelVerdictMessage(verdict: WhisperModelVerdict): string {
   return verdict === 'unrecoverable'
@@ -181,10 +187,18 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     let startupSettled = false;
     let modelVerification: Promise<WhisperModelVerdict> | null = null;
     let buffer = '';
+    let closed = false;
+    let sigkillTimer: NodeJS.Timeout | null = null;
 
     speechProcess = child;
     speechHelperReady = false;
     speechProcessExitExpected = false;
+
+    // The startup timeout can abandon a child that is still alive, so a later
+    // helper may already own the module state. Everything this child's listeners
+    // touch — the globals, the renderer, the startup slot — belongs to whoever
+    // `speechProcess` names now.
+    const isCurrentChild = () => speechProcess === child;
 
     // The model-load path settles asynchronously, so a newer startup may already
     // own the module slot by then; never clear someone else's.
@@ -192,12 +206,32 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
       if (speechHelperStartup === startupPromise) speechHelperStartup = null;
     };
 
+    const clearSigkillTimer = () => {
+      if (sigkillTimer) clearTimeout(sigkillTimer);
+      sigkillTimer = null;
+    };
+
+    const terminate = () => {
+      if (!child.killed) child.kill();
+      clearSigkillTimer();
+      sigkillTimer = setTimeout(() => {
+        if (!closed) child.kill('SIGKILL');
+      }, SPEECH_HELPER_SIGKILL_DELAY_MS);
+      sigkillTimer.unref?.();
+    };
+
     // Without this, a helper that neither reports `ready` nor exits — a wedged GPU
     // driver, say — leaves this promise pending forever. It is cached, so every
     // later `speech-start` awaits the same dead promise and never returns.
     const startupTimer = setTimeout(() => {
-      speechProcessExitExpected = true;
-      if (!child.killed) child.kill();
+      // Disown the wedged child before killing it: its `close` may land after the
+      // next mic press has spawned a replacement, and `speech-stop` must not write
+      // to a process that is on its way out.
+      if (isCurrentChild()) {
+        speechProcess = null;
+        speechHelperReady = false;
+      }
+      terminate();
       rejectStartup(new Error(SPEECH_HELPER_TIMEOUT_USER_MESSAGE));
     }, SPEECH_HELPER_STARTUP_TIMEOUT_MS);
     startupTimer.unref?.();
@@ -219,6 +253,7 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     };
 
     child.stdout?.on('data', (data: Buffer) => {
+      if (!isCurrentChild()) return;
       buffer += data.toString();
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
@@ -254,6 +289,8 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
 
     child.on('error', (err) => {
       console.error('speech-helper spawn error:', err);
+      clearSigkillTimer();
+      if (!isCurrentChild()) return;
       const sender = getSpeechEventSender();
       const shouldNotify = speechSessionActive && !speechProcessExitExpected && startupSettled;
       resetSpeechHelperState();
@@ -267,6 +304,10 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
     // and `exit` can fire before that line has been read off the pipe. Only `close`
     // guarantees stdout has been drained, so `modelVerification` is settled here.
     child.on('close', (code, signal) => {
+      closed = true;
+      clearSigkillTimer();
+      if (!isCurrentChild()) return;
+
       const sender = getSpeechEventSender();
       const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
 

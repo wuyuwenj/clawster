@@ -17,6 +17,7 @@ vi.mock('../src/main/whisper-model', () => ({
 import { spawn } from 'child_process';
 import { verifyCachedWhisperModel } from '../src/main/whisper-model';
 import {
+  SPEECH_HELPER_SIGKILL_DELAY_MS,
   SPEECH_HELPER_STARTUP_TIMEOUT_MS,
   SPEECH_HELPER_TIMEOUT_USER_MESSAGE,
   SPEECH_MODEL_LOAD_USER_MESSAGE,
@@ -28,6 +29,7 @@ import {
   isSpeechSessionActive,
   isSpeechStartPending,
   getSpeechEventSender,
+  getSpeechProcess,
   resetSpeechHelperState,
   setSpeechSender,
   setSpeechSessionActive,
@@ -361,6 +363,76 @@ describe('ensureSpeechHelper startup timeout', () => {
 
   it('keeps the timeout message free of any file path', () => {
     expect(SPEECH_HELPER_TIMEOUT_USER_MESSAGE).not.toMatch(/\//);
+  });
+
+  it('escalates to SIGKILL when the wedged helper ignores SIGTERM', async () => {
+    const child = fakeChild();
+    const startup = ensureSpeechHelper().catch((error: Error) => error);
+
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_STARTUP_TIMEOUT_MS);
+    await startup;
+    expect(child.kill).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_SIGKILL_DELAY_MS);
+
+    expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+  });
+
+  it('cancels the pending SIGKILL once the helper does exit', async () => {
+    const child = fakeChild();
+    const startup = ensureSpeechHelper().catch((error: Error) => error);
+
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_STARTUP_TIMEOUT_MS);
+    await startup;
+    child.emit('close', null, 'SIGTERM');
+
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_SIGKILL_DELAY_MS);
+
+    expect(child.kill).toHaveBeenCalledTimes(1);
+    expect(child.kill).not.toHaveBeenCalledWith('SIGKILL');
+  });
+
+  it('ignores a superseded helper’s close, so it cannot tear down the live session', async () => {
+    const wedged = fakeChild();
+    const abandoned = ensureSpeechHelper().catch((error: Error) => error);
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_STARTUP_TIMEOUT_MS);
+    await abandoned;
+
+    // The next mic press gets a healthy helper while the wedged one is still dying.
+    const fresh = fakeChild();
+    const startup = ensureSpeechHelper();
+    fresh.stdout.emit('data', Buffer.from('{"type":"status","state":"ready"}\n'));
+    await expect(startup).resolves.toBe(fresh);
+
+    const sender = fakeSender();
+    beginSession(sender);
+    handleSpeechHelperMessage({ type: 'status', state: 'recording' });
+
+    wedged.emit('close', null, 'SIGTERM');
+
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(isSpeechSessionActive()).toBe(true);
+    expect(getSpeechProcess()).toBe(fresh);
+    expect(getSpeechEventSender()).toBe(sender);
+  });
+
+  it('drops stdout from a superseded helper', async () => {
+    const wedged = fakeChild();
+    const abandoned = ensureSpeechHelper().catch((error: Error) => error);
+    await vi.advanceTimersByTimeAsync(SPEECH_HELPER_STARTUP_TIMEOUT_MS);
+    await abandoned;
+
+    const fresh = fakeChild();
+    const startup = ensureSpeechHelper();
+    fresh.stdout.emit('data', Buffer.from('{"type":"status","state":"ready"}\n'));
+    await expect(startup).resolves.toBe(fresh);
+
+    const sender = fakeSender();
+    beginSession(sender);
+    wedged.stdout.emit('data', Buffer.from('{"type":"final","text":" ghost"}\n'));
+
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(isSpeechSessionActive()).toBe(true);
   });
 });
 
