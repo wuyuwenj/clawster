@@ -64,6 +64,7 @@ export function isWhisperModelInstalled(modelPath = whisperModelPath()): boolean
 /** Removes the cached model so the next attempt re-downloads it. */
 export function deleteWhisperModel(modelPath = whisperModelPath()): void {
   fs.rmSync(modelPath, { force: true });
+  unrecoverableModel = false;
 }
 
 /**
@@ -78,6 +79,12 @@ export type WhisperModelVerdict = 'absent' | 'corrupt' | 'unrecoverable';
 
 let corruptionCheck: Promise<WhisperModelVerdict> | null = null;
 
+// A model whose bytes match the checksum and still will not load cannot be
+// fixed by a fresh copy, and those bytes provably do not change on their own.
+// Re-hashing ~148 MB on the main process for every later mic press could only
+// reach the same verdict, so the answer is remembered until the file changes.
+let unrecoverableModel = false;
+
 async function verifyAndDelete(
   spec: WhisperModelSpec,
   modelPath: string
@@ -91,7 +98,10 @@ async function verifyAndDelete(
     return 'unrecoverable';
   }
 
-  if (actual === spec.sha256) return 'unrecoverable';
+  if (actual === spec.sha256) {
+    unrecoverableModel = true;
+    return 'unrecoverable';
+  }
 
   try {
     deleteWhisperModel(modelPath);
@@ -109,12 +119,14 @@ async function verifyAndDelete(
  * would re-download ~148 MB on every mic press without ever succeeding.
  *
  * Hashing ~148 MB outlives the helper's exit, so overlapping mic presses share
- * one pass rather than each starting their own. Never rejects.
+ * one pass rather than each starting their own, and an intact-but-unusable model
+ * answers from memory. Never rejects.
  */
 export function verifyCachedWhisperModel(
   spec: WhisperModelSpec = WHISPER_MODEL,
   modelPath = whisperModelPath()
 ): Promise<WhisperModelVerdict> {
+  if (unrecoverableModel) return Promise.resolve('unrecoverable');
   if (corruptionCheck) return corruptionCheck;
 
   const check = verifyAndDelete(spec, modelPath).finally(() => {
@@ -218,6 +230,8 @@ export async function downloadModel(
     }
 
     fs.renameSync(tempPath, finalPath);
+    // Fresh bytes, so any earlier verdict about the cached model no longer holds.
+    unrecoverableModel = false;
     return finalPath;
   } catch (error) {
     fs.rmSync(tempPath, { force: true });
@@ -240,6 +254,7 @@ export function resetWhisperModelState(): void {
   activeDownload = null;
   lastError = null;
   corruptionCheck = null;
+  unrecoverableModel = false;
 }
 
 /**

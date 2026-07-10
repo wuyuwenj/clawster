@@ -254,6 +254,53 @@ describe('verifyCachedWhisperModel', () => {
     }
   });
 
+  it('remembers an unrecoverable verdict rather than re-hashing 148 MB per mic press', async () => {
+    fs.writeFileSync(modelPath(), body);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('unrecoverable');
+
+    // A second hashing pass over a now-missing file would report `absent`, so an
+    // unchanged verdict proves the bytes were not read again.
+    fs.rmSync(modelPath());
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('unrecoverable');
+  });
+
+  it('forgets an unrecoverable verdict once the model is deleted through deleteWhisperModel', async () => {
+    fs.writeFileSync(modelPath(), body);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('unrecoverable');
+
+    deleteWhisperModel(modelPath());
+
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('absent');
+  });
+
+  it('forgets an unrecoverable verdict once the model is re-downloaded', async () => {
+    fs.writeFileSync(modelPath(), body);
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('unrecoverable');
+
+    vi.stubGlobal('fetch', vi.fn(async () => fakeResponse(body)));
+    await downloadModel(spec, dataDir);
+
+    fs.writeFileSync(modelPath(), 'corrupted in place');
+    await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('corrupt');
+  });
+
+  it('does not memoize a corrupt model that resisted deletion, so a later press can retry', async () => {
+    const lockedDir = path.join(dataDir, 'stuck');
+    const lockedModel = path.join(lockedDir, spec.name);
+    fs.mkdirSync(lockedDir);
+    fs.writeFileSync(lockedModel, 'corrupted in place');
+    fs.chmodSync(lockedDir, 0o555);
+
+    try {
+      await expect(verifyCachedWhisperModel(spec, lockedModel)).resolves.toBe('unrecoverable');
+    } finally {
+      fs.chmodSync(lockedDir, 0o755);
+    }
+
+    await expect(verifyCachedWhisperModel(spec, lockedModel)).resolves.toBe('corrupt');
+    expect(fs.existsSync(lockedModel)).toBe(false);
+  });
+
   it('retries on a later call once an earlier pass has settled', async () => {
     fs.writeFileSync(modelPath(), 'corrupted in place');
     await expect(verifyCachedWhisperModel(spec, modelPath())).resolves.toBe('corrupt');
@@ -294,6 +341,23 @@ describe('ensureWhisperModel', () => {
 
     await expect(verification).resolves.toBe('corrupt');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('never shows the setting-up state again once the cached model is known unusable', async () => {
+    writeSparseModel();
+    const intact = { ...WHISPER_MODEL, sha256: await fileSha256(whisperModelPath()) };
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(verifyCachedWhisperModel(intact, whisperModelPath())).resolves.toBe('unrecoverable');
+
+    // The second press answers from memory, so no verification is in flight to hide
+    // `ready` behind a "Setting up voice…" message that promises a download.
+    const second = verifyCachedWhisperModel(intact, whisperModelPath());
+    expect(ensureWhisperModel()).toEqual({ status: 'ready', modelPath: whisperModelPath() });
+    await expect(second).resolves.toBe('unrecoverable');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fs.existsSync(whisperModelPath())).toBe(true);
   });
 
   it('starts a background download and reports progress instead of blocking', async () => {
