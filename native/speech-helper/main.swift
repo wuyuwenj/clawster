@@ -66,6 +66,46 @@ func emitError(_ message: String) {
     emit(["type": "error", "message": message])
 }
 
+// MARK: - Backend log capture
+
+// whisper.cpp and ggml log to stderr by default, which is far too noisy to leave
+// on. Their messages are the only description of *why* a model fails to load —
+// Metal backend init, an allocation failure, a sandbox denial — and the parent
+// process reduces that to one opaque error. So they are kept in a small ring and
+// replayed to stderr (never stdout, which carries the JSON protocol) if the load
+// fails. A successful run stays as quiet as before.
+let kLogRingCapacity = 20
+let logRingLock = NSLock()
+var logRing: [String] = []
+var captureBackendLogs = true
+
+func recordBackendLog(_ text: UnsafePointer<CChar>?) {
+    guard let text = text else { return }
+
+    logRingLock.lock()
+    defer { logRingLock.unlock() }
+    // Transcription logs on whisper's own threads; past model load there is no
+    // reader, so bail before paying for a String.
+    guard captureBackendLogs else { return }
+
+    let line = String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !line.isEmpty else { return }
+    logRing.append(line)
+    if logRing.count > kLogRingCapacity {
+        logRing.removeFirst(logRing.count - kLogRingCapacity)
+    }
+}
+
+func flushBackendLogsToStderr() {
+    logRingLock.lock()
+    let lines = logRing
+    logRingLock.unlock()
+    for line in lines {
+        fputs("whisper: \(line)\n", stderr)
+    }
+    fflush(stderr)
+}
+
 // MARK: - Permission Check
 
 func checkPermissions() {
@@ -300,8 +340,11 @@ final class SpeechManager {
         guard isRecording else { return }
 
         guard rms >= kVoiceRMSThreshold else {
+            // The hangover only decides whether a run survives long enough to arm;
+            // once armed, nothing reads it and the silence timeout takes over.
+            guard !heardVoice else { return }
             silentSamples += frames
-            if !heardVoice && silentSamples > kVoiceHangoverSamples {
+            if silentSamples > kVoiceHangoverSamples {
                 voicedSamples = 0
             }
             return
@@ -496,10 +539,10 @@ if CommandLine.arguments.contains("--check-permissions") {
     exit(0)
 }
 
-// whisper.cpp and ggml log to stderr by default; silence them so the parent
-// process only sees real failures.
-whisper_log_set({ _, _, _ in }, nil)
-ggml_log_set({ _, _, _ in }, nil)
+// Divert whisper.cpp and ggml away from stderr into the ring buffer, so the
+// parent process only sees real failures — and, when one happens, why.
+whisper_log_set({ _, text, _ in recordBackendLog(text) }, nil)
+ggml_log_set({ _, text, _ in recordBackendLog(text) }, nil)
 
 guard let modelPath = argumentValue("--model") else {
     emitError("Missing --model <path> argument")
@@ -507,9 +550,16 @@ guard let modelPath = argumentValue("--model") else {
 }
 
 guard let engine = WhisperEngine(modelPath: modelPath) else {
+    flushBackendLogsToStderr()
     emitError("Failed to load the speech model at \(modelPath)")
     exit(1)
 }
+
+// Past model load there is nothing left to diagnose, so stop paying for capture.
+logRingLock.lock()
+captureBackendLogs = false
+logRing.removeAll()
+logRingLock.unlock()
 
 if let audioPath = argumentValue("--transcribe-file") {
     transcribeFile(engine, path: audioPath)

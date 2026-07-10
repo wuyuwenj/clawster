@@ -17,6 +17,7 @@ import { verifyCachedWhisperModel } from '../src/main/whisper-model';
 import {
   SPEECH_MODEL_LOAD_USER_MESSAGE,
   SPEECH_MODEL_UNAVAILABLE_USER_MESSAGE,
+  SPEECH_NO_SPEECH_USER_MESSAGE,
   ensureSpeechHelper,
   handleSpeechHelperMessage,
   isSpeechModelLoadFailure,
@@ -92,9 +93,30 @@ describe('handleSpeechHelperMessage', () => {
     const sender = fakeSender();
     beginSession(sender);
 
-    handleSpeechHelperMessage({ type: 'final', text: ' [BLANK_AUDIO]' });
+    handleSpeechHelperMessage({ type: 'final', text: ' hey [BLANK_AUDIO] clawster' });
 
-    expect(sender.send).toHaveBeenCalledWith('speech-result', { type: 'final', text: '' });
+    expect(sender.send).toHaveBeenCalledWith('speech-result', {
+      type: 'final',
+      text: 'hey clawster',
+    });
+  });
+
+  it('signals an annotation-only final instead of delivering an empty transcript', () => {
+    const sender = fakeSender();
+    beginSession(sender);
+
+    // Music, a cough or a door slam arms the helper's voice gate, then decodes to
+    // annotations only. Forwarding "" would turn the mic off and do nothing else.
+    handleSpeechHelperMessage({ type: 'final', text: ' (upbeat music)' });
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(sender.send).toHaveBeenCalledWith('speech-error', {
+      type: 'error',
+      message: SPEECH_NO_SPEECH_USER_MESSAGE,
+    });
+    expect(isSpeechSessionActive()).toBe(false);
+    expect(isSpeechStartPending()).toBe(false);
+    expect(getSpeechEventSender()).toBeNull();
   });
 
   it('ignores the transcribing status the helper emits between stop and final', () => {
@@ -199,9 +221,26 @@ describe('ensureSpeechHelper startup failures', () => {
 
     emitLine(child, MODEL_LOAD_ERROR);
     child.emit('exit', 1, null);
+    child.emit('close', 1, null);
 
     return (await startup) as Error;
   }
+
+  it('surfaces the friendly message even when exit beats the stdout line', async () => {
+    vi.mocked(verifyCachedWhisperModel).mockResolvedValue('corrupt');
+    const child = fakeChild();
+    const startup = ensureSpeechHelper().catch((error: Error) => error);
+
+    // Node makes no promise that buffered stdout is delivered before `exit`; the
+    // helper flushes its error and exits in the same breath. `close` is the only
+    // event that follows both.
+    child.emit('exit', 1, null);
+    emitLine(child, MODEL_LOAD_ERROR);
+    child.emit('close', 1, null);
+
+    const error = (await startup) as Error;
+    expect(error.message).toBe(SPEECH_MODEL_LOAD_USER_MESSAGE);
+  });
 
   it('tells the user to retry once the corrupt model has been removed', async () => {
     vi.mocked(verifyCachedWhisperModel).mockResolvedValue('corrupt');
@@ -250,6 +289,7 @@ describe('ensureSpeechHelper startup failures', () => {
     const startup = ensureSpeechHelper().catch((error: Error) => error);
 
     child.emit('exit', 1, null);
+    child.emit('close', 1, null);
 
     const error = await startup;
     expect((error as Error).message).toBe('Speech helper exited unexpectedly (code 1)');

@@ -53,6 +53,14 @@ export const SPEECH_MODEL_LOAD_USER_MESSAGE =
   "Clawster's voice needs setting up again — tap the mic to retry.";
 
 /**
+ * Shown whenever a recording yields nothing usable. The helper emits this exact
+ * text when its voice-activity gate never armed; whisper can also decode a
+ * detected-voice recording (music, a cough, a door slam) to annotations that
+ * `sanitizeTranscript` reduces to nothing, and that must not fail silently either.
+ */
+export const SPEECH_NO_SPEECH_USER_MESSAGE = "I didn't catch that — try again!";
+
+/**
  * The model is intact, so whisper failed for a reason retrying cannot fix — a
  * Metal backend that will not initialise, an OOM, a sandbox denial.
  */
@@ -112,7 +120,12 @@ export function handleSpeechHelperMessage(msg: any): void {
       speechStartPending = false;
       speechSessionActive = false;
       if (sender) {
-        sender.send('speech-result', result);
+        // An empty transcript reaches the renderer as "nothing happened at all".
+        if (result.text) {
+          sender.send('speech-result', result);
+        } else {
+          sender.send('speech-error', { type: 'error', message: SPEECH_NO_SPEECH_USER_MESSAGE });
+        }
       }
       speechSender = null;
       return;
@@ -228,7 +241,10 @@ export function ensureSpeechHelper(): Promise<ChildProcess> {
       }
     });
 
-    child.on('exit', (code, signal) => {
+    // `close`, not `exit`: the helper writes its JSON error line and exits at once,
+    // and `exit` can fire before that line has been read off the pipe. Only `close`
+    // guarantees stdout has been drained, so `modelVerification` is settled here.
+    child.on('close', (code, signal) => {
       const sender = getSpeechEventSender();
       const shouldNotify = !speechProcessExitExpected && speechSessionActive && startupSettled;
 
