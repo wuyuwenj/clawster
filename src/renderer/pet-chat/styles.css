@@ -12,16 +12,24 @@
 }
 
 /* Squash-and-stretch entrance from the pet: transform origin sits at the
- * tail tip so the bubble springs out of Clawster, overshoots, then settles.
- * Plays once per message — idle chrome never loops. */
+ * tail tip so the bubble springs out of Clawster, squashes wide, then settles.
+ * Plays once per message — idle chrome never loops.
+ *
+ * The window is sized to the content box, so only `pt-1` (4px) sits above the
+ * bubble. Any scaleY over 1 lifts the top edge by (scaleY - 1) * (h + 13) and
+ * the ink outline clips, so the bounce stays wide-and-short. `--tp-spring` is
+ * a back-out curve (peaks ~1.098) and CSS runs it per keyframe segment, hence
+ * the plain ease on the growth leg. */
 @keyframes popupIn {
   0% {
     opacity: 0;
     transform: scale(0.45, 0.3) translateY(4px);
+    animation-timing-function: cubic-bezier(0.22, 0.9, 0.3, 1);
   }
-  65% {
+  70% {
     opacity: 1;
-    transform: scale(1.03, 1.06);
+    transform: scale(1.03, 0.98);
+    animation-timing-function: var(--tp-spring);
   }
   100% {
     opacity: 1;

@@ -329,7 +329,7 @@ export const PetChat: React.FC = () => {
                   </div>
                 )}
 
-                {/* Feedback thumbs — desaturated corner, quieter than the chips */}
+                {/* Feedback thumbs — a quiet corner, but legible at rest without hover */}
                 <div className="flex items-center justify-end gap-0.5 pt-1">
                   {feedbackSent && (
                     <span className="text-[11px] text-[var(--tp-driftwood)] mr-1">
@@ -342,8 +342,8 @@ export const PetChat: React.FC = () => {
                     className={`p-0.5 rounded text-[11px] transition-all ${
                       feedbackSent === 'positive'
                         ? 'opacity-100'
-                        : feedbackSent ? 'grayscale opacity-30 cursor-default'
-                        : 'grayscale opacity-40 hover:grayscale-0 hover:opacity-100'
+                        : feedbackSent ? 'opacity-40 cursor-default'
+                        : 'opacity-75 hover:opacity-100 hover:scale-110'
                     }`}
                     title="Good response"
                   >👍</button>
@@ -353,8 +353,8 @@ export const PetChat: React.FC = () => {
                     className={`p-0.5 rounded text-[11px] transition-all ${
                       feedbackSent === 'negative'
                         ? 'opacity-100'
-                        : feedbackSent ? 'grayscale opacity-30 cursor-default'
-                        : 'grayscale opacity-40 hover:grayscale-0 hover:opacity-100'
+                        : feedbackSent ? 'opacity-40 cursor-default'
+                        : 'opacity-75 hover:opacity-100 hover:scale-110'
                     }`}
                     title="Wrong response"
                   >👎</button>
