@@ -1,0 +1,121 @@
+/* Onboarding-only theme overrides (CLA-58 Light theme).
+ *
+ * These classes exist alongside the semantic --app-* tokens from
+ * ../styles/theme.css for the handful of colors onboarding uses that have no
+ * 1:1 token (translucent neutral-900 card fills, hairline/strong white
+ * borders at non-token opacities, success-green states, etc). Each rule's
+ * base (unscoped) declaration is byte-identical to the literal Tailwind
+ * class it replaces, so dark is pixel-unchanged; the
+ * :root[data-theme="light"] override supplies the Tidepool equivalent. */
+
+/* Translucent card surfaces (was bg-neutral-900/NN) */
+.ob-surface-60 { background-color: rgba(23, 23, 23, 0.6); }
+.ob-surface-50 { background-color: rgba(23, 23, 23, 0.5); }
+.ob-surface-30 { background-color: rgba(23, 23, 23, 0.3); }
+:root[data-theme="light"] .ob-surface-60,
+:root[data-theme="light"] .ob-surface-50,
+:root[data-theme="light"] .ob-surface-30 {
+  background-color: var(--app-surface);
+}
+
+/* Icon chip / solid badge surfaces (was bg-neutral-800/50 and bg-neutral-800) */
+.ob-surface-icon { background-color: rgba(38, 38, 38, 0.5); }
+.ob-surface-badge { background-color: #262626; }
+:root[data-theme="light"] .ob-surface-icon,
+:root[data-theme="light"] .ob-surface-badge {
+  background-color: var(--app-bg-elevated);
+}
+
+/* Hairline / strong borders at opacities with no matching --app-border token */
+.ob-border-hairline { border-color: rgba(255, 255, 255, 0.05); }
+:root[data-theme="light"] .ob-border-hairline { border-color: var(--app-surface-border); }
+
+.ob-border-strong { border-color: rgba(255, 255, 255, 0.20); }
+:root[data-theme="light"] .ob-border-strong { border-color: rgba(139, 58, 58, 0.35); }
+
+/* kbd key chip (was bg-white/10 border-white/10) */
+.ob-chip {
+  background-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:root[data-theme="light"] .ob-chip {
+  background-color: var(--app-bg-elevated);
+  border-color: var(--app-border);
+}
+
+/* Skip button hover fill (was hover:bg-white/5) */
+.ob-hover-surface:hover { background-color: rgba(255, 255, 255, 0.05); }
+:root[data-theme="light"] .ob-hover-surface:hover { background-color: rgba(139, 58, 58, 0.08); }
+
+/* Action footer background (was bg-[#0f0f0f]/90) */
+.ob-footer-bg { background-color: rgba(15, 15, 15, 0.9); }
+:root[data-theme="light"] .ob-footer-bg { background-color: rgba(255, 249, 242, 0.9); }
+
+/* Inactive progress dot (was bg-neutral-700) */
+.ob-progress-inactive { background-color: #404040; }
+:root[data-theme="light"] .ob-progress-inactive { background-color: var(--app-border); }
+
+/* Secondary/tertiary body text (was text-neutral-300 / text-neutral-500) */
+.ob-text-tertiary { color: #d4d4d4; }
+:root[data-theme="light"] .ob-text-tertiary { color: var(--app-text); }
+
+.ob-text-quaternary { color: #737373; }
+:root[data-theme="light"] .ob-text-quaternary { color: var(--app-muted); }
+
+/* VibeStep unselected preset card, incl. hover state */
+.ob-card {
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background-color: rgba(23, 23, 23, 0.5);
+}
+.ob-card:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+  background-color: #171717;
+}
+:root[data-theme="light"] .ob-card {
+  border-color: var(--app-border);
+  background-color: var(--app-surface);
+}
+:root[data-theme="light"] .ob-card:hover {
+  border-color: rgba(139, 58, 58, 0.35);
+  background-color: var(--app-bg-elevated);
+}
+
+/* ReadyStep "launch on startup" checkbox (was border-white/20 bg-neutral-900) */
+.ob-checkbox {
+  border-color: rgba(255, 255, 255, 0.20);
+  background-color: #171717;
+}
+:root[data-theme="light"] .ob-checkbox {
+  border-color: var(--app-border);
+  background-color: var(--app-surface);
+}
+
+/* PermissionsStep granted-state card (was border-green-800/30 bg-green-950/20) */
+.ob-granted {
+  border-color: rgba(22, 101, 52, 0.3);
+  background-color: rgba(5, 46, 22, 0.2);
+}
+:root[data-theme="light"] .ob-granted {
+  border-color: rgba(21, 128, 61, 0.35);
+  background-color: rgba(34, 197, 94, 0.12);
+}
+
+/* "All permissions granted!" text (was text-green-400) */
+.ob-granted-text { color: #4ade80; }
+:root[data-theme="light"] .ob-granted-text { color: #15803d; }
+
+/* Standalone header icon that previously relied on inherited body { color: #ededed } */
+.ob-heading-icon { color: #ededed; }
+:root[data-theme="light"] .ob-heading-icon { color: var(--app-text-strong); }
+
+/* "Recommended" badge (was bg-[#008080]/20 text-[#00b3b3] border-[#008080]/30) */
+.ob-badge-recommended {
+  background-color: rgba(0, 128, 128, 0.2);
+  color: #00b3b3;
+  border-color: rgba(0, 128, 128, 0.3);
+}
+:root[data-theme="light"] .ob-badge-recommended {
+  background-color: rgba(14, 138, 138, 0.12);
+  color: var(--tp-teal);
+  border-color: rgba(14, 138, 138, 0.35);
+}

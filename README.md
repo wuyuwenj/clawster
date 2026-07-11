@@ -42,6 +42,7 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Drag Reactions** | Pick the pet up and it looks confused before settling in — fling it fast and it sometimes startles. Grab it mid-scuttle and it digs in its claws before giving in | — |
 | **Click Irritation** | Poke it five times in a few seconds and it huffs; keep going and it snips its claws in a full tantrum until you leave it alone | — |
 | **Emote Speech Bubbles** | Little frosted-glass bubbles when the pet emotes — "Boo!", "Wheee!", "Hmph!", "zzz" | — |
+| **Light Theme** | Toggle the warm "Tidepool" light look across every window (dark by default) | — |
 | **Guided Onboarding** | Setup wizard with permission grants, no terminal required | — |
 
 ## Animations
@@ -132,6 +133,7 @@ Make it a strict code reviewer, a cheerful assistant, a sarcastic debugger, or a
 
 ### Behaviors
 In the Assistant panel settings, you can:
+- Switch between the default dark look and the warm "Tidepool" light theme (Appearance)
 - Enable/disable attention seeking behavior
 - Mute Clawster's voice and notification sounds
 - Configure watched folders for file change notifications
@@ -179,8 +181,10 @@ clawster/
 │   └── renderer/          # Frontend (React + Vite)
 │       ├── pet/           # Animated lobster component
 │       ├── chatbar/       # Quick chat overlay
+│       ├── pet-chat/      # Speech-bubble popup above the pet
 │       ├── assistant/     # Full assistant panel
-│       └── onboarding/    # First-launch setup wizard
+│       ├── onboarding/    # First-launch setup wizard
+│       └── styles/        # Theme tokens (theme.css) + Tidepool styles (tidepool.css)
 ├── proxy/                 # Cloudflare Worker proxy
 │   └── src/index.ts       # HMAC auth, rate limiting, moderation
 ├── eval/                  # Model evaluation framework

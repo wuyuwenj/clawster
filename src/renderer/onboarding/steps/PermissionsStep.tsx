@@ -65,11 +65,11 @@ export const PermissionsStep: React.FC<Props> = () => {
 
   return (
     <div className="h-full px-10 flex flex-col items-center justify-center">
-      <div className="mb-2">
+      <div className="mb-2 ob-heading-icon">
         <ShieldIcon />
       </div>
-      <h2 className="text-2xl font-medium tracking-tight text-white mb-1">Permissions</h2>
-      <p className="text-sm text-neutral-400 mb-6">
+      <h2 className="text-2xl font-medium tracking-tight text-[var(--app-text-strong)] mb-1">Permissions</h2>
+      <p className="text-sm text-[var(--app-muted)] mb-6">
         Clawster works best with these — grant what you're comfortable with.
       </p>
 
@@ -81,34 +81,34 @@ export const PermissionsStep: React.FC<Props> = () => {
               key={perm.type}
               className={`flex items-center gap-3 p-3.5 rounded-xl border transition-colors duration-300 ${
                 granted
-                  ? 'border-green-800/30 bg-green-950/20'
-                  : 'border-white/10 bg-neutral-900/30'
+                  ? 'ob-granted'
+                  : 'border-[var(--app-border)] ob-surface-30'
               }`}
             >
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 ${
-                granted ? 'bg-green-600 text-white' : 'bg-neutral-800 text-neutral-400'
+                granted ? 'bg-green-600 text-white' : 'ob-surface-badge text-[var(--app-muted)]'
               }`}>
                 {granted ? <CheckIcon /> : <ShieldIcon />}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-neutral-200">{perm.title}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                  <span className="text-sm font-medium text-[var(--app-text)]">{perm.title}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
                     perm.badge === 'Recommended'
-                      ? 'bg-[#008080]/20 text-[#00b3b3] border border-[#008080]/30'
-                      : 'bg-neutral-800 text-neutral-500 border border-white/5'
+                      ? 'ob-badge-recommended'
+                      : 'ob-surface-badge ob-text-quaternary ob-border-hairline'
                   }`}>
                     {perm.badge}
                   </span>
                 </div>
-                <p className="text-xs text-neutral-500 mt-0.5">{perm.description}</p>
+                <p className="text-xs ob-text-quaternary mt-0.5">{perm.description}</p>
               </div>
 
               {!granted && (
                 <button
                   onClick={() => handleGrant(perm.type)}
-                  className="px-3 py-1.5 rounded-lg bg-[#FF8C69] text-[#0f0f0f] text-xs font-semibold hover:opacity-85 transition-opacity shrink-0"
+                  className="px-3 py-1.5 rounded-lg bg-[#FF8C69] text-[var(--app-accent-contrast)] text-xs font-semibold hover:opacity-85 transition-opacity shrink-0"
                 >
                   Grant Access
                 </button>
@@ -119,7 +119,7 @@ export const PermissionsStep: React.FC<Props> = () => {
       </div>
 
       {grantedCount === PERMISSIONS.length && (
-        <p className="text-xs text-green-400 mt-4 animate-[fadeIn_0.3s_ease-out]">All permissions granted!</p>
+        <p className="text-xs ob-granted-text mt-4 animate-[fadeIn_0.3s_ease-out]">All permissions granted!</p>
       )}
     </div>
   );

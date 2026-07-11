@@ -110,11 +110,11 @@ export function Onboarding() {
   };
 
   return (
-    <div className="w-full h-full bg-[#0f0f0f] rounded-xl shadow-2xl relative flex flex-col overflow-hidden"
+    <div className="w-full h-full bg-[var(--app-bg)] rounded-xl shadow-2xl relative flex flex-col overflow-hidden"
          style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)' }}>
 
       {/* Top Bar (Draggable) */}
-      <div className="drag-region h-11 flex items-center px-4 w-full z-50 select-none bg-[#1a1a1a] border-b border-white/5 shrink-0">
+      <div className="drag-region h-11 flex items-center px-4 w-full z-50 select-none bg-[var(--app-bg-elevated)] border-b ob-border-hairline shrink-0">
         <button
           className="no-drag w-3 h-3 rounded-full bg-[#ff5f57] hover:bg-[#ff5f57]/80 transition-colors cursor-pointer shrink-0"
           onClick={handleSkip}
@@ -122,7 +122,7 @@ export function Onboarding() {
         />
 
         <div className="flex-1 flex items-center justify-center gap-3">
-          <span className="text-xs text-neutral-400 font-medium">Clawster Setup</span>
+          <span className="text-xs text-[var(--app-muted)] font-medium">Clawster Setup</span>
           <div className="flex items-center gap-1.5">
             {STEP_ORDER.map((step, index) => (
               <div
@@ -132,7 +132,7 @@ export function Onboarding() {
                     ? 'bg-[#FF8C69]'
                     : index < currentStepIndex
                     ? 'bg-[#008080]'
-                    : 'bg-neutral-700'
+                    : 'ob-progress-inactive'
                 }`}
               />
             ))}
@@ -150,10 +150,10 @@ export function Onboarding() {
       </div>
 
       {/* Action Footer */}
-      <div className="no-drag h-[72px] absolute bottom-0 w-full flex items-center justify-end gap-3 px-6 bg-[#0f0f0f]/90 backdrop-blur-md border-t border-white/5 z-50 select-none">
+      <div className="no-drag h-[72px] absolute bottom-0 w-full flex items-center justify-end gap-3 px-6 ob-footer-bg backdrop-blur-md border-t ob-border-hairline z-50 select-none">
         <button
           onClick={handleSkip}
-          className="px-4 py-2.5 rounded-lg text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+          className="ob-hover-surface px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--app-muted)] hover:text-[var(--app-text-strong)] transition-colors"
         >
           Skip Setup
         </button>

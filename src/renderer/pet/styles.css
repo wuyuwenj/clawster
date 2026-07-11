@@ -228,6 +228,23 @@
   }
 }
 
+/* Light (Tidepool) theme overrides for the tutorial/chat speech-bubble card.
+   Dark (default) rules above stay untouched. Lobster SVG art is
+   theme-independent and intentionally has no light overrides. */
+html[data-theme="light"] .chat-popup {
+  background: linear-gradient(135deg, #FFF9F2 0%, #FFF1E4 100%);
+  border: 2px solid var(--tp-ink);
+  color: var(--tp-text-ink);
+}
+
+html[data-theme="light"] .chat-text {
+  color: var(--tp-text-ink);
+}
+
+html[data-theme="light"] .chat-popup-arrow {
+  border-top-color: #FFF1E4;
+}
+
 /* Lobster color variables */
 .lobster-container {
   --salmon: #ff8c69;

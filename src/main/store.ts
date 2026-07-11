@@ -64,6 +64,10 @@ interface StoreSchema {
   analytics: {
     enabled: boolean;
   };
+  appearance: {
+    // 'dark' is the default look; 'light' opts into the Tidepool theme (CLA-58).
+    theme: 'dark' | 'light';
+  };
 }
 
 const defaults: StoreSchema = {
@@ -117,6 +121,9 @@ const defaults: StoreSchema = {
   permissionDeclines: {},
   analytics: {
     enabled: true,
+  },
+  appearance: {
+    theme: 'dark',
   },
 };
 
