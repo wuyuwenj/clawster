@@ -4,7 +4,7 @@ import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
 // Type-only import: keeps this module importable from Vitest (node env, no
 // Playwright runtime) so the pure comparison logic can be unit-tested.
-import type { Page, Locator } from 'playwright';
+import type { Page, Locator } from '@playwright/test';
 
 // Shared VISUAL-DIFF verification helper for UI e2e specs (CLA-57).
 //
@@ -88,8 +88,8 @@ function maskRects(png: PNG, rects: Rect[]): void {
   for (const r of rects) {
     const x0 = Math.max(0, Math.floor(r.x));
     const y0 = Math.max(0, Math.floor(r.y));
-    const x1 = Math.min(png.width, Math.floor(r.x + r.width));
-    const y1 = Math.min(png.height, Math.floor(r.y + r.height));
+    const x1 = Math.min(png.width, Math.ceil(r.x + r.width));
+    const y1 = Math.min(png.height, Math.ceil(r.y + r.height));
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
         const idx = (png.width * y + x) << 2;
@@ -115,6 +115,21 @@ export function compareBuffers(
   const { threshold = 0.15, mask = [], evidenceDir, label = 'visual-diff' } = options;
   const before = PNG.sync.read(beforeBuf);
   const after = PNG.sync.read(afterBuf);
+
+  const evidence = evidenceDir
+    ? {
+        beforePath: path.join(evidenceDir, `${label}-before.png`),
+        afterPath: path.join(evidenceDir, `${label}-after.png`),
+        diffPath: path.join(evidenceDir, `${label}-diff.png`),
+      }
+    : undefined;
+  if (evidenceDir && evidence) {
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    // Persist the ORIGINAL frames (pre-mask) so a human reviews the true render.
+    // Written before the dimension check so a mismatch still leaves images on disk.
+    fs.writeFileSync(evidence.beforePath, beforeBuf);
+    fs.writeFileSync(evidence.afterPath, afterBuf);
+  }
 
   if (before.width !== after.width || before.height !== after.height) {
     throw new Error(
@@ -144,15 +159,11 @@ export function compareBuffers(
     height,
   };
 
-  if (evidenceDir) {
-    fs.mkdirSync(evidenceDir, { recursive: true });
-    result.beforePath = path.join(evidenceDir, `${label}-before.png`);
-    result.afterPath = path.join(evidenceDir, `${label}-after.png`);
-    result.diffPath = path.join(evidenceDir, `${label}-diff.png`);
-    // Persist the ORIGINAL frames (pre-mask) so a human reviews the true render,
-    // plus the diff map showing exactly which pixels changed.
-    fs.writeFileSync(result.beforePath, beforeBuf);
-    fs.writeFileSync(result.afterPath, afterBuf);
+  if (evidence) {
+    result.beforePath = evidence.beforePath;
+    result.afterPath = evidence.afterPath;
+    result.diffPath = evidence.diffPath;
+    // The diff map showing exactly which pixels changed.
     fs.writeFileSync(result.diffPath, PNG.sync.write(diff));
   }
 
