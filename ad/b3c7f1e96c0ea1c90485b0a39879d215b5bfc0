@@ -1,0 +1,19 @@
+73/974539ef0163c024b74c6743ce720296ad282b
+  s_bb1591d40d8ab1::t_eabdf1db16b116 4,6-9,13-16,26-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "adb3c7f1e96c0ea1c90485b0a39879d215b5bfc0",
+  "prompts": {},
+  "sessions": {
+    "s_bb1591d40d8ab1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d58f440-682d-490e-bb3a-36419921244c",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
