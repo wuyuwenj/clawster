@@ -55,6 +55,22 @@ test.describe('Production bundle verification', () => {
     expect(stats.mode & 0o111).toBeGreaterThan(0); // executable
   });
 
+  test('speech helper covers both architectures the mac targets ship', () => {
+    const { execSync } = require('child_process');
+    const p = path.join(APP_BASE, 'Contents', 'Resources', 'speech-helper');
+    const archs = execSync(`lipo -archs "${p}"`, { encoding: 'utf-8' }).trim().split(/\s+/);
+    expect(archs).toContain('arm64');
+    expect(archs).toContain('x86_64');
+  });
+
+  test('whisper.framework ships under Contents/Frameworks with its symlinks intact', () => {
+    // codesign only accepts a nested framework here, and only when the copy kept
+    // the versioned-bundle symlinks rather than dereferencing them.
+    const framework = path.join(APP_BASE, 'Contents', 'Frameworks', 'whisper.framework');
+    expect(fs.existsSync(framework)).toBe(true);
+    expect(fs.lstatSync(path.join(framework, 'Versions', 'Current')).isSymbolicLink()).toBe(true);
+  });
+
   // --- Icon assets ---
 
   test('tray icon is bundled', () => {
@@ -78,7 +94,6 @@ test.describe('Production bundle verification', () => {
     expect(content).toContain('NSScreenCaptureUsageDescription');
     expect(content).toContain('NSAppleEventsUsageDescription');
     expect(content).toContain('NSMicrophoneUsageDescription');
-    expect(content).toContain('NSSpeechRecognitionUsageDescription');
   });
 
   // --- Entitlements (code signed) ---

@@ -13,8 +13,6 @@ import {
 } from 'electron';
 import path from 'path';
 import os from 'os';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
 import { autoUpdater } from 'electron-updater';
@@ -51,7 +49,6 @@ import { logEvent } from './event-logger';
 import {
   ensureSpeechHelper,
   resetSpeechHelperState,
-  getSpeechHelperPath,
   getSpeechProcess,
   isSpeechSessionActive,
   isSpeechStartPending,
@@ -62,6 +59,12 @@ import {
   getSpeechStartSequence,
   setSpeechProcessExitExpected,
 } from './speech';
+import {
+  ensureWhisperModel,
+  formatVoiceSetupMessage,
+  isWhisperSupportedMacOS,
+  MIN_MACOS_VERSION,
+} from './whisper-model';
 import {
   initPetBehaviors,
   animateMoveTo,
@@ -117,8 +120,6 @@ import {
   applyDebugWindowBordersToAllWindows,
   clampPetPosition,
 } from './windows';
-
-const execFileAsync = promisify(execFile);
 
 // Load environment variables
 config();
@@ -1032,22 +1033,19 @@ function setupIPC() {
       return { mic: 'denied', speech: 'denied' };
     }
 
-    const micStatus = systemPreferences.getMediaAccessStatus('microphone');
-
-    try {
-      const helperPath = getSpeechHelperPath();
-      const { stdout } = await execFileAsync(helperPath, ['--check-permissions']);
-      const result = JSON.parse(stdout.trim());
-      return { mic: micStatus, speech: result.speech || 'not-determined' };
-    } catch {
-      return { mic: micStatus, speech: 'not-determined' };
-    }
+    // Transcription is local, so there is no separate speech-recognition
+    // authorization to query — only the microphone matters.
+    return { mic: systemPreferences.getMediaAccessStatus('microphone'), speech: 'granted' };
   });
 
   // Speech recognition - start recording
   ipcMain.handle('speech-start', async (event): Promise<{ success: boolean; error?: string }> => {
     if (process.platform !== 'darwin') {
       return { success: false, error: 'Speech recognition is only available on macOS' };
+    }
+
+    if (!isWhisperSupportedMacOS(process.getSystemVersion())) {
+      return { success: false, error: `Voice input needs macOS ${MIN_MACOS_VERSION} or newer.` };
     }
 
     if (isSpeechSessionActive() || isSpeechStartPending()) {
@@ -1063,6 +1061,16 @@ function setupIPC() {
       }
     } else if (micStatus !== 'granted') {
       return { success: false, error: 'Microphone permission denied. Please enable in System Settings > Privacy & Security > Microphone.' };
+    }
+
+    // Speech runs locally, which means the Whisper model has to be on disk. The
+    // first voice attempt kicks off the one-time download in the background.
+    const setup = ensureWhisperModel();
+    if (setup.status === 'downloading') {
+      return { success: false, error: formatVoiceSetupMessage(setup.percent) };
+    }
+    if (setup.status === 'error') {
+      return { success: false, error: `Voice setup failed: ${setup.message}` };
     }
 
     const sender = event.sender;

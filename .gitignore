@@ -11,5 +11,7 @@ electron-builder.env
 eval/
 models/
 native/speech-helper/speech-helper
+native/speech-helper/vendor/
+native/speech-helper/whisper.framework/
 proxy/.wrangler/
 .claude/settings.local.json

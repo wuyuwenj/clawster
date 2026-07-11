@@ -35,7 +35,7 @@ Clawster is an AI desktop pet that sits on your macOS screen as an animated lobs
 | **Tool Calling** | Open apps, run commands, set timers, send messages, control volume | — |
 | **Memory** | Remembers facts and emotional context across conversations | — |
 | **Focus Mode** | Block distracting apps for a set time period | — |
-| **Voice Input** | Talk to Clawster with your voice (speech recognition) | — |
+| **Voice Input** | Talk to Clawster with your voice — transcribed on-device with Whisper, so audio never leaves your Mac (model downloads on first use; macOS 13.3+) | — |
 | **Auto-Update** | In-app banner when a new version is available | — |
 | **Customizable Personality** | Edit IDENTITY.md and SOUL.md to shape behavior | — |
 | **Attention Seeking** | Scuttles toward your cursor when feeling lonely | — |
@@ -146,6 +146,7 @@ rm ~/Library/Application\ Support/clawster/clawster-config.json
 - Personal data (memories, preferences) stored locally in `~/.clawster/`
 - Screen captures processed locally or sent to the cloud proxy (your choice)
 - Conversations stored locally on your machine
+- Voice input is transcribed on-device with a local Whisper model — audio never leaves your machine
 - Optional PostHog analytics (opt-out in settings)
 - Cloud proxy only forwards messages to OpenAI — no data stored server-side
 - Link opening is limited to web URLs (`http`/`https`) — `file:`, `javascript:`, and other schemes are refused
@@ -172,13 +173,15 @@ clawster/
 │   │   ├── pet-behaviors.ts   # Idle behaviors, attention seeking
 │   │   ├── permission-helper.ts # macOS permission management
 │   │   ├── screen-capture.ts  # Screenshot capture
-│   │   ├── speech.ts      # Speech recognition (native helper)
+│   │   ├── speech.ts      # Voice input (drives the local Whisper helper)
 │   │   └── windows.ts     # Window management
 │   └── renderer/          # Frontend (React + Vite)
 │       ├── pet/           # Animated lobster component
 │       ├── chatbar/       # Quick chat overlay
 │       ├── assistant/     # Full assistant panel
 │       └── onboarding/    # First-launch setup wizard
+├── native/
+│   └── speech-helper/     # Swift helper: on-device Whisper speech-to-text (whisper.cpp)
 ├── proxy/                 # Cloudflare Worker proxy
 │   └── src/index.ts       # HMAC auth, rate limiting, moderation
 ├── eval/                  # Model evaluation framework
@@ -189,7 +192,7 @@ clawster/
 
 ## System Requirements
 
-- **macOS** (Monterey 12.0 or later)
+- **macOS** (Monterey 12.0 or later; voice input requires macOS 13.3 or later)
 - **Apple Silicon** (arm64) or **Intel** (x86_64)
 
 ## Links

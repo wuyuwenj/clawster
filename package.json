@@ -9,11 +9,13 @@
     "dev:main": "npm run build:speech && tsc -p tsconfig.main.json && electron .",
     "dev:renderer": "vite",
     "build": "npm run build:speech && npm run build:renderer && npm run build:main",
+    "build:universal": "npm run build:speech:universal && npm run build:renderer && npm run build:main",
     "build:speech": "bash scripts/build-speech-helper.sh",
+    "build:speech:universal": "bash scripts/build-speech-helper.sh --universal",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
-    "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
+    "dist": "npm run build:universal && electron-builder",
+    "dist:mac": "npm run build:universal && electron-builder --mac",
     "dist:mac:deploy": "npm run dist:mac && rm -f ../clawster-landing/public/downloads/Clawster-*mac* ../clawster-landing/public/downloads/latest-mac.yml && cp release/Clawster-*-arm64.dmg release/Clawster-*-arm64-mac.zip release/Clawster-*-arm64-mac.zip.blockmap release/Clawster-*-x64.dmg release/Clawster-*-x64-mac.zip release/Clawster-*-x64-mac.zip.blockmap release/latest-mac.yml ../clawster-landing/public/downloads/",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
@@ -98,13 +100,18 @@
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "Clawster needs screen capture permission to help you with what's on your screen.",
         "NSAppleEventsUsageDescription": "Clawster needs this to detect which app you're using.",
-        "NSMicrophoneUsageDescription": "Clawster needs microphone access for voice input.",
-        "NSSpeechRecognitionUsageDescription": "Clawster uses speech recognition to convert your voice to text."
+        "NSMicrophoneUsageDescription": "Clawster needs microphone access for voice input."
       },
       "extraResources": [
         {
           "from": "native/speech-helper/speech-helper",
           "to": "speech-helper"
+        }
+      ],
+      "extraFiles": [
+        {
+          "from": "native/speech-helper/whisper.framework",
+          "to": "Frameworks/whisper.framework"
         }
       ]
     },
