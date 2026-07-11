@@ -1,0 +1,28 @@
+test/visual-diff.test.ts
+  s_5e05cfc4c06298::t_07a675fd601763 1-99
+e2e/visual-diff.ts
+  s_5e05cfc4c06298::t_5137d52f3d9ced 1-209
+e2e/chatbar-curious.spec.ts
+  s_5e05cfc4c06298::t_3c499a115c7148 68,81,84-94
+  s_5e05cfc4c06298::t_bd6655136e1d93 4-7
+e2e/helpers.ts
+  s_5e05cfc4c06298::t_7b8921e3bd14db 22-30,36,38
+AGENTS.md
+  s_5e05cfc4c06298::t_bf2f0219bc2094 64-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2b613be3af8f8228649dbccd439f3a2f354153cd",
+  "prompts": {},
+  "sessions": {
+    "s_5e05cfc4c06298": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "123983ef-1817-4c8a-a62a-557217d93ca2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
