@@ -1,0 +1,29 @@
+src/main/speech.ts
+  s_f0e84d71a9722a::t_0c02bf02f66ee4 51-63
+  s_f0e84d71a9722a::t_5a140d082a3c7a 117
+scripts/build-speech-helper.sh
+  s_f0e84d71a9722a::t_470c602d969734 74-108
+test/speech-messages.test.ts
+  s_f0e84d71a9722a::t_ea783a36f3f935 8
+  s_f0e84d71a9722a::t_c9e50a1fd32f01 109-141
+native/speech-helper/main.swift
+  s_f0e84d71a9722a::t_41b423640c1346 294,300-303
+  s_f0e84d71a9722a::t_4456139aa65fb6 395-397,399
+  s_f0e84d71a9722a::t_4da6456ef75b62 23-28,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "01badbe3a223696370b58c110fa425f0f2728c51",
+  "prompts": {},
+  "sessions": {
+    "s_f0e84d71a9722a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd0ef662-527b-4e6b-bb64-23e298ee1fd8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

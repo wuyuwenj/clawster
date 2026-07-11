@@ -1,0 +1,31 @@
+test/whisper-model.test.ts
+  s_209d5e8825e7a6::t_1ac1045e48d6f6 347-348,352,354-357,360
+  s_209d5e8825e7a6::t_eefd306a56bc57 257-303
+  s_209d5e8825e7a6::t_17f300e900e4fe 346,349-351,353,358-359,361-362
+src/main/whisper-model.ts
+  s_209d5e8825e7a6::t_2d0d3ff6eadb1c 67
+  s_209d5e8825e7a6::t_6a43bbcd3e9c7f 257
+  s_209d5e8825e7a6::t_946881899bd844 82-87,101-104
+  s_209d5e8825e7a6::t_9c9ff45133520d 233-234
+  s_209d5e8825e7a6::t_f5bde035c99dd9 122-123,129
+e2e/production-smoke.spec.ts
+  s_209d5e8825e7a6::t_e88524d3a3745c 58-73
+AGENTS.md
+  s_209d5e8825e7a6::t_ec3f47b47f2f2c 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0143f67167de5efd20e5e8a3bd9a418a3ee36fe3",
+  "prompts": {},
+  "sessions": {
+    "s_209d5e8825e7a6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b0eaab61-3f57-4c3d-92ff-2800281aa586",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

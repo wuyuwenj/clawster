@@ -1,0 +1,45 @@
+src/main/whisper-model.ts
+  s_de34a4b861156a::t_df42c10be76441 253-259
+  s_de34a4b861156a::t_94818b034b9574 69-77,79-84,88-91,94,100,102,112,114,117
+package.json
+  s_de34a4b861156a::t_87fac0280203ab 12,14,17-18
+src/main/speech.ts
+  s_de34a4b861156a::t_681cbac49f6d55 51,62-67
+  s_de34a4b861156a::t_8587a563b90849 159
+  s_de34a4b861156a::t_6e168de147074d 4
+  s_de34a4b861156a::t_ff5becf8510ad6 200-204,206
+  s_de34a4b861156a::t_dc131b544b7e07 242-243
+  s_de34a4b861156a::t_f5c6b02c3b3506 68
+test/speech-messages.test.ts
+  s_de34a4b861156a::t_1c3700aac75de7 57
+  s_de34a4b861156a::t_14712301711037 12,16
+  s_de34a4b861156a::t_8846d74bd82d04 237
+  s_de34a4b861156a::t_0e675250bf8a75 207,215-222,224
+test/whisper-model.test.ts
+  s_de34a4b861156a::t_29436077092bc3 10
+  s_de34a4b861156a::t_fdc90a552bbc62 204,217,224,228-229,235-236,239,242,250,259,262
+  s_de34a4b861156a::t_5cceb3c4c65be3 285-296
+  s_de34a4b861156a::t_2150315223befa 283-284
+scripts/build-speech-helper.sh
+  s_de34a4b861156a::t_efb4a4e5aac1e4 88-90
+  s_de34a4b861156a::t_31ab39c5b69882 4-16
+  s_de34a4b861156a::t_98bf9e6cbb4545 106
+AGENTS.md
+  s_de34a4b861156a::t_f486db0a1fc3cc 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "20cb6aaf140f0a61d534481b54a94c368399ade8",
+  "prompts": {},
+  "sessions": {
+    "s_de34a4b861156a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a0506b85-6545-4fb9-9b00-bfddf305b4ea",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
