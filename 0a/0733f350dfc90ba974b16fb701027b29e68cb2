@@ -1,0 +1,21 @@
+test/speech-helper.test.ts
+  s_0c2fe0b02a84e9::t_4190a5fada7ff1 12-19,22-25,27-32
+AGENTS.md
+  s_0c2fe0b02a84e9::t_ad5bffe7dc6847 80-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "0a0733f350dfc90ba974b16fb701027b29e68cb2",
+  "prompts": {},
+  "sessions": {
+    "s_0c2fe0b02a84e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "452933ad-a3b2-4eb6-acab-97199d4bd7a8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
