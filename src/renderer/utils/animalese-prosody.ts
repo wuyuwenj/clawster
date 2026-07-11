@@ -256,11 +256,6 @@ export function planUtterance(
       isFinal: false,
     });
   }
-  if (sentences.length === 0) {
-    // Only terminators/whitespace — nothing to segment meaningfully.
-    sentences.push({ type: 'statement', voicedCount: 0, lastTerminatorIdx: chars.length - 1, isFinal: true });
-    charSentenceId.fill(0);
-  }
   sentences[sentences.length - 1].isFinal = true;
 
   // Count voiced chars per sentence and assign each its index within the sentence.

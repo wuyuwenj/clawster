@@ -174,6 +174,35 @@ describe('Animalese mute gate', () => {
     expect(visemes).toEqual([null, 'happy', 'mad', null]);
   });
 
+  it('degrades to silent when the AudioContext cannot be created during clip load', async () => {
+    getSettings.mockResolvedValue({ pet: { muted: false } });
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        constructor() {
+          throw new Error('audio init failed');
+        }
+      }
+    );
+    // Bundled clips are present, so speak() must load the bank via an AudioContext.
+    const engine = new AnimaleseEngine({ clipUrls: { a: 'blob:voice/a' } });
+    engine.configure({ speed: 1 });
+    const visemes: Array<string | null> = [];
+    engine.onViseme((shape) => visemes.push(shape));
+
+    const speaking = engine.speak('ab');
+    await finishSpeech(speaking);
+
+    expect(engine.hasVoiceBank).toBe(false);
+    expect(engine.playing).toBe(false);
+    expect(visemes).toEqual([null, 'happy', 'mad', null]);
+
+    // Later utterances must not hit a cached load failure either.
+    visemes.length = 0;
+    await finishSpeech(engine.speak('ab'));
+    expect(visemes).toEqual([null, 'happy', 'mad', null]);
+  });
+
   it('goes quiet mid-utterance when mute is pushed from the main process', async () => {
     getSettings.mockResolvedValue({ pet: { muted: false } });
     const engine = new AnimaleseEngine({ voiceBank: bank('abcdefghij') });

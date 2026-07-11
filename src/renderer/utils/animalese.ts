@@ -161,19 +161,23 @@ export class AnimaleseEngine {
       this.bankLoaded = true;
       return;
     }
-    const ctx = this.getAudioContext();
-    await Promise.all(
-      entries.map(async ([key, url]) => {
-        try {
-          const res = await fetch(url);
-          const arr = await res.arrayBuffer();
-          const buf = await ctx.decodeAudioData(arr);
-          this.voiceBank.set(key, buf);
-        } catch {
-          // A clip that fails to load just stays silent.
-        }
-      }),
-    );
+    try {
+      const ctx = this.getAudioContext();
+      await Promise.all(
+        entries.map(async ([key, url]) => {
+          try {
+            const res = await fetch(url);
+            const arr = await res.arrayBuffer();
+            const buf = await ctx.decodeAudioData(arr);
+            this.voiceBank.set(key, buf);
+          } catch {
+            // A clip that fails to load just stays silent.
+          }
+        }),
+      );
+    } catch {
+      // No AudioContext (audio init failure) → whole bank stays silent.
+    }
     this.bankLoaded = true;
   }
 
