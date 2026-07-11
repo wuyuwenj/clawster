@@ -1,0 +1,26 @@
+src/main/windows.ts
+  s_61636b1669f63b::t_9b4ff16cb5a1fc 648-650
+  s_61636b1669f63b::t_366f0812be88ac 694
+  s_61636b1669f63b::t_af71516e35774f 152-157,160,164-168
+  s_61636b1669f63b::t_a95a882385afa1 703-710,713
+  s_61636b1669f63b::t_677af8af291022 256-261
+src/main/main.ts
+  s_61636b1669f63b::t_3d3eec42469f69 105
+  s_61636b1669f63b::t_7a44132d0e098a 588
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "ae95fc3f97acc73327c5e2e922bf7423cbdbc4c7",
+  "prompts": {},
+  "sessions": {
+    "s_61636b1669f63b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8c4b9e4f-f14e-4906-a47b-e489c7a9e871",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
