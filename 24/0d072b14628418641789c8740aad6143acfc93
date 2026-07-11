@@ -1,0 +1,21 @@
+src/renderer/assets/voice/README.md
+  s_8cd7070d932a20::t_e89a6721468989 12
+README.md
+  s_8cd7070d932a20::t_34abea44145059 122-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "240d072b14628418641789c8740aad6143acfc93",
+  "prompts": {},
+  "sessions": {
+    "s_8cd7070d932a20": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd5af83f-3da6-4f2f-a92f-ae8d1fe1e052",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
