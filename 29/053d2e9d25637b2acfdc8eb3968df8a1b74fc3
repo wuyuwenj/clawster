@@ -1,0 +1,29 @@
+src/renderer/styles/tidepool.css
+  s_660f8827b80658::t_8b12d5db17d502 54-59,61-107,113,118-144
+  s_660f8827b80658::t_4a20d8bb0b20ff 145
+src/renderer/pet-chat/PetChat.tsx
+  s_660f8827b80658::t_7bfb62518fcdae 322,326
+  s_660f8827b80658::t_e9ab48b11929ed 279
+  s_660f8827b80658::t_247a41adf778c0 27-29
+src/renderer/chatbar/ChatBar.tsx
+  s_660f8827b80658::t_c1cf907eca31c9 496
+  s_660f8827b80658::t_c04af12adb696f 529-530
+src/renderer/chatbar/styles.css
+  s_660f8827b80658::t_c0dcdb194106c4 69-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "29053d2e9d25637b2acfdc8eb3968df8a1b74fc3",
+  "prompts": {},
+  "sessions": {
+    "s_660f8827b80658": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ebbefcb1-9f39-4d60-98a8-25c107280142",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
