@@ -276,7 +276,7 @@ export const PetChat: React.FC = () => {
                       <button
                         key={reply}
                         onClick={() => handleQuickReply(reply)}
-                        className={`tp-candy tp-candy-reply px-3.5 py-1.5 rounded-full ${
+                        className={`tp-candy tp-candy-reply py-1.5 rounded-full ${
                           CHIP_CLASSES[chipVariant(message.quickReplies!, reply)]
                         }`}
                       >

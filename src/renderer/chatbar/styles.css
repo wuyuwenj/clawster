@@ -12,19 +12,25 @@
   display: none;
 }
 
-/* Shell capsule: the chatbar surface itself. The window is opaque, so the
- * capsule sits on the cream mat painted by chatbar.html and rests on its
- * sticker shadow. */
+/* Shell capsule: the chatbar surface itself. Dark stays the flat full-bleed
+ * pre-Tidepool slab; light wears the Tidepool capsule — 2px ink outline, 24px
+ * radius, sticker shadow — resting on the cream mat painted by chatbar.html.
+ * Fully opaque either way. */
 .tp-capsule {
   background: var(--tp-shell);
-  border: var(--tp-outline);
-  border-radius: 24px;
-  box-shadow: var(--tp-sticker-shadow);
   animation: slideIn 0.2s ease-out;
 }
 
 :root[data-theme="light"] .tp-capsule {
+  border: var(--tp-outline);
+  border-radius: 24px;
+  box-shadow: var(--tp-sticker-shadow);
   animation: capsuleIn 300ms var(--tp-spring);
+}
+
+/* Mat around the capsule — light-only; dark is full-bleed */
+:root[data-theme="light"] .chatbar-mat {
+  padding: 0.375rem 0.375rem 0.75rem;
 }
 
 /* Animations — slideIn is the pre-Tidepool dark entrance, capsuleIn the
@@ -112,6 +118,181 @@
 :root[data-theme="light"] .chatbar-response-badge-warn {
   background: var(--tp-coral-tint);
   color: var(--tp-ink);
+}
+
+/* Drag-handle pill — dark keeps the pre-Tidepool white/10, light coral tint */
+.chatbar-drag-pill {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+:root[data-theme="light"] .chatbar-drag-pill {
+  background: var(--tp-coral-tint);
+}
+
+/* Input row padding — dark keeps the pre-Tidepool p-3 */
+.chatbar-form {
+  padding: 0.75rem;
+}
+
+:root[data-theme="light"] .chatbar-form {
+  padding: 0.25rem 0.75rem 0.75rem;
+}
+
+/* Clawster icon tile — dark keeps the pre-Tidepool coral-tinted 12px tile,
+ * light the outlined 16px Tidepool one */
+.chatbar-icon-tile {
+  background: rgba(255, 140, 105, 0.10);
+  border: 1px solid rgba(255, 140, 105, 0.20);
+  border-radius: 0.75rem;
+}
+
+:root[data-theme="light"] .chatbar-icon-tile {
+  background: var(--tp-coral-tint);
+  border: 2px solid var(--tp-ink);
+  border-radius: 1rem;
+}
+
+/* Camera / mic control shape — dark keeps the pre-Tidepool w-8 rounded-lg,
+ * light the w-9 rounded-xl Tidepool chip */
+.chatbar-ctl {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+
+:root[data-theme="light"] .chatbar-ctl {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+}
+
+/* Input typography — dark keeps the pre-Tidepool 16px medium white with
+ * neutral-500 placeholder, light the 17px semibold warm ink */
+.chatbar-input {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.chatbar-input::placeholder {
+  color: #737373;
+}
+
+:root[data-theme="light"] .chatbar-input {
+  font-family: var(--tp-font-round);
+  font-size: 17px;
+  line-height: normal;
+  font-weight: 600;
+  color: var(--tp-text-ink);
+}
+
+:root[data-theme="light"] .chatbar-input::placeholder {
+  color: var(--tp-driftwood);
+}
+
+/* Screenshot thumbnail pill — dark keeps the quiet pre-Tidepool teal tint
+ * with its hover fill, light the outlined Tidepool teal pill */
+.chatbar-shot-pill {
+  background: rgba(0, 128, 128, 0.10);
+  border: 1px solid rgba(0, 128, 128, 0.20);
+  border-radius: 0.5rem;
+  transition: background-color 150ms ease;
+}
+
+.chatbar-shot-pill:hover {
+  background: rgba(0, 128, 128, 0.20);
+}
+
+:root[data-theme="light"] .chatbar-shot-pill,
+:root[data-theme="light"] .chatbar-shot-pill:hover {
+  background: var(--tp-shell-deep);
+  border: 2px solid var(--tp-teal);
+  border-radius: 0.75rem;
+}
+
+.chatbar-shot-frame {
+  background: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.25rem;
+}
+
+:root[data-theme="light"] .chatbar-shot-frame {
+  background: var(--tp-shell);
+  border: 1px solid var(--tp-teal);
+  border-radius: 0.5rem;
+}
+
+.chatbar-shot-close {
+  color: rgba(0, 128, 128, 0.60);
+}
+
+.chatbar-shot-close:hover {
+  color: #008080;
+}
+
+:root[data-theme="light"] .chatbar-shot-close {
+  color: var(--tp-teal);
+}
+
+:root[data-theme="light"] .chatbar-shot-close:hover {
+  color: var(--tp-teal-deep);
+}
+
+/* Esc hint — dark keeps the pre-Tidepool mono "Esc" pill (it was never a
+ * ghost button), light the inert Tidepool chip shape */
+.chatbar-esc-hint {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.65rem;
+  color: #a3a3a3;
+  text-transform: capitalize;
+}
+
+:root[data-theme="light"] .chatbar-esc-hint {
+  background: var(--tp-shell);
+  border: var(--tp-outline);
+  border-radius: 0.5rem;
+  font-family: var(--tp-font-round);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  color: var(--tp-driftwood);
+  text-transform: none;
+}
+
+/* Response area — dark keeps the pre-Tidepool translucent slab with its
+ * amber offline wash, light the recessed Tidepool shell */
+.chatbar-response {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(10, 10, 10, 0.5);
+  gap: 1rem;
+}
+
+.chatbar-response-offline {
+  background: rgba(245, 158, 11, 0.05);
+}
+
+:root[data-theme="light"] .chatbar-response,
+:root[data-theme="light"] .chatbar-response-offline {
+  border-top: 2px solid var(--tp-ink);
+  background: var(--tp-shell-deep);
+  gap: 0.75rem;
+}
+
+.chatbar-response-body {
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: #d4d4d4;
+}
+
+:root[data-theme="light"] .chatbar-response-body {
+  font-family: var(--tp-font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--tp-text-ink);
 }
 
 @keyframes spin {

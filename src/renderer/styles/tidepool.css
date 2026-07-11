@@ -64,6 +64,8 @@ button.tp-chip:hover:not(:disabled) {
 .tp-candy-reply {
   font-size: 12px;
   font-weight: 500;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 .tp-candy-modal {
@@ -119,6 +121,8 @@ button.tp-chip:hover:not(:disabled) {
   font-family: var(--tp-font-round);
   font-size: 13px;
   font-weight: 700;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
 }
 
 :root[data-theme="light"] .tp-candy-modal {

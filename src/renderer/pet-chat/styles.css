@@ -2,11 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Comic speech bubble: solid cream, chunky ink outline, sticker shadow
- * (hard ink offset + soft warm ambient). Fully opaque. */
+/* Comic speech bubble. Dark keeps the pre-Tidepool flat panel — 16px radius,
+ * no drop shadow; light is the Tidepool comic bubble: solid cream, chunky ink
+ * outline, sticker shadow (hard ink offset + soft warm ambient). Fully
+ * opaque either way. */
 .tp-bubble {
   background: var(--tp-shell);
   border: var(--tp-outline);
+  border-radius: 1rem;
+}
+
+:root[data-theme="light"] .tp-bubble {
   border-radius: 20px;
   box-shadow: var(--tp-sticker-shadow), var(--tp-ambient-shadow);
 }
