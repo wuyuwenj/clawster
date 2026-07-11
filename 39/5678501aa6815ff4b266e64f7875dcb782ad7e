@@ -1,0 +1,27 @@
+src/main/chat/multi-tool.ts
+  s_69442f63769ae4::t_51e9892e9435b3 1-163
+src/main/chat/chat-router.ts
+  s_69442f63769ae4::t_6ade0612a52746 210-213,223,228,230,236
+  s_69442f63769ae4::t_1fa3c9432b76de 9
+  s_69442f63769ae4::t_7a403d2a0a1819 308-309,312,322,325,331,337-339
+test/multi-tool.test.ts
+  s_69442f63769ae4::t_9e5d35e5186183 1-159
+AGENTS.md
+  s_69442f63769ae4::t_4bb8fd6aee8173 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "395678501aa6815ff4b266e64f7875dcb782ad7e",
+  "prompts": {},
+  "sessions": {
+    "s_69442f63769ae4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f24f220e-b479-4ba1-aa37-8e1b8ebfcc0b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
