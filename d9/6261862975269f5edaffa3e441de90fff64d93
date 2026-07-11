@@ -1,0 +1,29 @@
+package.json
+  s_6d2f776ba0598a::t_cf27abe2fc670d 57-58
+package-lock.json
+  s_025e1d5d4742bd::t_463091d33d10e5 37-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "d96261862975269f5edaffa3e441de90fff64d93",
+  "prompts": {},
+  "sessions": {
+    "s_025e1d5d4742bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0230f325-3e82-4c0c-b81b-479ab94282f8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_6d2f776ba0598a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd617b21-86d9-4554-8759-1b191692c881",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
