@@ -1,0 +1,28 @@
+src/renderer/pet/drag-interactions.ts
+  s_e2a849bf5c3ee1::t_ffa36f7779cad5 3,70-247
+src/renderer/pet/Pet.tsx
+  s_e2a849bf5c3ee1::t_c49f9cd081c850 12-13
+  s_e2a849bf5c3ee1::t_86b8d4341e21b3 707-708
+  s_e2a849bf5c3ee1::t_66848a6c417524 251-255,257
+  s_e2a849bf5c3ee1::t_c2f0c684fff7da 341-375,377-383
+  s_e2a849bf5c3ee1::t_33c3182db9101d 738-740,742-745,750,754-756,764
+test/drag-interactions.test.ts
+  s_e2a849bf5c3ee1::t_ad9caabd32c12b 192
+  s_e2a849bf5c3ee1::t_00d0b214085f7e 10-11,18-23,26-27,29,31-35,39-41,43,45-46,49-51,53-80,82-85,89-91,93-109,111-112,141-143,151-167,170-180,183-191,193-220,222,224,226-229,231,235-249,255-262,264-268,271-276,280,283-287,290-292,294-298,301-304,306-307,310-312,314-315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e84ab1ca9a472d4890ea1fbed256ea73c7fad68e",
+  "prompts": {},
+  "sessions": {
+    "s_e2a849bf5c3ee1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "411b1dc7-db71-44f3-925b-e797f08eed7c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

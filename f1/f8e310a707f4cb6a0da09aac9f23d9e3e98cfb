@@ -1,0 +1,46 @@
+src/renderer/pet/drag-interactions.ts
+  s_c721b1e82f74a8::t_6f7b6751673951 1-87
+src/renderer/pet/click-irritation.ts
+  s_c721b1e82f74a8::t_6f7b6751673951 1,3-11,13-37,39-67
+  s_c721b1e82f74a8::t_834f11d97eceb2 38
+  s_c721b1e82f74a8::t_ec57f1440c3f48 2,12
+src/renderer/pet/emote-bubbles.ts
+  s_c721b1e82f74a8::t_cd401b0c826b71 9-10,53-56,76-78,99
+  s_c721b1e82f74a8::t_601690cc427a5b 100
+src/renderer/pet/Pet.tsx
+  s_c721b1e82f74a8::t_390f7914238604 320,326
+  s_c721b1e82f74a8::t_42ecca31299ef7 704-705,770-777
+  s_c721b1e82f74a8::t_8e0814bc598867 229-233
+  s_c721b1e82f74a8::t_36f66d9a113c4f 11-20,22-24,37-42,250,252,255-259,321-325,327-333,342-360,537,541,632-637,658,661,663-669,676-680,684-685,687,693-703,710-714,721-722,778-784,804,840
+  s_c721b1e82f74a8::t_0390fbaf36b2a9 729
+  s_c721b1e82f74a8::t_9ca8eec48e4b5c 21,341
+  s_c721b1e82f74a8::t_2ec484bcc44969 686,706-709
+src/renderer/pet/styles.css
+  s_c721b1e82f74a8::t_2cc8c60859adf8 493-560,704-823
+  s_c721b1e82f74a8::t_5c6c3b4386b961 857-858
+  s_c721b1e82f74a8::t_6228b5e81263b2 824
+test/click-irritation.test.ts
+  s_c721b1e82f74a8::t_a4ee602bc905c2 27
+  s_c721b1e82f74a8::t_6f500b1b696231 1-26,28-78
+test/emote-bubbles.test.ts
+  s_c721b1e82f74a8::t_e3ecb44b78c7cb 62-66,221-228,231
+  s_c721b1e82f74a8::t_757ac2d467cb03 229-230
+test/drag-interactions.test.ts
+  s_c721b1e82f74a8::t_6f500b1b696231 1-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f1f8e310a707f4cb6a0da09aac9f23d9e3e98cfb",
+  "prompts": {},
+  "sessions": {
+    "s_c721b1e82f74a8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3f45-266a-73a2-bea0-4257916fb2a4",
+        "model": "gpt-5.5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+src/renderer/pet/click-irritation.ts
+  s_d43146d2b9b60d::t_259f53bf2eb881 23,30-33,35,59
+  s_d43146d2b9b60d::t_9fd292ca46df59 7
+src/renderer/pet/Pet.tsx
+  s_d43146d2b9b60d::t_22a113b062ac17 264
+  s_d43146d2b9b60d::t_484deac73e2b49 828,836-840,844,848
+  s_d43146d2b9b60d::t_eae83f5465562e 371
+  s_d43146d2b9b60d::t_7e800c1aedd4cb 671-673
+  s_d43146d2b9b60d::t_17ecde005e84c8 347-350,352-354,363-370,375,381
+src/renderer/pet/styles.css
+  s_d43146d2b9b60d::t_5c207dbddd7c69 503,508
+test/emote-bubbles.test.ts
+  s_d43146d2b9b60d::t_88abbc1b9766e5 63-64
+  s_d43146d2b9b60d::t_c808295c7323d3 225,232-262
+src/renderer/pet/emote-bubbles.ts
+  s_d43146d2b9b60d::t_317bdd8777ae3c 99-102
+  s_d43146d2b9b60d::t_0ccb2a8fd9acb1 10
+test/click-irritation.test.ts
+  s_d43146d2b9b60d::t_1db4d4f574829a 64,73,89,95-133
+  s_d43146d2b9b60d::t_b5be69f14a74ca 134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d779ba78d8c1ed6eb64f60cd08780626af1fcde3",
+  "prompts": {},
+  "sessions": {
+    "s_d43146d2b9b60d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1738d1e6-77a1-4529-8ccd-bbac714629ec",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

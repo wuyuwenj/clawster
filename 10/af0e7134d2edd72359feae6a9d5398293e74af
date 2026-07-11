@@ -1,0 +1,39 @@
+test/drag-interactions.test.ts
+  s_a66ddce2e39519::t_5a62973e6cf1d4 1-2
+  s_a66ddce2e39519::t_e74b5b2e9a8935 175-202
+test/click-irritation.test.ts
+  s_a66ddce2e39519::t_816aca7c5c89f7 64,73,89,95-113
+  s_a66ddce2e39519::t_1094b9e4dba0fc 141,143-144,146,149-151
+  s_a66ddce2e39519::t_180112c6cf732f 114-115
+src/renderer/pet/poke-reaction-timers.ts
+  s_a66ddce2e39519::t_67dec32dc0ea80 1-41
+test/poke-reaction-timers.test.ts
+  s_a66ddce2e39519::t_e411b2761adb4a 1-74
+src/renderer/pet/Pet.tsx
+  s_a66ddce2e39519::t_65d8a18a11ae45 265
+  s_a66ddce2e39519::t_63f7e817e4bd23 27
+  s_a66ddce2e39519::t_cf6a36e0723d24 669
+  s_a66ddce2e39519::t_20d1077b59ee1a 364
+  s_a66ddce2e39519::t_9a88d01d2086c5 835,839
+src/renderer/pet/styles.css
+  s_a66ddce2e39519::t_21187adac1723b 1320-1391
+src/renderer/pet/click-irritation.ts
+  s_a66ddce2e39519::t_9b84dcbadf2f50 24,32-42,44,68
+  s_a66ddce2e39519::t_a8bd48a4e24493 7-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "10af0e7134d2edd72359feae6a9d5398293e74af",
+  "prompts": {},
+  "sessions": {
+    "s_a66ddce2e39519": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e58ef7-b282-44c0-8206-c1db8e434895",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
