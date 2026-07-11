@@ -89,8 +89,11 @@ export function moodToVoice(mood: string | null | undefined): VoiceMood {
       return 'sad';
     case 'sleeping':
     case 'doze':
-    case 'idle':
       return 'sleepy';
+    case 'idle':
+      // The default at-rest mood speaks neutrally; sleepy is reserved for the
+      // sleeping/doze states.
+      return 'neutral';
     case 'mad':
     case 'huff':
     case 'startle':

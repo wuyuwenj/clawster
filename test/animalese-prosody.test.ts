@@ -128,6 +128,7 @@ describe('moodToVoice mapping', () => {
     expect(moodToVoice('curious')).toBe('curious');
     expect(moodToVoice('worried')).toBe('sad');
     expect(moodToVoice('sleeping')).toBe('sleepy');
+    expect(moodToVoice('idle')).toBe('neutral');
     expect(moodToVoice('huff')).toBe('mad');
     expect(moodToVoice('something-unknown')).toBe('neutral');
     expect(moodToVoice(null)).toBe('neutral');

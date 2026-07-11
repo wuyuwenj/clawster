@@ -336,3 +336,10 @@ export class AnimaleseEngine {
 
 // Singleton instance
 export const animalese = new AnimaleseEngine();
+
+// E2E hook: a public checkout bundles no voice clips, so the mute e2e
+// (e2e/mute-toggle.spec.ts) reaches the live engine here to seed a silent
+// voice bank and observe playback attempts.
+if (typeof window !== 'undefined') {
+  (window as any).__clawsterVoice = animalese;
+}

@@ -8,7 +8,8 @@ import { launchApp, findWindow } from './helpers';
 // Animalese voice engine, which lives in the *pet-chat* renderer — a different
 // window from the one holding the switch. This drives the real IPC path an end
 // user hits (click → update-settings → store → pet-muted-changed broadcast) and
-// counts the oscillators the Web Audio engine really starts.
+// counts the sampled-clip playbacks the v2 engine really attempts (one
+// AudioBufferSourceNode.start() per voiced character, see CLA-53).
 
 const EVIDENCE_DIR =
   process.env.MUTE_EVIDENCE_DIR || path.join(__dirname, '..', 'test-results', 'mute-toggle');
@@ -37,29 +38,55 @@ async function showBubble(text: string): Promise<void> {
   }, text);
 }
 
-/** Count every oscillator the Animalese engine starts from now on. */
-async function instrumentAudio(page: Page): Promise<void> {
-  await page.evaluate(() => {
+/**
+ * Count every sampled-clip playback the Animalese engine attempts from now on.
+ * Installed as an init script so the patch is in place before any renderer code
+ * runs, and the real start() is swallowed so this suite never makes a sound —
+ * even on a private checkout that bundles the real voice clips.
+ */
+async function instrumentAudio(application: ElectronApplication): Promise<void> {
+  await application.context().addInitScript(() => {
     const w = window as any;
-    if (w.__oscInstrumented) return;
-    w.__oscInstrumented = true;
-    w.__oscCount = 0;
-    const proto = (window.AudioContext || (window as any).webkitAudioContext).prototype;
-    const original = proto.createOscillator;
-    proto.createOscillator = function patched(this: AudioContext) {
-      w.__oscCount += 1;
-      return original.call(this);
+    w.__voiceStarts = 0;
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const original = Ctx.prototype.createBufferSource;
+    Ctx.prototype.createBufferSource = function patched(this: AudioContext) {
+      const source = original.call(this);
+      source.start = () => {
+        w.__voiceStarts += 1;
+      };
+      return source;
     };
   });
 }
 
-async function oscCount(page: Page): Promise<number> {
-  return page.evaluate(() => (window as any).__oscCount as number);
+/**
+ * A public checkout bundles no voice clips (private, gitignored assets), so the
+ * engine degrades to silence and playback attempts would be unobservable. Seed
+ * the live engine with a one-sample silent buffer per letter and mark the bank
+ * loaded, so unmuted playback is observable — and inaudible — on any checkout.
+ */
+async function injectSilentVoiceBank(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const engine = (window as any).__clawsterVoice;
+    if (!engine) throw new Error('Animalese e2e hook (window.__clawsterVoice) missing');
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    const silent = new Ctx().createBuffer(1, 1, 8000);
+    const bank = new Map<string, AudioBuffer>();
+    for (const ch of 'abcdefghijklmnopqrstuvwxyz') bank.set(ch, silent);
+    engine.voiceBank = bank;
+    engine.bankLoaded = true; // never fetch/decode the real clips
+  });
 }
 
-async function resetOscCount(page: Page): Promise<void> {
+async function voiceStarts(page: Page): Promise<number> {
+  return page.evaluate(() => (window as any).__voiceStarts as number);
+}
+
+async function resetVoiceStarts(page: Page): Promise<void> {
   await page.evaluate(() => {
-    (window as any).__oscCount = 0;
+    (window as any).__voiceStarts = 0;
   });
 }
 
@@ -84,6 +111,9 @@ test.beforeAll(async () => {
   );
 
   app = await launchApp({ dataDir });
+  // Registered before the pet-chat window exists, so its renderer is patched
+  // from the first script it runs.
+  await instrumentAudio(app);
   pet = await findWindow(app, 'pet.html');
   await pet.waitForSelector('.lobster-container', { timeout: 25000 });
 
@@ -92,12 +122,12 @@ test.beforeAll(async () => {
   await assistant.getByRole('button', { name: 'Settings' }).click();
   await assistant.locator(`label:has-text("${MUTE_LABEL}")`).waitFor();
 
-  // First bubble creates the pet-chat window; instrument it once it exists.
+  // First bubble creates the pet-chat window; seed its voice bank once it exists.
   await showBubble('Hi');
   petChat = await findWindow(app, 'pet-chat.html');
   await petChat.waitForSelector('text=Hi', { timeout: 15000 });
   await petChat.waitForTimeout(500); // let the first utterance finish
-  await instrumentAudio(petChat);
+  await injectSilentVoiceBank(petChat);
 });
 
 test.afterAll(async () => {
@@ -117,12 +147,12 @@ test.describe("Assistant mute toggle silences Clawster's voice (CLA-52)", () => 
       .locator(`label:has-text("${MUTE_LABEL}")`)
       .screenshot({ path: path.join(EVIDENCE_DIR, '01-toggle-off.png') });
 
-    await resetOscCount(petChat);
+    await resetVoiceStarts(petChat);
     await showBubble('Hello friend');
     await petChat.waitForTimeout('Hello friend'.length * SPEECH_MS_PER_CHAR + 400);
 
-    const played = await oscCount(petChat);
-    console.log(`[mute-e2e] unmuted oscillators started: ${played}`);
+    const played = await voiceStarts(petChat);
+    console.log(`[mute-e2e] unmuted playback attempts: ${played}`);
     expect(played).toBeGreaterThan(0);
   });
 
@@ -143,38 +173,38 @@ test.describe("Assistant mute toggle silences Clawster's voice (CLA-52)", () => 
 
     await expect.poll(() => persistedMuted(), { timeout: 5000 }).toBe(true);
 
-    await resetOscCount(petChat);
+    await resetVoiceStarts(petChat);
     await showBubble('Hello friend');
     await petChat.waitForSelector('text=Hello friend', { timeout: 10000 });
     await petChat.waitForTimeout('Hello friend'.length * SPEECH_MS_PER_CHAR + 400);
 
-    // Bubble still shows the words; no audio was synthesized for them.
+    // Bubble still shows the words; no clip playback was attempted for them.
     await petChat.screenshot({ path: path.join(EVIDENCE_DIR, '04-pet-chat-muted-bubble.png') });
-    const played = await oscCount(petChat);
-    console.log(`[mute-e2e] muted oscillators started: ${played}`);
+    const played = await voiceStarts(petChat);
+    console.log(`[mute-e2e] muted playback attempts: ${played}`);
     expect(played).toBe(0);
   });
 
   test('muting mid-utterance cuts the voice off immediately', async () => {
     await setMuteSwitch(false);
-    await resetOscCount(petChat);
+    await resetVoiceStarts(petChat);
 
     const long = 'Clawster keeps talking and talking and talking for quite a while now';
     await showBubble(long);
     await petChat.waitForTimeout(400);
 
-    const beforeMute = await oscCount(petChat);
+    const beforeMute = await voiceStarts(petChat);
     expect(beforeMute).toBeGreaterThan(0);
 
     await setMuteSwitch(true);
     await petChat.waitForTimeout(250); // let the broadcast land
-    const atMute = await oscCount(petChat);
+    const atMute = await voiceStarts(petChat);
     // The utterance must still have characters left, otherwise this proves nothing.
     expect(atMute).toBeLessThan(long.replace(/[^a-zA-Z]/g, '').length);
 
     await petChat.waitForTimeout(1500);
-    const afterMute = await oscCount(petChat);
-    console.log(`[mute-e2e] oscillators: ${beforeMute} at speak → ${atMute} at mute → ${afterMute} after`);
+    const afterMute = await voiceStarts(petChat);
+    console.log(`[mute-e2e] playback attempts: ${beforeMute} at speak → ${atMute} at mute → ${afterMute} after`);
     expect(afterMute).toBe(atMute);
   });
 
