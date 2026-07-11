@@ -1,0 +1,23 @@
+README.md
+  s_e1286042e00c30::t_6d526955d2aa5d 38
+  s_e1286042e00c30::t_7c1a4346b1aed4 149
+  s_e1286042e00c30::t_db0ad3e1d072ab 183-184
+  s_e1286042e00c30::t_7e4083297110f0 176
+  s_e1286042e00c30::t_4df44dcce0fc3f 195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "591bbb2f6baeebbe1b3928cab49d41adcba514b3",
+  "prompts": {},
+  "sessions": {
+    "s_e1286042e00c30": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46879de2-4673-443e-adaf-e439d55d6884",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
