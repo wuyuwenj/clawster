@@ -149,13 +149,23 @@ export function getPetContextMenuWindow(): BrowserWindow | null {
 // The pet reacts to companion-window visibility: chatbar open → curious mood,
 // and any open chat surface suppresses emote speech bubbles.
 
+// Deduped: on Electron 28.3.3/macOS the BrowserWindow 'show'/'hide' events
+// never fire, so visibility changes are also broadcast explicitly at the
+// show()/hide() call sites. Where the events DO fire, both paths run — the
+// last-payload guard keeps the pet from receiving the same state twice.
+let lastPetUiVisibilityKey: string | null = null;
+
 function sendPetUiVisibility() {
   if (!petWindow || petWindow.isDestroyed()) return;
-  petWindow.webContents.send('pet-ui-visibility', {
+  const payload = {
     chatbarOpen: Boolean(chatbarWindow && !chatbarWindow.isDestroyed() && chatbarWindow.isVisible()),
     petChatOpen: Boolean(petChatWindow && !petChatWindow.isDestroyed() && petChatWindow.isVisible()),
     assistantOpen: Boolean(assistantWindow && !assistantWindow.isDestroyed() && assistantWindow.isVisible()),
-  });
+  };
+  const key = JSON.stringify(payload);
+  if (key === lastPetUiVisibilityKey) return;
+  lastPetUiVisibilityKey = key;
+  petWindow.webContents.send('pet-ui-visibility', payload);
 }
 
 function wirePetUiVisibility(window: BrowserWindow) {
@@ -243,7 +253,12 @@ export function createPetWindow() {
     },
   });
   wireDebugWindowBorder(petWindow);
-  petWindow.webContents.on('did-finish-load', sendPetUiVisibility);
+  petWindow.webContents.on('did-finish-load', () => {
+    // A (re)loaded pet renderer starts fresh — clear the dedup key so it
+    // receives the current state even if it matches the last broadcast.
+    lastPetUiVisibilityKey = null;
+    sendPetUiVisibility();
+  });
 
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   petWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -630,6 +645,9 @@ export function createChatbarWindow() {
   if (chatbarWindow) {
     chatbarWindow.show();
     chatbarWindow.focus();
+    // Explicit broadcast: the 'show' event never fires on Electron 28.3.3/macOS
+    // (CLA-27), which left the curious-mood broadcast silently dead there.
+    sendPetUiVisibility();
     return;
   }
 
@@ -673,6 +691,7 @@ export function createChatbarWindow() {
 
   chatbarWindow.once('ready-to-show', () => {
     chatbarWindow?.show();
+    sendPetUiVisibility();
   });
 
   chatbarWindow.on('closed', () => {
@@ -681,9 +700,17 @@ export function createChatbarWindow() {
   });
 }
 
+export function hideChatbarWindow() {
+  if (!chatbarWindow || chatbarWindow.isDestroyed()) return;
+  chatbarWindow.hide();
+  // Explicit broadcast: the 'hide' event never fires on Electron 28.3.3/macOS
+  // (CLA-27); without this the pet would stay curious after the bar closes.
+  sendPetUiVisibility();
+}
+
 export function toggleChatbarWindow() {
   if (chatbarWindow && chatbarWindow.isVisible()) {
-    chatbarWindow.hide();
+    hideChatbarWindow();
   } else {
     createChatbarWindow();
   }
