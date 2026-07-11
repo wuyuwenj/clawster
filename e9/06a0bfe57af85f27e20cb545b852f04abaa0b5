@@ -1,0 +1,22 @@
+e2e/visual-diff.ts
+  s_cbe8af1080133a::t_d5dcf9d17f77a5 91-92
+  s_cbe8af1080133a::t_256f80ef987b53 119-133
+  s_cbe8af1080133a::t_dcd190e8be0314 7
+  s_cbe8af1080133a::t_c1db6b22470bc3 162-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "e906a0bfe57af85f27e20cb545b852f04abaa0b5",
+  "prompts": {},
+  "sessions": {
+    "s_cbe8af1080133a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f429a7e6-8408-497b-99a8-b25f66e2e222",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
