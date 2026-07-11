@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-25 | Updated: 2026-07-06 -->
+<!-- Generated: 2026-06-25 | Updated: 2026-07-11 -->
 
 # Clawster
 
@@ -52,7 +52,7 @@ User message
 - Local model requires Ollama running at `localhost:11434`
 - Electron's native `win.setPosition(x, y)` throws a hard `TypeError` ("Error processing argument at index N, conversion failure") on any argument V8 doesn't treat as an Int32 — NaN, ±Infinity, non-integers, and **negative zero**. The CLA-56 crash was `-0`: an unclamped drag parked the pet above the top edge (negative y), and `Math.round` in the move animation returned `-0` on frames easing across zero (`-0` passes `Number.isFinite`). Guard coords with `areUsableCoords` (`pet-behaviors.ts`), normalize with `+ 0` before the native sink, and clamp drags via `clampPetPosition` (`windows.ts`). Note the store cannot be poisoned with NaN (`JSON.stringify(NaN)` is `null`), but `resolvePetStartPosition` still guards startup against `Infinity` (`1e999` parses as Infinity) and partial/stringified legacy values
 - Renderer behavior that needs unit tests lives in pure logic modules (no React/Electron imports) next to the component, e.g. `src/renderer/pet/emote-bubbles.ts` — the Vitest suite runs in a node environment with no DOM
-- Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13)
+- Main broadcasts companion-window visibility to the pet window on the `pet-ui-visibility` channel (chatbar/pet-chat/assistant show+hide+close, plus once on pet-window load); the pet uses it for the chatbar→curious mood (CLA-27) and emote-bubble suppression (CLA-13). Gotcha: on Electron 28.3.3/macOS the BrowserWindow `show`/`hide` events never fire, so `windows.ts` also broadcasts explicitly at the chatbar show()/hide() call sites — hide the chatbar via `hideChatbarWindow()` (as the `close-chatbar` IPC and toggle do), never a bare `.hide()`, or the pet stays curious. A last-payload dedup guard keeps the pet from receiving the same state twice where the events do fire; it resets when the pet window (re)loads
 - The `pet.muted` setting (Assistant panel toggle) silences both of Clawster's sound sources (CLA-52). Main pushes changes to the **pet-chat** window on the `pet-muted-changed` channel — that window owns the Animalese engine, so sending to the pet window would never gate the voice — and `main.ts` calls `setMutedProvider` so `chat/tool-executor.ts` can raise notifications with `silent: true`. The engine seeds itself from persisted settings on the first utterance and applies later changes mid-utterance; character timing is unchanged when muted
 
 ### Testing Requirements
