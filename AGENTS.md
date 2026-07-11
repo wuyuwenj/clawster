@@ -80,7 +80,8 @@ User message
 - Use `vi.mock('electron')`, never `vi.doMock` — known Vitest bug (#4166) leaves exports undefined
 - Unit tests that route through `executeTool` (e.g. via `ChatRouter.chat`) must also `vi.mock('child_process')` — otherwise `tool-executor.ts` runs real `osascript` against macOS apps, which can stall under parallel test load (see `test/quick-replies.test.ts`)
 - Integration tests (`test/e2e-*.test.ts`) need Ollama running — they skip gracefully if unavailable
-- `test/speech-helper.test.ts` drives the real Swift helper binary; it skips unless macOS + `npm run build:speech` has run + the Whisper model is downloaded. It synthesizes speech with `say` rather than needing a microphone
+- `test/speech-helper.test.ts` drives the real Swift helper binary; it skips unless `CLAWSTER_ALLOW_AUDIO_TESTS=1` **and** macOS + `npm run build:speech` has run + the Whisper model is downloaded. It synthesizes speech with `say -o <file>` rather than needing a microphone
+- **Never open the real microphone or play real audio from a test or a verification script.** Developers run `npm test` on their own machines, sometimes at night. The mic opens only when the helper is sent `start`; audio plays only via `afplay`/`say` without `-o`. Neither belongs in an automated run — gate anything that needs real hardware behind `CLAWSTER_ALLOW_AUDIO_TESTS=1`, and never change system volume
 - E2E tests use `CLAWSTER_DATA_DIR` env var to isolate test data from real user data
 - E2E specs save screenshots when the `EVIDENCE_DIR` env var is set (skipped otherwise) — evidence for PR review is committed under `.no-mistakes/evidence/`
 

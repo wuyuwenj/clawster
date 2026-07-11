@@ -9,10 +9,27 @@ import { sanitizeTranscript } from '../src/main/whisper-transcript';
 // Exercises the real Swift + whisper.cpp helper. Everything it needs is optional:
 // on Linux CI, or before `npm run build:speech`, or before the model has been
 // downloaded, the suite skips instead of failing.
+//
+// These tests spawn the real helper binary, so they are additionally opt-in via
+// CLAWSTER_ALLOW_AUDIO_TESTS=1. A developer's machine is not a test rig: a plain
+// `npm test` must never spawn a process capable of opening the microphone or
+// driving an audio device, however carefully the commands are chosen. Nothing
+// here sends the helper a "start" command (the only path that opens the mic) and
+// `say -o <file>` renders to a file rather than the speakers, but the gate makes
+// that a property of the harness rather than of the current test bodies.
 const HELPER = path.join(__dirname, '../native/speech-helper/speech-helper');
 
+function audioTestsAllowed(): boolean {
+  return process.env.CLAWSTER_ALLOW_AUDIO_TESTS === '1';
+}
+
 function helperAvailable(): boolean {
-  return process.platform === 'darwin' && fs.existsSync(HELPER) && isWhisperModelInstalled();
+  return (
+    audioTestsAllowed() &&
+    process.platform === 'darwin' &&
+    fs.existsSync(HELPER) &&
+    isWhisperModelInstalled()
+  );
 }
 
 const describeHelper = helperAvailable() ? describe : describe.skip;
