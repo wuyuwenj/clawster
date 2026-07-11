@@ -6,6 +6,7 @@ import { getTemplateResponse, getEmotionalResponse } from './personality-respons
 import { logInteraction } from './interaction-logger';
 import { checkSafety } from './safety-filter';
 import { getQuickReplies } from './quick-replies';
+import { detectSecondaryRequest, withSecondaryOffer } from './multi-tool';
 import { formatContextForPrompt } from './memory';
 import type { MemoryManager } from './memory';
 
@@ -206,22 +207,26 @@ export class ChatRouter extends EventEmitter {
 
     if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const screenResponse = await this.handleScreenshot(rawInput);
-      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: 'take_screenshot', response: screenResponse.text, mood: toolCall.mood, latencyMs, ts: Date.now() });
-      return { ...screenResponse, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
+      const secondary = detectSecondaryRequest(rawInput, 'take_screenshot');
+      const text = withSecondaryOffer(screenResponse.text || '', secondary);
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: 'take_screenshot', response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
+      return { ...screenResponse, text, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const toolStart = Date.now();
       const result = await executeTool(toolCall.tool, toolCall.args);
       trackToolExecuted({ tool: toolCall.tool, success: result.handled, latencyMs: Date.now() - toolStart });
-      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       const tc = { tool: toolCall.tool, args: toolCall.args, mood: toolCall.mood };
+      const secondary = detectSecondaryRequest(rawInput, toolCall.tool);
+      const text = withSecondaryOffer(result.response || '', secondary);
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
         return {
           type: 'action',
-          text: result.response || '',
+          text,
           action: { type: result.petAction.type, payload: result.petAction },
           quickReplies: getQuickReplies(toolCall.tool, toolCall.mood),
           toolCall: tc,
@@ -229,7 +234,7 @@ export class ChatRouter extends EventEmitter {
       }
 
       if (result.handled && result.response) {
-        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood), toolCall: tc };
+        return { type: 'message', text, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood), toolCall: tc };
       }
     }
 
@@ -301,22 +306,24 @@ export class ChatRouter extends EventEmitter {
 
     if (toolCall.tool === 'take_screenshot' && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const screenResponse = await this.handleScreenshot(rawInput);
-      const text = screenResponse.text || '';
+      const secondary = detectSecondaryRequest(rawInput, 'take_screenshot');
+      const text = withSecondaryOffer(screenResponse.text || '', secondary);
       handlers.onDelta?.(text, text);
       logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: 'take_screenshot', response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
-      return { ...screenResponse, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
+      return { ...screenResponse, text, quickReplies: getQuickReplies('take_screenshot', toolCall.mood) };
     }
 
     if (toolCall.tool && !isFalsePositiveTool(rawInput, toolCall.tool)) {
       const toolStart = Date.now();
       const result = await executeTool(toolCall.tool, toolCall.args);
       trackToolExecuted({ tool: toolCall.tool, success: result.handled, latencyMs: Date.now() - toolStart });
-      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: result.response, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       const tc = { tool: toolCall.tool, args: toolCall.args, mood: toolCall.mood };
+      const secondary = detectSecondaryRequest(rawInput, toolCall.tool);
+      const text = withSecondaryOffer(result.response || '', secondary);
+      logInteraction({ input: rawInput, model: this.toolModel.getModelName(), tool: toolCall.tool, args: toolCall.args, response: text, mood: toolCall.mood, latencyMs, ts: Date.now() });
 
       if (result.petAction) {
-        const text = result.response || '';
         handlers.onDelta?.(text, text);
         return {
           type: 'action',
@@ -328,8 +335,8 @@ export class ChatRouter extends EventEmitter {
       }
 
       if (result.handled && result.response) {
-        handlers.onDelta?.(result.response, result.response);
-        return { type: 'message', text: result.response, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood), toolCall: tc };
+        handlers.onDelta?.(text, text);
+        return { type: 'message', text, quickReplies: getQuickReplies(toolCall.tool, toolCall.mood), toolCall: tc };
       }
     }
 

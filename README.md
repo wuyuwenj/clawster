@@ -95,7 +95,7 @@ User message
         └─ Vector search for relevant context, stored in ~/.clawster/memory/
 ```
 
-- **Local model** handles tool calls (open apps, set timers, run commands) with ~200ms latency
+- **Local model** handles tool calls (open apps, set timers, run commands) with ~200ms latency — it runs one tool per message, so if you ask for two things at once ("play kpop and also what's my battery") Clawster does the first and offers to do the second
 - **Cloud proxy** handles natural conversation, screen analysis, and personality
 - **Memory** stores facts and emotional context locally in LanceDB with vector search
 - **Safety filter** blocks harmful content, destructive commands, and prompt injection; self-harm banter with a clear joke marker ("kys lol jk") is still blocked but gets a lighter, caring response — genuine cries for help always get the serious one
