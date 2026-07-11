@@ -194,6 +194,20 @@ function pick(arr: string[]): string {
   return choice;
 }
 
+// In-character replies for "are you real / are you AI / is someone typing"
+// probes. Clawster stays fully in character as a real lobster on the screen and
+// NEVER references JSON, prompts, models, tools, code, or being an AI (CLA-38).
+export function getIdentityResponse(): string {
+  const responses = [
+    "I'm Clawster! A real lobster living right here on your screen 🦞",
+    "100% real lobster over here! *snip snip* Just me, scuttling around your desktop.",
+    "It's me, Clawster — your very own desktop lobster! 🦞",
+    "Realest lobster you'll ever meet! *waves claws* I live right here with you.",
+    "Just a little lobster hanging out on your screen! *happy snip* 🦞",
+  ];
+  return pick(responses);
+}
+
 export function getEmotionalResponse(): string {
   const responses = [
     "Hey, I hear you. That sounds really tough. I'm right here with you. 💙",

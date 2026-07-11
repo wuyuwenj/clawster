@@ -117,6 +117,7 @@ import {
   showPetContextMenuAtCursor,
   applyDebugWindowBordersToAllWindows,
   clampPetPosition,
+  applyThemeToWindows,
 } from './windows';
 
 const execFileAsync = promisify(execFile);
@@ -683,6 +684,16 @@ function setupIPC() {
 
     if (key === 'dev.showPetModeOverlay') {
       getPetWindow()?.webContents.send('dev-show-pet-mode-overlay-changed', Boolean(value));
+    }
+
+    // Theme (CLA-58 Light theme): broadcast to every renderer so each surface
+    // flips its `data-theme` live, and repaint the opaque window chrome.
+    if (key === 'appearance.theme') {
+      const theme: 'dark' | 'light' = value === 'light' ? 'light' : 'dark';
+      for (const win of BrowserWindow.getAllWindows()) {
+        win.webContents.send('theme-changed', theme);
+      }
+      applyThemeToWindows(theme);
     }
 
     return store.store;

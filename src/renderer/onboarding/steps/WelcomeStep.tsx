@@ -72,17 +72,17 @@ export const WelcomeStep: React.FC<Props> = () => {
         <div className="absolute -inset-10 bg-[#FF8C69]/10 blur-3xl -z-10 rounded-full" />
       </div>
 
-      <h1 className="text-3xl font-medium tracking-tight text-white mb-3">
+      <h1 className="text-3xl font-medium tracking-tight text-[var(--app-text-strong)] mb-3">
         Welcome to Clawster
       </h1>
-      <p className="text-sm text-neutral-400 mb-7 max-w-sm mx-auto">
+      <p className="text-sm text-[var(--app-muted)] mb-7 max-w-sm mx-auto">
         Your desktop buddy. Here to help, hang out, and make your Mac more fun.
       </p>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-left max-w-md w-full mb-7">
         {FEATURES.map((f) => (
-          <div key={f.label} className="flex items-center gap-3 text-sm text-neutral-300">
-            <div className="w-8 h-8 rounded-lg bg-neutral-800/50 flex items-center justify-center text-neutral-400 border border-white/5 shrink-0">
+          <div key={f.label} className="flex items-center gap-3 text-sm ob-text-tertiary">
+            <div className="ob-surface-icon w-8 h-8 rounded-lg flex items-center justify-center text-[var(--app-muted)] border ob-border-hairline shrink-0">
               <iconify-icon icon={f.icon} width="1.125rem"></iconify-icon>
             </div>
             {f.label}
@@ -91,12 +91,12 @@ export const WelcomeStep: React.FC<Props> = () => {
       </div>
 
       {/* How to talk to me */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-neutral-900/60 border border-white/5">
-        <span className="text-xs text-neutral-400">Talk to me anytime with</span>
+      <div className="ob-surface-60 flex items-center gap-2.5 px-4 py-2.5 rounded-xl border ob-border-hairline">
+        <span className="text-xs text-[var(--app-muted)]">Talk to me anytime with</span>
         <span className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-xs font-medium text-neutral-200">⌘</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-xs font-medium text-neutral-200">⇧</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-xs font-medium text-neutral-200">Space</kbd>
+          <kbd className="ob-chip px-1.5 py-0.5 rounded border text-xs font-medium text-[var(--app-text)]">⌘</kbd>
+          <kbd className="ob-chip px-1.5 py-0.5 rounded border text-xs font-medium text-[var(--app-text)]">⇧</kbd>
+          <kbd className="ob-chip px-1.5 py-0.5 rounded border text-xs font-medium text-[var(--app-text)]">Space</kbd>
         </span>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isResponseComplete, buildFeedbackPayload } from '../src/renderer/pet-chat/PetChat';
+import { isResponseComplete } from '../src/renderer/pet-chat/response-state';
+import { buildFeedbackPayload } from '../src/renderer/pet-chat/feedback-payload';
 
 // CLA-50: the 👍/👎 feedback thumbs in the pet-chat bubble must appear ONLY
 // after the assistant response has fully loaded — never while the loading dots

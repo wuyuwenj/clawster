@@ -2,38 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Animations */
+/* Comic speech bubble: solid cream, chunky ink outline, sticker shadow
+ * (hard ink offset + soft warm ambient). Fully opaque. */
+.tp-bubble {
+  background: var(--tp-shell);
+  border: var(--tp-outline);
+  border-radius: 20px;
+  box-shadow: var(--tp-sticker-shadow), var(--tp-ambient-shadow);
+}
+
+/* Squash-and-stretch entrance from the pet: transform origin sits at the
+ * tail tip so the bubble springs out of Clawster, squashes wide, then settles.
+ * Plays once per message — idle chrome never loops.
+ *
+ * The window is sized to the content box, so only `pt-1` (4px) sits above the
+ * bubble. Any scaleY over 1 lifts the top edge by (scaleY - 1) * (h + 13) and
+ * the ink outline clips, so the bounce stays wide-and-short. `--tp-spring` is
+ * a back-out curve (peaks ~1.098) and CSS runs it per keyframe segment, hence
+ * the plain ease on the growth leg. */
 @keyframes popupIn {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.95);
+    transform: scale(0.45, 0.3) translateY(4px);
+    animation-timing-function: cubic-bezier(0.22, 0.9, 0.3, 1);
   }
-  to {
+  70% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1.03, 0.98);
+    animation-timing-function: var(--tp-spring);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1, 1);
   }
 }
 
 .animate-popup-in {
-  animation: popupIn 0.25s ease-out;
-}
-
-/* Thin dark scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  animation: popupIn 320ms var(--tp-spring);
+  transform-origin: 50% calc(100% + 13px);
 }
 
 /* Loading dots animation */
@@ -64,125 +70,10 @@
   }
 }
 
-/* Markdown message styles */
-.markdown-message p {
-  margin-bottom: 0.5em;
-}
-
-.markdown-message p:last-child {
-  margin-bottom: 0;
-}
-
-.markdown-message h1 {
-  font-size: 1.1em;
+/* The bubble sets its body copy in semibold, so bold has to push past it.
+ * Scoped to .tp-bubble to outrank the shared 600 in tidepool.css by
+ * specificity — the bundler is free to order the two sheets either way.
+ * Everything else about .markdown-message comes from tidepool.css. */
+.tp-bubble .markdown-message strong {
   font-weight: 700;
-  margin-bottom: 0.4em;
-}
-
-.markdown-message h2 {
-  font-size: 1.05em;
-  font-weight: 600;
-  margin-bottom: 0.4em;
-}
-
-.markdown-message h3 {
-  font-size: 1em;
-  font-weight: 600;
-  margin-bottom: 0.3em;
-}
-
-.markdown-message pre {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  overflow-x: auto;
-  margin: 0.5em 0;
-  font-size: 0.85em;
-}
-
-.markdown-message pre code {
-  background: none;
-  padding: 0;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: inherit;
-}
-
-.markdown-message .md-inline-code {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.15em 0.35em;
-  border-radius: 0.25rem;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.9em;
-}
-
-.markdown-message ul,
-.markdown-message ol {
-  padding-left: 1.5em;
-  margin: 0.4em 0;
-}
-
-.markdown-message ul {
-  list-style-type: disc;
-}
-
-.markdown-message ol {
-  list-style-type: decimal;
-}
-
-.markdown-message li {
-  margin-bottom: 0.2em;
-}
-
-.markdown-message strong {
-  font-weight: 600;
-}
-
-.markdown-message em {
-  font-style: italic;
-}
-
-.markdown-message blockquote {
-  border-left: 3px solid rgba(255, 140, 105, 0.4);
-  padding-left: 0.75em;
-  margin: 0.4em 0;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.markdown-message table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 0.5em 0;
-  font-size: 0.9em;
-}
-
-.markdown-message th,
-.markdown-message td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.35em 0.6em;
-  text-align: left;
-}
-
-.markdown-message th {
-  background: rgba(255, 255, 255, 0.05);
-  font-weight: 600;
-}
-
-.markdown-message hr {
-  border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin: 0.5em 0;
-}
-
-.message-link {
-  color: #FF8C69;
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 140, 105, 0.4);
-  cursor: pointer;
-  transition: color 0.2s, text-decoration-color 0.2s;
-}
-
-.message-link:hover {
-  color: #ffb399;
-  text-decoration-color: rgba(255, 179, 153, 0.8);
 }
