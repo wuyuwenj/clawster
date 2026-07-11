@@ -1,0 +1,33 @@
+test/speech-messages.test.ts
+  s_f2c615f0c31498::t_0c71a8f0b51577 16,19
+  s_f2c615f0c31498::t_38af87c768f2e7 185-189,194-195,198,200,203-210,212-237
+  s_f2c615f0c31498::t_ca5589a81ebdc6 57
+src/main/speech.ts
+  s_f2c615f0c31498::t_eac192fd0b2675 127
+  s_f2c615f0c31498::t_736b64dc7b6472 51,55-60
+  s_f2c615f0c31498::t_edaf8b02ca67c1 145-147,152,159-164,168,175
+  s_f2c615f0c31498::t_296c655b041ded 231-243,252-253
+  s_f2c615f0c31498::t_4d1c9218fed4a3 193-197,199
+  s_f2c615f0c31498::t_6e0d27b9d484a4 124-126,128
+  s_f2c615f0c31498::t_b9a9e0166113e3 61
+package.json
+  s_f2c615f0c31498::t_dd21cae36b81b9 15
+native/speech-helper/main.swift
+  s_f2c615f0c31498::t_13690321cfabdf 401-404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e9bf93b7c5ad77c92286d855d8de9f65c9f488c7",
+  "prompts": {},
+  "sessions": {
+    "s_f2c615f0c31498": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4229f119-c87d-441e-89b6-6ce4150feb0c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

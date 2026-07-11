@@ -1,0 +1,49 @@
+test/speech-messages.test.ts
+  s_c4f48080afbbfe::t_a6cc393d11805d 108-113
+  s_c4f48080afbbfe::t_7b433e5ba7cc3a 9
+src/main/whisper-model.ts
+  s_c4f48080afbbfe::t_1e38c5ba39c255 104,109-110,117-119,121-131,134-156,167-169,171-172
+  s_c4f48080afbbfe::t_bf6560179d21bf 64-71
+  s_c4f48080afbbfe::t_328426aa6d9ca7 18-19,22,27-35
+  s_1a9449e48cf4f7::t_689b09ea6e9a2b 36-37
+src/main/speech.ts
+  s_c4f48080afbbfe::t_f9ade23cfcda17 46-50
+  s_c4f48080afbbfe::t_3d530289df851d 4
+  s_c4f48080afbbfe::t_a670d0172223a5 158-162
+src/main/whisper-transcript.ts
+  s_c4f48080afbbfe::t_85994aa4f03df4 5-11
+  s_c4f48080afbbfe::t_6387c360b4ec05 25-26
+src/main/main.ts
+  s_c4f48080afbbfe::t_e6d8ecfaf6bb01 1036-1038
+test/whisper-transcript.test.ts
+  s_c4f48080afbbfe::t_dca78b739fabd6 20,24-29,33
+native/speech-helper/main.swift
+  s_c4f48080afbbfe::t_89e84277e36c6f 24-26
+test/whisper-model.test.ts
+  s_c4f48080afbbfe::t_c6400f6a057d6f 155-200
+  s_c4f48080afbbfe::t_7258f9e1e458ab 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6bc292fdabe6aec907d6ff6e2289de7fb7ab47fb",
+  "prompts": {},
+  "sessions": {
+    "s_1a9449e48cf4f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eb44d4ef-62d4-48c6-bc8b-363f43964344",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_c4f48080afbbfe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "493ca067-c491-4e11-b1ce-faa2b106aebe",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

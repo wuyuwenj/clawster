@@ -1,0 +1,31 @@
+test/speech-messages.test.ts
+  s_965686dbbb1c83::t_83ea30d4f06134 46-47,51-55
+  s_965686dbbb1c83::t_d1058eaaad970c 144,322-383
+  s_965686dbbb1c83::t_e3e09777bdf061 20-21
+  s_965686dbbb1c83::t_66ee745b14c106 118-119,122-123,126-129,135-143
+  s_965686dbbb1c83::t_c8d392f4116638 1,3-4
+  s_965686dbbb1c83::t_6be2de1ea95b99 145
+src/main/speech.ts
+  s_965686dbbb1c83::t_946a3d541758cb 195-204,208,216
+  s_965686dbbb1c83::t_b4f10ecca917c4 70-78
+  s_965686dbbb1c83::t_e1a8521b0f94eb 132-136
+native/speech-helper/main.swift
+  s_965686dbbb1c83::t_97f6ab920a5f1e 451
+  s_965686dbbb1c83::t_5fd63af0257572 39-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "332beb825b9332aaf7faf268d07c9b1ec517852d",
+  "prompts": {},
+  "sessions": {
+    "s_965686dbbb1c83": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d1898895-7576-4ded-9b14-27e2b811bb30",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
