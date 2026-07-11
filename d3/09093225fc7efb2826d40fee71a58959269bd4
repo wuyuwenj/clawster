@@ -1,0 +1,38 @@
+personality/IDENTITY.md
+  s_5b3fc8592125be::t_043fe3091821df 13-14
+personality/SOUL.md
+  s_5b3fc8592125be::t_36fb733936637c 53
+src/main/chat/local-tool-provider.ts
+  s_5b3fc8592125be::t_c3a6d1f99f5d03 317
+src/main/chat/personality-responses.ts
+  s_5b3fc8592125be::t_882ba7f90ce1a7 197-210
+src/main/chat/tool-definitions.ts
+  s_5b3fc8592125be::t_5bdbfe1e9174ca 39-40
+src/main/chat/chat-router.ts
+  s_5b3fc8592125be::t_c9c5c5307aa96c 5
+  s_5b3fc8592125be::t_c9a3f8f56ff3da 28-42
+  s_5b3fc8592125be::t_0a5ca3c0d20b22 300-309
+  s_5b3fc8592125be::t_9d6322f5c32f67 198-207
+AGENTS.md
+  s_5b3fc8592125be::t_f8fd68121d25c6 57
+src/main/chat/system-prompt.ts
+  s_5b3fc8592125be::t_fd2b992aef12f1 29
+test/identity-probe.test.ts
+  s_5b3fc8592125be::t_b2aa5b1c1cb912 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d309093225fc7efb2826d40fee71a58959269bd4",
+  "prompts": {},
+  "sessions": {
+    "s_5b3fc8592125be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4f7eabd5-0e2a-4af9-b91d-bf29297adb93",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
