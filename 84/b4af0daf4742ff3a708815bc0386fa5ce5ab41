@@ -1,0 +1,29 @@
+test/pet-chat-chip-variant.test.ts
+  s_c15ea94af52618::t_a84a14eeeb8e79 45-112
+  s_c15ea94af52618::t_3f58093b9b1fa3 2-8
+src/renderer/pet-chat/PetChat.tsx
+  s_c15ea94af52618::t_0e3526c375b101 9,11
+  s_c15ea94af52618::t_7d120d7c608d48 179,181-184,195-202,206-228
+src/renderer/pet-chat/quick-replies.ts
+  s_c15ea94af52618::t_8a7dc54c21774c 5-10,20-45,49-51,53,57-62,64-68,72-76,83
+package.json
+  s_c15ea94af52618::t_c05fa15c83a076 58-59
+package-lock.json
+  s_c15ea94af52618::t_b142cba4f46646 38-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "84b4af0daf4742ff3a708815bc0386fa5ce5ab41",
+  "prompts": {},
+  "sessions": {
+    "s_c15ea94af52618": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9be6da95-95f6-42c0-89cf-7c5c5f71cd43",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

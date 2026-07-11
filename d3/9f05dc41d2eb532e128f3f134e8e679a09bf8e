@@ -1,0 +1,64 @@
+src/renderer/pet-chat/PetChat.tsx
+  s_8c27d2f9197133::t_28a339e8432a1d 216-218
+  s_8c27d2f9197133::t_be0f70b03487e7 33-78
+  s_8c27d2f9197133::t_27861917c4f239 204
+  s_8c27d2f9197133::t_0d0a3bd7359901 296-300
+  s_2cefa318f1af27::t_bd8097a8768707 302-349,351-400,404,406-408,415,417-419,425-426,428-446
+  s_2cefa318f1af27::t_85d562c86fa337 15-32
+e2e/cla50-feedback-thumbs-timing.spec.ts
+  s_8c27d2f9197133::t_3025ae09bfdc36 1-93,96-97,99-100
+  s_8c27d2f9197133::t_32672c84162286 94-95,98
+test/pet-chat-feedback.test.ts
+  s_8c27d2f9197133::t_5b1d3b906e8ebd 1-83
+AGENTS.md
+  s_2cefa318f1af27::t_bef9d231298ab8 57-58
+src/renderer/styles/tidepool.css
+  s_2cefa318f1af27::t_1f16af8067358c 1-86
+src/renderer/pet-chat/main.tsx
+  s_2cefa318f1af27::t_ffe51eec842497 3-8
+src/renderer/chatbar/ChatBar.tsx
+  s_2cefa318f1af27::t_adde993f7d4624 416-436,439-456,458,460-471,473-504,506-510,512-516,518-520,523-524
+src/renderer/pet-chat.html
+  s_2cefa318f1af27::t_e5170011b6a662 17-18,21
+src/renderer/chatbar/styles.css
+  s_2cefa318f1af27::t_95b95913d120b0 15-25,27,30,50,63,65,67,73-74,79,88-105,134-135,151,185,188,200,206,212
+src/renderer/chatbar/main.tsx
+  s_2cefa318f1af27::t_f4ba45179c42db 3-8
+src/renderer/chatbar.html
+  s_2cefa318f1af27::t_8cd33b29d24e3e 17-20,22
+src/renderer/pet-chat/styles.css
+  s_2cefa318f1af27::t_c8786b48ad1c80 5-16,18,20,22,24-28,33-34,37,47,52-57,116-117,133,159,167,170,182,188,194,198,200,202,208-209
+e2e/cla58-tidepool-restyle.spec.ts
+  s_2cefa318f1af27::t_66ed78c3e76e83 1-124,131-177
+  s_2cefa318f1af27::t_9f020109e6d6d6 125-130
+test/pet-chat-chip-variant.test.ts
+  s_2cefa318f1af27::t_a3e3c5fdc35633 1-26
+package-lock.json
+  s_2cefa318f1af27::t_3f22b23581729f 11,1120-1128
+package.json
+  s_2cefa318f1af27::t_16b4c3553526c0 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d39f05dc41d2eb532e128f3f134e8e679a09bf8e",
+  "prompts": {},
+  "sessions": {
+    "s_2cefa318f1af27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ca7aa57-2edb-4bec-b24b-cc30bbc7a64d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_8c27d2f9197133": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b90c5488-4ef9-4e23-818a-a6248bd81123",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

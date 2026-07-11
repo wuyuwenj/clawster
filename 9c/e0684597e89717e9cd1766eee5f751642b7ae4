@@ -1,0 +1,50 @@
+src/renderer/pet-chat/main.tsx
+  s_8282b7c7239370::t_9e283247005552 3-7
+src/renderer/pet-chat/response-state.ts
+  s_8282b7c7239370::t_e2c5d6363b0370 1-16
+src/renderer/pet-chat/feedback-payload.ts
+  s_8282b7c7239370::t_da802b79c9e856 1-35
+test/pet-chat-chip-variant.test.ts
+  s_8282b7c7239370::t_461ffbd6c4a4cd 2,4-7,9,11-12,16-17,19,21-24,27,32-37
+  s_8282b7c7239370::t_86b8e31be1a98a 38
+test/pet-chat-feedback.test.ts
+  s_8282b7c7239370::t_abbbdcdbdd44d6 2-3
+src/renderer/pet-chat/PetChat.tsx
+  s_8282b7c7239370::t_5b48042363c82b 178,185,193,217,225,233
+  s_8282b7c7239370::t_c38c0b885735ae 4-13,15
+  s_8282b7c7239370::t_b4ee7e84052d50 14
+  s_8282b7c7239370::t_ebf91924415c6f 209
+  s_8282b7c7239370::t_1effa3b0716605 90
+src/main/windows.ts
+  s_8282b7c7239370::t_2c7934d2715843 647
+src/renderer/chatbar/main.tsx
+  s_8282b7c7239370::t_2268c294c4d10e 3-7
+src/renderer/pet-chat/quick-replies.ts
+  s_8282b7c7239370::t_06ebd6825fa4a5 1-45
+src/renderer/styles/tidepool.css
+  s_8282b7c7239370::t_9c38af81cf3532 52-54,62,66
+  s_8282b7c7239370::t_1dfaf0212d2e8d 83,89-231
+src/renderer/pet-chat/styles.css
+  s_8282b7c7239370::t_b4f384a9345526 65,68
+  s_8282b7c7239370::t_62ea5e09eba729 66-67,69
+e2e/cla58-tidepool-restyle.spec.ts
+  s_8282b7c7239370::t_cafb627f603fdf 155-157,159,161
+package-lock.json
+  s_8282b7c7239370::t_15fb41e06016d2 14103-14516,14544-14587
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9ce0684597e89717e9cd1766eee5f751642b7ae4",
+  "prompts": {},
+  "sessions": {
+    "s_8282b7c7239370": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6223aac-31a3-4937-9750-a62e5ca201ed",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

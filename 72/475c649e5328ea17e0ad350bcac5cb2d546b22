@@ -1,0 +1,25 @@
+package.json
+  s_af125f8401c4f1::t_36e1265c9ddc44 45
+src/renderer/chatbar/ChatBar.tsx
+  s_af125f8401c4f1::t_983ea718ce633b 4
+  s_af125f8401c4f1::t_53658b3c1ebe8c 117,388
+  s_af125f8401c4f1::t_be19b54bb78486 93,362
+package-lock.json
+  s_af125f8401c4f1::t_68c409adccef55 25,1126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "72475c649e5328ea17e0ad350bcac5cb2d546b22",
+  "prompts": {},
+  "sessions": {
+    "s_af125f8401c4f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "657e1f35-1b22-462e-ab53-dbe4348a9928",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

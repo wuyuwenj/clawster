@@ -1,0 +1,21 @@
+README.md
+  s_0af872df65d64e::t_823b626bafee0d 43
+  s_0af872df65d64e::t_9055ffb6760802 134
+  s_0af872df65d64e::t_2c844494c30c47 185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "af30b516504815adbcf3ed695eaf66443c5e31c8",
+  "prompts": {},
+  "sessions": {
+    "s_0af872df65d64e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eee67d08-6b0f-45f7-9448-2692e342e8f8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

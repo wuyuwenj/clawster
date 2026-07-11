@@ -1,0 +1,29 @@
+e2e/cla58-tidepool-restyle.spec.ts
+  s_f5174f4cea5f04::t_b13a4f817fc0be 82
+  s_f5174f4cea5f04::t_3d7f35721990bd 110
+  s_f5174f4cea5f04::t_7531b6ffe971b4 184-185
+  s_f5174f4cea5f04::t_541e489017fcd3 131-132,140
+  s_f5174f4cea5f04::t_d992021a8e0f34 19-20,22-28,35-39
+  s_f5174f4cea5f04::t_1e0c8fed0bcc36 162
+src/renderer/chatbar/ChatBar.tsx
+  s_f5174f4cea5f04::t_ab22a5744a2cdb 484
+  s_f5174f4cea5f04::t_e75961eff7b948 5
+  s_f5174f4cea5f04::t_90e41273c09bb8 518
+  s_f5174f4cea5f04::t_f3388fb2ccdb9a 335
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "94cc83c644d996751674f0d239085f5778add45e",
+  "prompts": {},
+  "sessions": {
+    "s_f5174f4cea5f04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47fe7952-4a84-41e9-9382-ec9a40bb940f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
