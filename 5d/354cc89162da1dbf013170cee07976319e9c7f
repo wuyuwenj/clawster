@@ -1,0 +1,19 @@
+73/974539ef0163c024b74c6743ce720296ad282b
+  s_69442f63769ae4::t_22805e2e59b059 4,6-9,13-16,26-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "5d354cc89162da1dbf013170cee07976319e9c7f",
+  "prompts": {},
+  "sessions": {
+    "s_69442f63769ae4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f24f220e-b479-4ba1-aa37-8e1b8ebfcc0b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
