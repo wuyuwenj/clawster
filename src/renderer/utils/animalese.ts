@@ -339,7 +339,8 @@ export const animalese = new AnimaleseEngine();
 
 // E2E hook: a public checkout bundles no voice clips, so the mute e2e
 // (e2e/mute-toggle.spec.ts) reaches the live engine here to seed a silent
-// voice bank and observe playback attempts.
-if (typeof window !== 'undefined') {
+// voice bank and observe playback attempts. The e2e suite runs against the
+// Vite dev server, so the hook is dev-only and never ships in the packaged app.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as any).__clawsterVoice = animalese;
 }

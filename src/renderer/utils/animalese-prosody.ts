@@ -302,8 +302,14 @@ export function planUtterance(
       const fromEnd = meta.voicedCount - 1 - voicedIndexInSentence[k];
       if (meta.isFinal) {
         // The very last sentence fades to near-silence over its final chars.
+        // The fade window scales with the sentence's voiced length so short
+        // exclamations ("Hi", "ok", "yay!") keep their energy.
         const fade = meta.type === 'ellipsis' ? [0.15, 0.3, 0.5] : [0.35, 0.6, 0.85];
-        if (fromEnd < fade.length) gain = fade[fromEnd];
+        const fadeLen =
+          meta.voicedCount <= 2
+            ? 0
+            : Math.min(fade.length, Math.floor(meta.voicedCount / 2));
+        if (fromEnd < fadeLen) gain = fade[fromEnd + fade.length - fadeLen];
       } else if (fromEnd === 0) {
         // Non-final sentences just soften their last voiced char.
         gain = 0.8;

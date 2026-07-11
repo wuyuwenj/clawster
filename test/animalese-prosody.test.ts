@@ -94,6 +94,20 @@ describe('planUtterance — trail-off ("knows when to stop")', () => {
       normal[normal.length - 1].gain,
     );
   });
+
+  it('keeps 1-2 letter final sentences at full volume', () => {
+    for (const text of ['Hi', 'ok', 'a!', 'no...']) {
+      for (const step of voiced(planUtterance(text, 'neutral', flat))) {
+        expect(step.gain).toBe(1);
+      }
+    }
+  });
+
+  it('shrinks the fade window for shortish final sentences', () => {
+    // 3 voiced letters → only the last char softens, and only gently.
+    const v = voiced(planUtterance('yay!', 'neutral', flat));
+    expect(v.map((s) => s.gain)).toEqual([1, 1, 0.85]);
+  });
 });
 
 describe('planUtterance — punctuation prosody', () => {
