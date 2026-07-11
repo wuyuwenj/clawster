@@ -1,0 +1,23 @@
+review-evidence/2026-07-11/README.md
+  s_5535aa90a09bd5::t_cc8bd28d6fbac7 1-9
+review-evidence/2026-07-11/.omc/state/sessions/466d445f-49ed-4316-ba37-99b7dac4b766/last-tool-error-state.json
+  s_5535aa90a09bd5::t_c8e24b99bb8531 1-7
+review-evidence/2026-07-11/.omc/state/sessions/466d445f-49ed-4316-ba37-99b7dac4b766/pre-tool-advisory-throttle.json
+  s_5535aa90a09bd5::t_6a7c829b59146d 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "02d3c73591561090452602c6af275af57ea324d7",
+  "prompts": {},
+  "sessions": {
+    "s_5535aa90a09bd5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "466d445f-49ed-4316-ba37-99b7dac4b766",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
