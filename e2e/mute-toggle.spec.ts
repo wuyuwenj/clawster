@@ -2,7 +2,7 @@ import { test, expect, ElectronApplication, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { launchApp, findWindow } from './helpers';
+import { launchApp, findWindow, isProd } from './helpers';
 
 // CLA-52: the Assistant "Mute Clawster's voice" switch must actually silence the
 // Animalese voice engine, which lives in the *pet-chat* renderer — a different
@@ -16,6 +16,12 @@ const EVIDENCE_DIR =
 
 const MUTE_LABEL = "Mute Clawster's voice";
 const SPEECH_MS_PER_CHAR = 60; // AnimaleseEngine default speed
+
+// The window.__clawsterVoice hook this suite depends on is dev-only (gated on
+// import.meta.env.DEV in animalese.ts), so the packaged app never exposes it.
+// File-level so beforeAll (which seeds the voice bank through the hook) is
+// skipped too; mute coverage in prod mode stays with test/mute-toggle.test.ts.
+test.skip(isProd(), 'Animalese e2e hook (window.__clawsterVoice) is dev-only');
 
 let app: ElectronApplication;
 let pet: Page;
