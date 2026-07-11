@@ -1,0 +1,21 @@
+.omc/state/sessions/73816afd-2f98-4823-8e46-1aa91a70779f/pre-tool-advisory-throttle.json
+  s_b0a0c7d758a424::t_39bdc352ebafb2 1-10
+.omc/sessions/73816afd-2f98-4823-8e46-1aa91a70779f.json
+  s_b0a0c7d758a424::t_921d7b31b4c440 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "401d71010717f1424ddb61a2b982a48d447cbe2e",
+  "prompts": {},
+  "sessions": {
+    "s_b0a0c7d758a424": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73816afd-2f98-4823-8e46-1aa91a70779f",
+        "model": "unknown"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
