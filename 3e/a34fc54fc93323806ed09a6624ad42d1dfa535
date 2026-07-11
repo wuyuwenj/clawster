@@ -1,0 +1,38 @@
+src/renderer/chatbar/ChatBar.tsx
+  s_e2269f747f653a::t_c4a26a6ad464e4 522-523
+  s_e2269f747f653a::t_7528e90528ee8e 505-506,514
+  s_e2269f747f653a::t_9242fd13b8a8a0 480
+  s_e2269f747f653a::t_2259c046d585d3 495
+  s_e2269f747f653a::t_e9c674b57280b6 448,450
+  s_e2269f747f653a::t_1a2f9abff413e3 530,535
+  s_e2269f747f653a::t_b4d3d12d4c74dd 456-457,467
+  s_e2269f747f653a::t_2c2277b5c3f9cd 429-432
+  s_e2269f747f653a::t_e08d0ae9534243 444
+src/renderer/chatbar/styles.css
+  s_e2269f747f653a::t_e02242c0f8fd06 15-18,25-27,31-33
+  s_e2269f747f653a::t_596d08640bca88 34,123-297
+  s_e2269f747f653a::t_70f65d5b7b6bc2 35
+src/renderer/pet-chat/styles.css
+  s_e2269f747f653a::t_af45be4c92d685 5-8,12-15
+src/renderer/styles/tidepool.css
+  s_e2269f747f653a::t_173074bc1573bd 67-68
+  s_e2269f747f653a::t_e891d2c915648b 124-125
+src/renderer/pet-chat/PetChat.tsx
+  s_e2269f747f653a::t_a7a1b8abf471f0 279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "3ea34fc54fc93323806ed09a6624ad42d1dfa535",
+  "prompts": {},
+  "sessions": {
+    "s_e2269f747f653a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b42a4dd8-8831-405b-89ba-7415e4cff763",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
