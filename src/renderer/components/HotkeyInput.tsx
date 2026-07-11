@@ -64,7 +64,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({ label, description, va
         className={`px-3 py-2 rounded-lg text-sm font-mono transition-all min-w-[140px] text-center ${
           isRecording
             ? 'bg-[#FF8C69]/20 border border-[#FF8C69] text-[#FF8C69] animate-pulse'
-            : 'bg-[var(--app-bg-elevated)] border border-[var(--app-border)] text-[var(--app-text)] hover:border-white/20'
+            : 'bg-[var(--app-bg-elevated)] border border-[var(--app-border)] text-[var(--app-text)] hover:border-[var(--app-border-hover)]'
         }`}
       >
         {isRecording ? 'Press keys...' : formatHotkey(value)}

@@ -11,16 +11,32 @@
   box-shadow: var(--tp-sticker-shadow), var(--tp-ambient-shadow);
 }
 
-/* Squash-and-stretch entrance from the pet: transform origin sits at the
- * tail tip so the bubble springs out of Clawster, squashes wide, then settles.
- * Plays once per message — idle chrome never loops.
+/* Entrance — dark keeps the pre-Tidepool fade-up */
+@keyframes popupIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-popup-in {
+  animation: popupIn 0.25s ease-out;
+}
+
+/* Light-only squash-and-stretch entrance from the pet: transform origin sits
+ * at the tail tip so the bubble springs out of Clawster, squashes wide, then
+ * settles. Plays once per message — idle chrome never loops.
  *
  * The window is sized to the content box, so only `pt-1` (4px) sits above the
  * bubble. Any scaleY over 1 lifts the top edge by (scaleY - 1) * (h + 13) and
  * the ink outline clips, so the bounce stays wide-and-short. `--tp-spring` is
  * a back-out curve (peaks ~1.098) and CSS runs it per keyframe segment, hence
  * the plain ease on the growth leg. */
-@keyframes popupIn {
+@keyframes popupInSpring {
   0% {
     opacity: 0;
     transform: scale(0.45, 0.3) translateY(4px);
@@ -37,8 +53,8 @@
   }
 }
 
-.animate-popup-in {
-  animation: popupIn 320ms var(--tp-spring);
+:root[data-theme="light"] .animate-popup-in {
+  animation: popupInSpring 320ms var(--tp-spring);
   transform-origin: 50% calc(100% + 13px);
 }
 

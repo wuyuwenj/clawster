@@ -19,11 +19,17 @@ export function applyTheme(theme: Theme): void {
 // there is no light flash for dark users.
 export async function initTheme(): Promise<void> {
   applyTheme('dark');
+  let liveChangeSeen = false;
+  (window as any).clawster?.onThemeChanged?.((theme: Theme) => {
+    liveChangeSeen = true;
+    applyTheme(theme);
+  });
   try {
     const settings = await (window as any).clawster?.getSettings?.();
-    applyTheme(settings?.appearance?.theme === 'light' ? 'light' : 'dark');
+    if (!liveChangeSeen) {
+      applyTheme(settings?.appearance?.theme === 'light' ? 'light' : 'dark');
+    }
   } catch {
     /* keep the dark default */
   }
-  (window as any).clawster?.onThemeChanged?.((theme: Theme) => applyTheme(theme));
 }

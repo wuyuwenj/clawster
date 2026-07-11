@@ -71,6 +71,7 @@
   --app-text-strong: #ffffff;
   --app-muted: #a3a3a3;
   --app-border: rgba(255, 255, 255, 0.10);
+  --app-border-hover: rgba(255, 255, 255, 0.20);
   --app-accent: #FF8C69;
   --app-accent-contrast: #0f0f0f;
   /* deeper slab (#0a0a0a input footer), control track (neutral-800),
@@ -125,6 +126,7 @@
   --app-text-strong: #4A2B26;
   --app-muted: #8A5A4E;
   --app-border: rgba(139, 58, 58, 0.22);
+  --app-border-hover: rgba(139, 58, 58, 0.45);
   --app-accent: #FF8C69;
   --app-accent-contrast: #FFF9F2;
   --app-bg-deep: #FFF1E4;
