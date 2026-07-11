@@ -61,6 +61,15 @@ User message
 - `npx tsc --noEmit` — Type checking
 - CI (`.github/workflows/ci.yml`) runs on PRs and pushes to `staging`: a `test` job (type check + full Vitest suite) and a separate `safety` job (child-safety tests: `test/safety-filter.test.ts`, `test/open-url-safety.test.ts`)
 
+### Visual verification of UI changes (CLA-57 convention)
+A UI change is **not done** until the rendered pixels change (or match an intended baseline) — not when a flag flips or a DOM node exists. On CLA-27 a "curious mood" e2e passed on a mood-flag assertion, yet the owner viewed the screenshots and the sprite looked identical: a false pass. So:
+
+- **UI-changing PRs must assert on renders** through the shared helper `e2e/visual-diff.ts` — capture a surface before/after and `assertVisiblyDiffers` (or `assertVisiblyMatches` against an intended baseline). Comparison is masked + thresholded (pixelmatch, AA excluded), never raw pixel equality, so anti-aliasing / font rendering / 1px shifts don't cause false diffs; mask animated or non-deterministic regions with the `mask` option.
+- **Reference example:** `e2e/chatbar-curious.spec.ts` (idle → curious). Copy its shape for new UI specs (theme/Tidepool, poses, panels, …).
+- **The author must VIEW the renders before "done"** and confirm they match intent. Pass `evidenceDir` so the helper writes the real `*-before.png` / `*-after.png` / `*-diff.png`; open them (commit under `.no-mistakes/evidence/<issue>/` for PR review). A green pixel-diff number alone is not confirmation — look at the images.
+- **Audio safety:** every Electron/e2e launch goes through `launchApp` (`e2e/helpers.ts`), which passes `--mute-audio` and Chromium fake-media-device flags so a test never opens the real microphone or plays sound on the dev machine.
+- Pure comparison logic (`compareBuffers`, masking, thresholds) is unit-tested in `test/visual-diff.test.ts` — no browser, so it also documents the false-pass it prevents.
+
 ### Build & Release
 - `npm run dist:mac` — Build + notarize for macOS
 - Tag `vX.Y.Z` and push to trigger CI release via GitHub Actions

@@ -1,8 +1,10 @@
 import { test, expect, ElectronApplication, Page, Locator } from '@playwright/test';
 import * as path from 'path';
-import { PNG } from 'pngjs';
-import pixelmatch from 'pixelmatch';
 import { launchApp, findWindow } from './helpers';
+// Reference example for CLA-57: UI specs assert on the rendered PIXELS through
+// this shared helper, not just a state flag. See e2e/visual-diff.ts and the
+// "Visual verification of UI changes" convention in AGENTS.md.
+import { captureSurface, assertVisiblyDiffers } from './visual-diff';
 
 // CLA-27 diagnostic + regression: opening the chatbar (Cmd+Shift+Space) must
 // drive the pet idle → curious and hold it while the bar is open. Because
@@ -47,18 +49,6 @@ function moodFromState(className: string): string {
   return `other(${className})`;
 }
 
-// Fraction of pixels that differ between two same-size PNG buffers.
-function diffFraction(aBuf: Buffer, bBuf: Buffer): number {
-  const a = PNG.sync.read(aBuf);
-  const b = PNG.sync.read(bBuf);
-  expect(a.width).toBe(b.width);
-  expect(a.height).toBe(b.height);
-  const { width, height } = a;
-  const diff = new PNG({ width, height });
-  const changed = pixelmatch(a.data, b.data, diff.data, width, height, { threshold: 0.15 });
-  return changed / (width * height);
-}
-
 test.beforeAll(async () => {
   app = await launchApp();
   pet = await findWindow(app, 'pet.html');
@@ -75,7 +65,7 @@ test.describe('chatbar → curious mood (CLA-27)', () => {
 
     // Baseline: pet is idle. Screenshot the lobster element itself.
     expect(moodFromState(await readPetState(pet))).toBe('idle');
-    const beforeBuf = await lobster.screenshot({ path: path.join(EVIDENCE_DIR, 'before-idle.png') });
+    const beforeBuf = await captureSurface(lobster);
 
     // Fire the exact IPC path Cmd+Shift+Space triggers: toggle-chatbar →
     // toggleChatbarWindow() → chatbar 'show' → main broadcasts pet-ui-visibility.
@@ -88,13 +78,20 @@ test.describe('chatbar → curious mood (CLA-27)', () => {
 
     // (1) Assert the mood is curious at the exact moment we capture the after shot.
     expect(moodFromState(await readPetState(pet))).toBe('curious');
-    const afterBuf = await lobster.screenshot({ path: path.join(EVIDENCE_DIR, 'after-chatbar-open.png') });
+    const afterBuf = await captureSurface(lobster);
 
     // (2) Confirm the sprite pixels actually differ substantially — not just a
-    // flag. A subtle pose that looks like idle would fail here.
-    const frac = diffFraction(beforeBuf, afterBuf);
-    console.log(`[curious-diagnostic] idle→curious sprite pixel-diff fraction: ${(frac * 100).toFixed(1)}%`);
-    expect(frac).toBeGreaterThan(MIN_DIFF_FRACTION);
+    // flag. This is the CLA-57 guard: a subtle pose that still looks like idle
+    // (the CLA-27 false pass) fails here. Masked + thresholded so idle
+    // self-animation and anti-aliasing don't register. Evidence PNGs (real
+    // before/after render + diff map) are written for human review.
+    const result = assertVisiblyDiffers(beforeBuf, afterBuf, {
+      minChangedFraction: MIN_DIFF_FRACTION,
+      threshold: 0.15,
+      evidenceDir: EVIDENCE_DIR,
+      label: 'chatbar-curious',
+    });
+    console.log(`[curious-diagnostic] idle→curious sprite pixel-diff fraction: ${(result.changedFraction * 100).toFixed(1)}%`);
   });
 
   test('curious holds while the chatbar stays open', async () => {
