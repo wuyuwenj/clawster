@@ -1,0 +1,19 @@
+review-evidence/2026-07-11/README.md
+  s_5535aa90a09bd5::t_cc8bd28d6fbac7 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "400b0ac8833575df4f47b0900b447dfa2ca72960",
+  "prompts": {},
+  "sessions": {
+    "s_5535aa90a09bd5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "466d445f-49ed-4316-ba37-99b7dac4b766",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
