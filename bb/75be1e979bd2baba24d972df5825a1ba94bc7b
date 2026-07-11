@@ -1,0 +1,33 @@
+test/multi-tool.test.ts
+  s_2550cc6effea20::t_1cb1db8d42b3e1 79
+  s_2550cc6effea20::t_ef6968410fb94f 2
+  s_2550cc6effea20::t_64608e9e950c61 26-31
+  s_2550cc6effea20::t_5d1ae2c0b0d8ef 127-129
+  s_2550cc6effea20::t_dfffdf44125763 152
+src/main/chat/chat-router.ts
+  s_2550cc6effea20::t_8a3753282a609a 9
+  s_2550cc6effea20::t_cec10f02e29951 313,323-324,332,339
+  s_2550cc6effea20::t_1b6cda4f3589c3 213,223-224,229,231,237
+AGENTS.md
+  s_2550cc6effea20::t_aaac0217836060 56
+src/main/chat/multi-tool.ts
+  s_2550cc6effea20::t_2894af38c0d846 103-108,117
+  s_2550cc6effea20::t_a61965e68dd30c 7-8
+  s_2550cc6effea20::t_1728c04e57a37c 128,136-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "bb75be1e979bd2baba24d972df5825a1ba94bc7b",
+  "prompts": {},
+  "sessions": {
+    "s_2550cc6effea20": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4477b783-4379-4b53-b955-b14de77a235c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
