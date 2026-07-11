@@ -115,6 +115,35 @@ export function initWindows(deps: {
   startMainAppFn = deps.startMainApp;
 }
 
+// --- Theme (CLA-58 Light theme) ---
+// Opaque windows paint their backgroundColor before/around the renderer's first
+// frame and during resize, so it must match the active theme. Dark is the
+// default look; 'light' is the opt-in Tidepool theme. Transparent windows
+// (pet, pet-chat, pet-context-menu, screenshot-question) are theme-neutral at
+// the window level — only their CSS reacts to `data-theme`.
+const OPAQUE_WINDOW_BG = {
+  chatbar: { dark: '#0f0f0f', light: '#FFF9F2' },
+  assistant: { dark: '#1a1a2e', light: '#FFF9F2' },
+  onboarding: { dark: '#1a1a2e', light: '#FFF9F2' },
+} as const;
+
+function currentTheme(): 'dark' | 'light' {
+  return store.get('appearance.theme') === 'light' ? 'light' : 'dark';
+}
+
+function windowBg(surface: keyof typeof OPAQUE_WINDOW_BG): string {
+  return OPAQUE_WINDOW_BG[surface][currentTheme()];
+}
+
+// Live-apply: repaint the opaque window chrome when the theme toggles, so the
+// switch takes effect without a restart.
+export function applyThemeToWindows(theme: 'dark' | 'light'): void {
+  const t: 'dark' | 'light' = theme === 'light' ? 'light' : 'dark';
+  chatbarWindow?.setBackgroundColor(OPAQUE_WINDOW_BG.chatbar[t]);
+  assistantWindow?.setBackgroundColor(OPAQUE_WINDOW_BG.assistant[t]);
+  onboardingWindow?.setBackgroundColor(OPAQUE_WINDOW_BG.onboarding[t]);
+}
+
 // --- Window getters ---
 
 export function getPetWindow(): BrowserWindow | null {
@@ -519,7 +548,7 @@ export function createAssistantWindow() {
     alwaysOnTop: true,
     resizable: true,
     show: false,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: windowBg('assistant'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -644,7 +673,7 @@ export function createChatbarWindow() {
     y: Math.round(screenHeight / 3),
     frame: false,
     transparent: false,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: windowBg('chatbar'),
     alwaysOnTop: true,
     resizable: true,
     movable: true,
@@ -794,7 +823,7 @@ export function createOnboardingWindow(): Promise<void> {
       minWidth: 500,
       minHeight: 550,
       show: false,
-      backgroundColor: '#1a1a2e',
+      backgroundColor: windowBg('onboarding'),
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,

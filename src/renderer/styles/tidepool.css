@@ -1,0 +1,200 @@
+/* Tidepool design tokens (CLA-58) — the UI drawn in Clawster's own art
+ * language: warm shell-cream surfaces outlined in the lobster's ink, coral and
+ * teal as real surface colors, sticker-style offset shadows, springy motion.
+ * Shared by the summon chatbar and the pet-chat speech bubble.
+ *
+ * Proportion rules: cream ~80% of any surface, ink outlines give structure,
+ * coral only for "acting/chosen", teal only for utility/status/links. */
+/* All --tp-* tokens now live in ./theme.css, defined per theme (dark default /
+ * light Tidepool). Each entrypoint imports theme.css, so the classes below
+ * resolve to the active theme's values and flip automatically. */
+
+.tp-font-round {
+  font-family: var(--tp-font-round);
+}
+
+.tp-font-body {
+  font-family: var(--tp-font-body);
+}
+
+/* Outlined chip: the shared shape for small controls (camera / mic / esc).
+ * Cream surface, 2px ink outline, springy squish on press. Hover/press states
+ * are scoped to `button` so inert chips (the `esc` hint) wear the shape without
+ * advertising an affordance they don't have. */
+.tp-chip {
+  background: var(--tp-shell);
+  border: var(--tp-outline);
+  color: var(--tp-teal);
+  transition: transform 150ms var(--tp-spring), background-color 150ms ease;
+}
+
+button.tp-chip:hover:not(:disabled) {
+  background: var(--tp-coral-tint);
+}
+
+button.tp-chip:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+/* Candy chip: solid quick-reply buttons with a sticker edge that squishes
+ * 2.5px on press (the shadow collapses as the chip sits down). */
+.tp-candy {
+  border: var(--tp-outline);
+  box-shadow: var(--tp-candy-shadow);
+  transition: transform 150ms var(--tp-spring), box-shadow 150ms var(--tp-spring), background-color 150ms ease;
+}
+
+.tp-candy:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 0 0 var(--tp-ink);
+}
+
+/* Warm selection + thin scrollbar, shared by both shell surfaces */
+.tp-surface ::selection,
+.tp-surface::selection {
+  background-color: var(--tp-selection);
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--tp-scroll-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tp-scroll-thumb-hover);
+}
+
+/* Message links — teal is the utility/link color */
+.message-link {
+  color: var(--tp-teal);
+  text-decoration: underline;
+  text-decoration-color: rgba(14, 138, 138, 0.4);
+  cursor: pointer;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.message-link:hover {
+  color: var(--tp-teal-deep);
+  text-decoration-color: rgba(9, 107, 107, 0.8);
+}
+
+/* Rendered markdown, shared by the chatbar response area and the bubble.
+ * Every rule is class-scoped, so it outranks Tailwind preflight regardless of
+ * which sheet each entrypoint loads last. */
+.markdown-message p {
+  margin-bottom: 0.5em;
+}
+
+.markdown-message p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-message h1 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 0.4em;
+}
+
+.markdown-message h2 {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin-bottom: 0.4em;
+}
+
+.markdown-message h3 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-bottom: 0.3em;
+}
+
+.markdown-message pre {
+  background: var(--tp-code-bg);
+  border: 1px solid var(--tp-code-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 0.85em;
+}
+
+.markdown-message pre code {
+  background: none;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: inherit;
+}
+
+.markdown-message .md-inline-code {
+  background: var(--tp-inline-code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-message ul,
+.markdown-message ol {
+  padding-left: 1.5em;
+  margin: 0.4em 0;
+}
+
+.markdown-message ul {
+  list-style-type: disc;
+}
+
+.markdown-message ol {
+  list-style-type: decimal;
+}
+
+.markdown-message li {
+  margin-bottom: 0.2em;
+}
+
+.markdown-message strong {
+  font-weight: 600;
+}
+
+.markdown-message em {
+  font-style: italic;
+}
+
+.markdown-message blockquote {
+  border-left: 3px solid var(--tp-coral);
+  padding-left: 0.75em;
+  margin: 0.4em 0;
+  color: var(--tp-driftwood);
+}
+
+.markdown-message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  font-size: 0.9em;
+}
+
+.markdown-message th,
+.markdown-message td {
+  border: 1px solid var(--tp-hairline);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+
+.markdown-message th {
+  background: var(--tp-shell-deep);
+  font-weight: 600;
+}
+
+.markdown-message hr {
+  border: none;
+  border-top: 1px solid var(--tp-hairline);
+  margin: 0.5em 0;
+}

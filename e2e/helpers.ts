@@ -20,13 +20,18 @@ function prodExecutable(): string {
 }
 
 export function launchApp(opts?: { dataDir?: string }): Promise<ElectronApplication> {
+  // Audio safety: NODE_ENV=test also mutes Animalese in the renderer (animalese.ts
+  // reads window.clawster.audioMuted), and `--mute-audio` mutes all Chromium audio
+  // output at the engine level — belt-and-suspenders so the suite never plays sound
+  // on a real machine. The mic is never opened (only the speech-start IPC does that,
+  // and the tests never call it).
   const env: Record<string, string> = { ...process.env as Record<string, string>, NODE_ENV: 'test' };
   if (opts?.dataDir) env.CLAWSTER_DATA_DIR = opts.dataDir;
 
   if (isProd()) {
-    return electron.launch({ executablePath: prodExecutable(), env });
+    return electron.launch({ executablePath: prodExecutable(), args: ['--mute-audio'], env });
   }
-  return electron.launch({ args: [PROJECT_ROOT], env });
+  return electron.launch({ args: [PROJECT_ROOT, '--mute-audio'], env });
 }
 
 export async function sendChat(page: Page, msg: string): Promise<any> {

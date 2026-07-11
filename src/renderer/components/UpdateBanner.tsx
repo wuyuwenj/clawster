@@ -59,7 +59,7 @@ export const UpdateBanner: React.FC = () => {
 
       <button
         onClick={() => setDismissed(true)}
-        className="text-neutral-500 hover:text-neutral-300 transition-colors shrink-0"
+        className="text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors shrink-0"
         title="Dismiss"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

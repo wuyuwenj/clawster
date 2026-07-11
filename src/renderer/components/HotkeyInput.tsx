@@ -54,8 +54,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({ label, description, va
   return (
     <div className="flex items-center justify-between py-3">
       <div>
-        <div className="text-sm font-medium text-neutral-200">{label}</div>
-        <div className="text-xs text-neutral-500 mt-0.5">{description}</div>
+        <div className="text-sm font-medium text-[var(--app-text)]">{label}</div>
+        <div className="text-xs text-[var(--app-muted)] mt-0.5">{description}</div>
       </div>
       <button
         onKeyDown={handleKeyDown}
@@ -64,7 +64,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({ label, description, va
         className={`px-3 py-2 rounded-lg text-sm font-mono transition-all min-w-[140px] text-center ${
           isRecording
             ? 'bg-[#FF8C69]/20 border border-[#FF8C69] text-[#FF8C69] animate-pulse'
-            : 'bg-neutral-900 border border-white/10 text-neutral-300 hover:border-white/20'
+            : 'bg-[var(--app-bg-elevated)] border border-[var(--app-border)] text-[var(--app-text)] hover:border-white/20'
         }`}
       >
         {isRecording ? 'Press keys...' : formatHotkey(value)}
