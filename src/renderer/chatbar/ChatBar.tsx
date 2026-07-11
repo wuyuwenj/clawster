@@ -493,7 +493,7 @@ export const ChatBar: React.FC = () => {
             disabled={isLoading}
             className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
               isRecording
-                ? 'bg-[var(--tp-coral)] border-2 border-[var(--tp-ink)] text-[var(--tp-text-ink)] animate-pulse'
+                ? 'chatbar-mic-recording animate-pulse'
                 : 'tp-chip'
             }`}
             title={isRecording ? 'Stop recording' : 'Voice input'}
@@ -526,8 +526,8 @@ export const ChatBar: React.FC = () => {
         {/* Response Area — recessed shell, long bodies in the system face */}
         {response && (
           <div className="border-t-2 border-[var(--tp-ink)] bg-[var(--tp-shell-deep)] p-4 flex gap-3 items-start animate-fade-in max-h-[200px] overflow-y-auto">
-            <div className={`w-7 h-7 rounded-lg border-2 border-[var(--tp-ink)] flex items-center justify-center shrink-0 mt-0.5 ${!isConnected ? 'bg-[var(--tp-coral-tint)]' : 'bg-[var(--tp-coral)]'}`}>
-              <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className={`text-xs ${!isConnected ? 'text-[var(--tp-ink)]' : 'text-[var(--tp-text-ink)]'}`} />
+            <div className={`chatbar-response-badge flex items-center justify-center shrink-0 mt-0.5 ${!isConnected ? 'chatbar-response-badge-warn' : 'chatbar-response-badge-ok'}`}>
+              <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className="text-xs" />
             </div>
             <div className="flex-1">
               <div className="tp-font-body text-[15px] leading-[1.55] text-[var(--tp-text-ink)] select-text cursor-text">

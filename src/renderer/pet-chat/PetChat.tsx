@@ -24,9 +24,9 @@ interface ChatMessage {
 }
 
 const CHIP_CLASSES: Record<ChipVariant, string> = {
-  primary: 'bg-[var(--tp-coral)] text-[var(--tp-text-ink)]',
-  secondary: 'bg-[var(--tp-coral-tint)] text-[var(--tp-text-ink)]',
-  muted: 'bg-[var(--tp-shell-deep)] text-[var(--tp-driftwood)]',
+  primary: 'tp-candy-primary',
+  secondary: 'tp-candy-secondary',
+  muted: 'tp-candy-muted',
 };
 
 export const PetChat: React.FC = () => {
@@ -276,7 +276,7 @@ export const PetChat: React.FC = () => {
                       <button
                         key={reply}
                         onClick={() => handleQuickReply(reply)}
-                        className={`tp-candy px-3.5 py-1.5 rounded-full text-[13px] tp-font-round font-bold ${
+                        className={`tp-candy tp-candy-reply px-3.5 py-1.5 rounded-full ${
                           CHIP_CLASSES[chipVariant(message.quickReplies!, reply)]
                         }`}
                       >
@@ -319,11 +319,11 @@ export const PetChat: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={submitFeedback}
-                        className="tp-candy flex-1 px-2 py-1 bg-[var(--tp-coral)] rounded-lg text-[11px] tp-font-round font-bold text-[var(--tp-text-ink)]"
+                        className="tp-candy tp-candy-modal tp-candy-send flex-1 px-2 py-1 text-[11px]"
                       >Send</button>
                       <button
                         onClick={() => setShowFeedbackModal(false)}
-                        className="tp-candy px-2 py-1 bg-[var(--tp-shell-deep)] rounded-lg text-[11px] tp-font-round font-bold text-[var(--tp-driftwood)]"
+                        className="tp-candy tp-candy-modal tp-candy-muted px-2 py-1 text-[11px]"
                       >Cancel</button>
                     </div>
                   </div>

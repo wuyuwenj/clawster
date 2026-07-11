@@ -66,6 +66,54 @@
   animation: fadeIn 300ms var(--tp-spring);
 }
 
+/* Mic while recording — dark keeps the pre-Tidepool red ghost, light wears
+ * the solid coral "acting" treatment */
+.chatbar-mic-recording {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.10);
+}
+
+:root[data-theme="light"] .chatbar-mic-recording {
+  background: var(--tp-coral);
+  border: 2px solid var(--tp-ink);
+  color: var(--tp-text-ink);
+}
+
+/* Response-area status square — dark keeps the pre-Tidepool tinted square
+ * (coral wand, amber warning), light the outlined solid Tidepool one */
+.chatbar-response-badge {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+}
+
+.chatbar-response-badge-ok {
+  background: rgba(255, 140, 105, 0.20);
+  color: #FF8C69;
+}
+
+.chatbar-response-badge-warn {
+  background: rgba(245, 158, 11, 0.20);
+  color: #fbbf24;
+}
+
+:root[data-theme="light"] .chatbar-response-badge {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--tp-ink);
+}
+
+:root[data-theme="light"] .chatbar-response-badge-ok {
+  background: var(--tp-coral);
+  color: var(--tp-text-ink);
+}
+
+:root[data-theme="light"] .chatbar-response-badge-warn {
+  background: var(--tp-coral-tint);
+  color: var(--tp-ink);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
