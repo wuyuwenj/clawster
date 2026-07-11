@@ -1,0 +1,65 @@
+src/main/pet-behaviors.ts
+  s_0b74bd77397355::t_c9f39cd46597fe 81-90,99-100
+  s_0b74bd77397355::t_769af14e310004 447-462
+  s_0b74bd77397355::t_72e722e862bc0d 25
+  s_0b74bd77397355::t_c967bb7876fd21 120
+  s_0b74bd77397355::t_3180b7b601949b 149-150
+  s_201510ec11d458::t_7d3d5be94feb3a 108,139
+  s_201510ec11d458::t_f48fba66692490 184
+test/drag-interactions.test.ts
+  s_0b74bd77397355::t_3a60a35f4353d5 8,10
+  s_0b74bd77397355::t_dfeffdbb2283c6 138
+  s_0b74bd77397355::t_e453549a496cf6 93-137,139-141
+test/click-irritation.test.ts
+  s_0b74bd77397355::t_f91f860201cd87 64,73,75-120
+src/renderer/pet/click-irritation.ts
+  s_0b74bd77397355::t_e62f6c3ab696ff 13
+  s_0b74bd77397355::t_37380ff7663567 58
+src/main/preload.ts
+  s_0b74bd77397355::t_d6729bc0ec9224 47
+  s_0b74bd77397355::t_9b8210cb03a35a 324
+src/renderer/vite-env.d.ts
+  s_0b74bd77397355::t_089ab239014e4d 60
+src/main/main.ts
+  s_0b74bd77397355::t_e12145bbf98dd4 1166-1171
+  s_0b74bd77397355::t_a42d8ac183cadb 79
+  s_201510ec11d458::t_e9c88eaa73ed76 1178-1186
+src/renderer/pet/drag-interactions.ts
+  s_0b74bd77397355::t_b6b62f21d6b077 69-81,84-101
+  s_0b74bd77397355::t_0b50ca636d8a64 82-83
+src/renderer/pet/Pet.tsx
+  s_0b74bd77397355::t_8a04abc3e033e7 259,262-263
+  s_0b74bd77397355::t_57283746da6936 806-809
+  s_0b74bd77397355::t_e100d5476d0ebe 284
+  s_0b74bd77397355::t_899d2b3bc0bc57 678
+  s_0b74bd77397355::t_5a795642564a41 699-702,720-725,728-733,737-746,754-755
+  s_0b74bd77397355::t_a0c132f613676c 348-356,360,367,372
+  s_0b74bd77397355::t_72da62c7a04ebf 12,15,17
+  s_0b74bd77397355::t_161aacb65a6dac 649-653
+test/pet-move-animation.test.ts
+  s_0b74bd77397355::t_180d3f19ed3c9d 1-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "64f3a089c1cb6e998c9760b3159dcbc76f6a550c",
+  "prompts": {},
+  "sessions": {
+    "s_0b74bd77397355": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4e37eb8e-6d47-4e51-81e9-79e0cf09d6b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_201510ec11d458": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2ecca99-ad84-4064-a5c8-49e1d1935656",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

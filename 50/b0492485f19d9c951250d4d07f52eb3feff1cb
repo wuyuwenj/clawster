@@ -1,0 +1,42 @@
+src/renderer/pet/drag-interactions.ts
+  s_65d14fab8825dd::t_d89c13b4c65922 24-31
+  s_65d14fab8825dd::t_f21f96c294887d 110-113,121-125
+src/main/main.ts
+  s_65d14fab8825dd::t_ba2824672fe8dc 78
+  s_65d14fab8825dd::t_85bd7e4eb34563 1605
+src/renderer/pet/Pet.tsx
+  s_65d14fab8825dd::t_6200216a301544 17
+  s_65d14fab8825dd::t_5b52210c89f665 749-758,764-766
+  s_65d14fab8825dd::t_210c07b3621bd2 350-365
+  s_65d14fab8825dd::t_f044c25328ae82 772-778
+  s_65d14fab8825dd::t_a72e0eb355a18e 722-726
+  s_65d14fab8825dd::t_ad85c975cace93 819
+  s_65d14fab8825dd::t_855baefa8a1d7c 827
+  s_65d14fab8825dd::t_5ad51270746957 12
+  s_65d14fab8825dd::t_40eaf8f8973ac9 688-690
+  s_65d14fab8825dd::t_2ff716431ab681 264-266
+test/pet-move-animation.test.ts
+  s_65d14fab8825dd::t_d3c2e98f186c27 9-13
+  s_65d14fab8825dd::t_6eb1a7f43e1d28 83-110
+test/drag-interactions.test.ts
+  s_65d14fab8825dd::t_3318cfd52d0b37 176-263
+  s_65d14fab8825dd::t_15dab6b0d57f01 9,12
+src/main/pet-behaviors.ts
+  s_65d14fab8825dd::t_5893906a406176 81-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "50b0492485f19d9c951250d4d07f52eb3feff1cb",
+  "prompts": {},
+  "sessions": {
+    "s_65d14fab8825dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c186afb9-b9cf-4597-b36d-865290b4752d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

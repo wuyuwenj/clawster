@@ -1,0 +1,44 @@
+src/main/preload.ts
+  s_4f9ad42fe703ce::t_dd94b6cf7a56ef 47-48
+e2e/drag-feel.spec.ts
+  s_be94ceacfd0a93::t_fdafdaec73037f 266,275-277
+  s_be94ceacfd0a93::t_301321f4170d6a 282
+  s_be94ceacfd0a93::t_ffe95ac47c94bd 179,182-183,186,193-202,213,215,217-218,232
+  s_be94ceacfd0a93::t_db543b962b0f4e 169
+  s_be94ceacfd0a93::t_1d0955368b32d8 15-22
+  s_be94ceacfd0a93::t_bc5b6a16e8f4d6 272
+  s_be94ceacfd0a93::t_6818a9f10f0781 216
+  s_be94ceacfd0a93::t_5c617ed5ee9be4 61-69
+  s_be94ceacfd0a93::t_3e37adf4424cda 255,261
+  s_be94ceacfd0a93::t_9b976fb40144c3 1-14,23-60,70-141,143-168,170-178,180-181,184-185,187-192,203-212,214,219-229,234-240,242-254,256-260,262-265,267-271,273-274,278-281,283-315
+  s_be94ceacfd0a93::t_03e3ca911c9ded 230-231,233,241
+  s_be94ceacfd0a93::t_e73061c0d1a91d 142
+AGENTS.md
+  s_4f9ad42fe703ce::t_016a3ca8ef3a0a 57-58
+README.md
+  s_4f9ad42fe703ce::t_9b62355b7dbde3 42-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "42687b9556214b8ed734573cdc509415fc3b1a01",
+  "prompts": {},
+  "sessions": {
+    "s_4f9ad42fe703ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5207fd0-cef5-4f39-af7e-437509770bb2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_be94ceacfd0a93": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e22592f3-96b2-440f-a5a0-57ff60073933",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
