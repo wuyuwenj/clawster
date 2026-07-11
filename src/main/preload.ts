@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('clawster', {
   forceActiveAppComment: () => ipcRenderer.invoke('dev-force-active-app-comment'),
   toggleChatbar: () => ipcRenderer.send('toggle-chatbar'),
   closeChatbar: () => ipcRenderer.send('close-chatbar'),
+  onChatbarShown: (callback: () => void) => onIpcNoArgs('chatbar-shown', callback),
   setChatbarIgnoreMouse: (ignore: boolean) => ipcRenderer.send('chatbar-set-ignore-mouse', ignore),
   toggleScreenshotQuestion: () => ipcRenderer.send('toggle-screenshot-question'),
   closeScreenshotQuestion: () => ipcRenderer.send('close-screenshot-question'),
@@ -329,6 +330,7 @@ export interface ClawsterAPI {
   forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
   closeChatbar: () => void;
+  onChatbarShown: (callback: () => void) => ListenerCleanup;
   setChatbarIgnoreMouse: (ignore: boolean) => void;
   toggleScreenshotQuestion: () => void;
   closeScreenshotQuestion: () => void;

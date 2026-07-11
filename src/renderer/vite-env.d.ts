@@ -53,6 +53,7 @@ interface ClawsterAPI {
   forceActiveAppComment: () => Promise<boolean>;
   toggleChatbar: () => void;
   closeChatbar: () => void;
+  onChatbarShown: (callback: () => void) => ListenerCleanup;
   setChatbarIgnoreMouse: (ignore: boolean) => void;
   toggleScreenshotQuestion: () => void;
   closeScreenshotQuestion: () => void;

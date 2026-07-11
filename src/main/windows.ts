@@ -670,13 +670,26 @@ export function showPetContextMenuAtCursor(cursorX: number, cursorY: number) {
 
 // --- Chatbar ---
 
+// CLA-59: the chatbar window is reused across summons (toggle hides, re-summon
+// shows), so the renderer's mount-time entrance animation would only ever play
+// once. Notify the renderer on every show so it can replay the entrance. Sent
+// explicitly from the show call sites, NOT from a window 'show' listener —
+// macOS does not reliably emit show/hide events (same reason the pet-ui
+// visibility broadcast is explicit).
+function sendChatbarShown() {
+  if (!chatbarWindow || chatbarWindow.isDestroyed()) return;
+  chatbarWindow.webContents.send('chatbar-shown');
+}
+
 export function createChatbarWindow() {
   if (chatbarWindow) {
     chatbarWindow.show();
     chatbarWindow.focus();
-    // Explicit broadcast: the 'show' event never fires on Electron 28.3.3/macOS
-    // (CLA-27), which left the curious-mood broadcast silently dead there.
+    // Explicit broadcasts: the 'show' event never fires on Electron 28.3.3/macOS
+    // (CLA-27), which left the curious-mood broadcast silently dead there — the
+    // same reason the CLA-59 capsule-entrance replay is pushed explicitly.
     sendPetUiVisibility();
+    sendChatbarShown();
     return;
   }
 
@@ -721,6 +734,7 @@ export function createChatbarWindow() {
   chatbarWindow.once('ready-to-show', () => {
     chatbarWindow?.show();
     sendPetUiVisibility();
+    sendChatbarShown();
   });
 
   chatbarWindow.on('closed', () => {

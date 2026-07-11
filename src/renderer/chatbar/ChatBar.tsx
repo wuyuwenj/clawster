@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { REPLY_THANKS, REPLY_NOT_NOW, REPLY_GOT_IT } from '../pet-chat/quick-replies';
 import { STREAM_PLACEHOLDER } from '../pet-chat/response-state';
+import { replayCapsuleEntrance } from './capsule-entrance';
 
 interface Message {
   id: string;
@@ -32,6 +33,16 @@ export const ChatBar: React.FC = () => {
   const activePetPopupIdRef = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const speechAutoSubmitTimeoutRef = useRef<number | null>(null);
+  const capsuleRef = useRef<HTMLDivElement>(null);
+
+  // Replay the springy entrance on every summon (CLA-59). The window is reused
+  // across summons, so the mount-time capsuleIn run only plays once; main
+  // re-notifies on each show. Light-only — dark keeps its first-mount fade.
+  useEffect(() => {
+    return window.clawster.onChatbarShown(() => {
+      replayCapsuleEntrance(document.documentElement.dataset.theme, capsuleRef.current);
+    });
+  }, []);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
@@ -419,6 +430,7 @@ export const ChatBar: React.FC = () => {
       {/* Shell capsule: warm cream, 2px ink outline, 24px radius, sticker
           shadow resting on the cream mat below. Fully opaque. */}
       <div
+        ref={capsuleRef}
         data-tidepool="capsule"
         className="tp-capsule h-full flex flex-col overflow-hidden"
       >
