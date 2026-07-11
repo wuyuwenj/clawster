@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  detectSecondaryRequest,
-  withSecondaryOffer,
-  secondaryQuickReplies,
-} from '../src/main/chat/multi-tool';
+import { detectSecondaryRequest, withSecondaryOffer } from '../src/main/chat/multi-tool';
 
 describe('detectSecondaryRequest', () => {
   it('spots the battery ask dropped after play_music (CLA-37 example)', () => {
@@ -11,7 +7,6 @@ describe('detectSecondaryRequest', () => {
     expect(s).not.toBeNull();
     expect(s!.tool).toBe('system_control');
     expect(s!.offer).toBe('check your battery');
-    expect(s!.reply).toBe('Check my battery');
   });
 
   it('spots the timer ask dropped after get_weather (CLA-37 example)', () => {
@@ -24,6 +19,12 @@ describe('detectSecondaryRequest', () => {
   it('works symmetrically when the model picks the OTHER tool', () => {
     // Same message, but the classifier ran set_timer instead of get_weather.
     const s = detectSecondaryRequest('check weather and set timer', 'set_timer');
+    expect(s).not.toBeNull();
+    expect(s!.tool).toBe('get_weather');
+  });
+
+  it('treats create_timer as the set_timer intent (classifier alias)', () => {
+    const s = detectSecondaryRequest('set a timer and check the weather', 'create_timer');
     expect(s).not.toBeNull();
     expect(s!.tool).toBe('get_weather');
   });
@@ -75,7 +76,7 @@ describe('detectSecondaryRequest', () => {
 });
 
 describe('withSecondaryOffer', () => {
-  const secondary = { tool: 'system_control', offer: 'check your battery', reply: 'Check my battery' };
+  const secondary = { tool: 'system_control', offer: 'check your battery' };
 
   it('appends the offer to the tool reply', () => {
     const out = withSecondaryOffer('Now playing kpop! 🎵', secondary);
@@ -89,14 +90,6 @@ describe('withSecondaryOffer', () => {
 
   it('handles empty tool text', () => {
     expect(withSecondaryOffer('', secondary)).toBe('Oh — want me to also check your battery? *perks up*');
-  });
-});
-
-describe('secondaryQuickReplies', () => {
-  it('offers a one-tap command plus a decline', () => {
-    expect(
-      secondaryQuickReplies({ tool: 'set_timer', offer: 'set that timer', reply: 'Set the timer' })
-    ).toEqual(['Set the timer', 'No thanks']);
   });
 });
 
@@ -131,7 +124,9 @@ describe('ChatRouter multi-tool acknowledgement (CLA-37)', () => {
 
     expect(res.text).toContain('Now playing kpop!');
     expect(res.text).toContain('want me to also check your battery?');
-    expect(res.quickReplies).toEqual(['Check my battery', 'No thanks']);
+    // The offer is text-only: quick replies stay the tool's defaults, since
+    // PetChat's buttons don't dispatch arbitrary commands.
+    expect(res.quickReplies).toEqual(['Next song', 'Pause']);
   });
 
   it('does not add an offer for a single-tool request', async () => {
@@ -154,6 +149,6 @@ describe('ChatRouter multi-tool acknowledgement (CLA-37)', () => {
     });
 
     expect(streamed).toContain('want me to also set that timer?');
-    expect(res.quickReplies).toEqual(['Set the timer', 'No thanks']);
+    expect(res.quickReplies).toEqual(['Anywhere else?', 'Thanks!']);
   });
 });
