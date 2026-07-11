@@ -4,6 +4,8 @@ src/main/pet-behaviors.ts
   s_0b74bd77397355::t_72e722e862bc0d 25
   s_0b74bd77397355::t_c967bb7876fd21 120
   s_0b74bd77397355::t_3180b7b601949b 149-150
+  s_201510ec11d458::t_7d3d5be94feb3a 108,139
+  s_201510ec11d458::t_f48fba66692490 184
 test/drag-interactions.test.ts
   s_0b74bd77397355::t_3a60a35f4353d5 8,10
   s_0b74bd77397355::t_dfeffdbb2283c6 138
@@ -21,6 +23,7 @@ src/renderer/vite-env.d.ts
 src/main/main.ts
   s_0b74bd77397355::t_e12145bbf98dd4 1166-1171
   s_0b74bd77397355::t_a42d8ac183cadb 79
+  s_201510ec11d458::t_e9c88eaa73ed76 1178-1186
 src/renderer/pet/drag-interactions.ts
   s_0b74bd77397355::t_b6b62f21d6b077 69-81,84-101
   s_0b74bd77397355::t_0b50ca636d8a64 82-83
@@ -46,6 +49,14 @@ test/pet-move-animation.test.ts
       "agent_id": {
         "tool": "claude",
         "id": "4e37eb8e-6d47-4e51-81e9-79e0cf09d6b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_201510ec11d458": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2ecca99-ad84-4064-a5c8-49e1d1935656",
         "model": "claude-opus-4-8"
       },
       "human_author": "JamesWU <wuyuwen0@gmail.com>"
