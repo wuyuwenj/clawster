@@ -1,0 +1,33 @@
+test/animalese-prosody.test.ts
+  s_bb1591d40d8ab1::t_7fec770aeab9ed 131
+AGENTS.md
+  s_bb1591d40d8ab1::t_f9876d890e440b 62
+src/renderer/utils/animalese.ts
+  s_bb1591d40d8ab1::t_76f3010ead0af5 339-345
+src/renderer/utils/animalese-prosody.ts
+  s_bb1591d40d8ab1::t_31fa80d5454abb 93-96
+e2e/mute-toggle.spec.ts
+  s_bb1591d40d8ab1::t_44b548ada92027 125,130
+  s_bb1591d40d8ab1::t_07aa933d02c2fb 150,154-155
+  s_bb1591d40d8ab1::t_4fae3d984654e1 176,181,183-184
+  s_bb1591d40d8ab1::t_a150af26a20468 190,196,201,206-207
+  s_bb1591d40d8ab1::t_a4e5cad1cf4fb2 11-12
+  s_bb1591d40d8ab1::t_4c8e06f8a48b37 41-48,50-59,64-84,87,89
+  s_bb1591d40d8ab1::t_44b3d0c4b09f2c 114-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "02601c308aa6cbc64a685de13db31f379ce73753",
+  "prompts": {},
+  "sessions": {
+    "s_bb1591d40d8ab1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d58f440-682d-490e-bb3a-36419921244c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

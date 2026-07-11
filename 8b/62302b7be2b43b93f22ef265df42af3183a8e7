@@ -1,0 +1,31 @@
+src/renderer/utils/animalese.ts
+  s_73c4f9e292f3ab::t_e3904cb5e5ec7e 342-344
+test/animalese-prosody.test.ts
+  s_73c4f9e292f3ab::t_0687315f8cd351 97-110
+src/renderer/utils/animalese-prosody.ts
+  s_73c4f9e292f3ab::t_7a298b048b0ac9 305-306,308-312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "8b62302b7be2b43b93f22ef265df42af3183a8e7",
+  "prompts": {},
+  "sessions": {
+    "s_73c4f9e292f3ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a608c400-5d23-46f1-8134-f6cde2b91778",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_962a2044f30491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c69934cb-0f13-4f94-b171-cc2ba9ab2580",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
