@@ -1,0 +1,19 @@
+package-lock.json
+  s_962a2044f30491::t_f194730a54f436 14093-14506,14534-14577
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "9c82145bfb47c7d2f2149ee122ef062d37d6c1de",
+  "prompts": {},
+  "sessions": {
+    "s_962a2044f30491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c69934cb-0f13-4f94-b171-cc2ba9ab2580",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
