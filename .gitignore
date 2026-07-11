@@ -14,6 +14,9 @@ native/speech-helper/speech-helper
 # Private licensed Animalese voice clips (CLA-53): bundled into dist/ at build
 # time by Vite, but must never enter the public repo. The engine degrades to
 # silent when they are absent (public checkout / CI / tests).
+# Placeholder evidence renders (CLA-53) stay local too — macOS `say` output
+# must not be redistributed in the public repo (licensing).
+.no-mistakes/evidence/cla53/*.wav
 src/renderer/assets/voice/*.wav
 src/renderer/assets/voice/*.mp3
 src/renderer/assets/voice/*.ogg

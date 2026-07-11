@@ -1,9 +1,15 @@
 # CLA-53 Animalese v2 — rendered voice samples (PLACEHOLDER timbre)
 
-These `.wav` files let you **hear the v2 engine's prosody** on your own time.
-They were rendered offline to files (never played through speakers, mic never
-opened) by running representative utterances through the real `planUtterance`
-prosody plan.
+The `.wav` samples described below let you **hear the v2 engine's prosody** on
+your own time. They were rendered offline to files (never played through
+speakers, mic never opened) by running representative utterances through the
+real `planUtterance` prosody plan.
+
+**The WAVs are NOT committed** — they are macOS `say` output, and redistributing
+generated system-voice audio in the public repo is needless licensing exposure
+(gitignored via `.no-mistakes/evidence/cla53/*.wav`). Regenerate them locally
+with the instructions at the bottom, or play them from the authoring worktree
+(path in the PR).
 
 ## ⚠️ The timbre is a stand-in, not the shipped voice
 
