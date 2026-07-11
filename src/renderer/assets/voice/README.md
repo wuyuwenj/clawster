@@ -9,7 +9,7 @@ kids product; do NOT rip Nintendo / Animal Crossing audio).
 ## How the split works
 
 - **Public checkout / CI / tests:** this folder contains only this README. The
-  engine finds no clips via `import.meta.glob('../assets/voice/*.{wav,mp3,ogg}')`
+  engine finds no clips via `import.meta.glob('../assets/voice/*.{wav,mp3,ogg,aiff,m4a,flac}')`
   and degrades **silently** — the mouth animation still runs, there is just no
   synthesized voice. The public build and the full test suite pass with no clips.
 - **Private / release build:** dropping the licensed clips in here lets Vite
