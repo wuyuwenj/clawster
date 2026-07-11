@@ -1,0 +1,21 @@
+.no-mistakes/evidence/cla53/README.md
+  s_025e1d5d4742bd::t_8e14f6716efe8c 3-12
+.gitignore
+  s_025e1d5d4742bd::t_d36bbcc78bcd3f 17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "e4982d8aa8457fbb74dedbd2a746995bc9cfc534",
+  "prompts": {},
+  "sessions": {
+    "s_025e1d5d4742bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0230f325-3e82-4c0c-b81b-479ab94282f8",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
