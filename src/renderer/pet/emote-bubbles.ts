@@ -6,7 +6,8 @@ export type EmoteTrigger =
   | { kind: 'mood'; mood: string }
   | { kind: 'behavior'; behavior: string; source: 'idle' | 'poke' }
   | { kind: 'wake' }
-  | { kind: 'drag' };
+  | { kind: 'drag' }
+  | { kind: 'irritation'; level: 'mildly-annoyed' | 'very-annoyed'; escalated: boolean };
 
 export interface EmoteSuppression {
   /** Lobster is actively talking/responding (Animalese mouth active) */
@@ -49,6 +50,10 @@ const BEHAVIOR_MESSAGES: Record<string, string[]> = {
 
 const WAKE_MESSAGES = ['!', '*yawn*'];
 const DRAG_MESSAGES = ['Wheee!', '!'];
+const IRRITATION_MESSAGES: Record<'mildly-annoyed' | 'very-annoyed', string[]> = {
+  'mildly-annoyed': ['Hmph!'],
+  'very-annoyed': ['Hey!'],
+};
 
 export function pickEmoteMessage(
   trigger: EmoteTrigger,
@@ -67,6 +72,9 @@ export function pickEmoteMessage(
       break;
     case 'drag':
       pool = DRAG_MESSAGES;
+      break;
+    case 'irritation':
+      pool = IRRITATION_MESSAGES[trigger.level];
       break;
   }
   if (!pool || pool.length === 0) return null;
@@ -87,6 +95,11 @@ export function shouldShowEmoteBubble(options: {
   // Never bubble over an active conversation or open chat UI
   if (suppression.talking) return false;
   if (suppression.petChatOpen || suppression.assistantOpen || suppression.chatbarOpen) return false;
+
+  // Only the click that actually escalates the irritation level jumps the gap,
+  // so the bubble is never swallowed by a preceding poke bubble. Subsequent
+  // annoyed clicks stay rate-limited and don't remount the same bubble.
+  if (trigger.kind === 'irritation' && trigger.escalated) return true;
 
   if (lastBubbleAt !== null && now - lastBubbleAt < MIN_BUBBLE_GAP_MS) return false;
 

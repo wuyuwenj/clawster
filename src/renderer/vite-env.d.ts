@@ -57,6 +57,7 @@ interface ClawsterAPI {
   toggleScreenshotQuestion: () => void;
   closeScreenshotQuestion: () => void;
   dragPet: (deltaX: number, deltaY: number) => void;
+  petDragTakeOver: () => void;
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) => void;
   hidePetChat: () => void;
   resizePetChat: (width: number, height: number) => void;
@@ -98,9 +99,9 @@ interface ClawsterAPI {
   sendMouthShape: (shape: string | null) => void;
   onMouthShape: (callback: (shape: string | null) => void) => ListenerCleanup;
   copyToClipboard: (text: string) => Promise<boolean>;
-  executePetAction: (action: unknown) => Promise<void>;
-  movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
-  movePetToCursor: () => Promise<void>;
+  executePetAction: (action: unknown) => Promise<{ completed: boolean }>;
+  movePetTo: (x: number, y: number, duration?: number) => Promise<{ completed: boolean }>;
+  movePetToCursor: () => Promise<{ completed: boolean }>;
   getCursorPosition: () => Promise<{ x: number; y: number }>;
   getPetPosition: () => Promise<[number, number]>;
   onActivityEvent: (callback: (event: unknown) => void) => void;

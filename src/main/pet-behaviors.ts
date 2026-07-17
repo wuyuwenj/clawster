@@ -22,19 +22,10 @@ let moveAnimation: NodeJS.Timeout | null = null;
 // Resolver of the in-flight animateMoveTo promise. Cancelling an animation must
 // also resolve its promise — otherwise an overlapping call (e.g. two seekAttention
 // ticks) clears the timer but orphans the previous caller's await forever.
-let resolveMoveAnimation: (() => void) | null = null;
+let moveAnimationResolve: ((outcome: MoveOutcome) => void) | null = null;
 
-function cancelActiveMoveAnimation(): void {
-  if (moveAnimation) {
-    clearInterval(moveAnimation);
-    moveAnimation = null;
-  }
-  if (resolveMoveAnimation) {
-    const resolve = resolveMoveAnimation;
-    resolveMoveAnimation = null;
-    resolve();
-  }
-}
+/** Whether an animated move reached its target, or was cancelled/superseded. */
+export type MoveOutcome = 'completed' | 'cancelled';
 
 // Constants
 const IDLE_BEHAVIOR_MIN_INTERVAL = 3000;
@@ -90,15 +81,28 @@ export function initPetBehaviors(deps: {
   updateAssistantPositionFn = deps.updateAssistantPosition;
 }
 
+// Stops the eased position interval and settles whatever animateMoveTo call is
+// still awaiting it with the outcome it actually had.
+export function stopMoveAnimation(outcome: MoveOutcome = 'cancelled'): void {
+  if (moveAnimation) {
+    clearInterval(moveAnimation);
+    moveAnimation = null;
+  }
+  const resolve = moveAnimationResolve;
+  moveAnimationResolve = null;
+  resolve?.(outcome);
+}
+
 // Smooth animation to move pet to target position
-export function animateMoveTo(targetX: number, targetY: number, duration: number = 1000): Promise<void> {
+export function animateMoveTo(targetX: number, targetY: number, duration: number = 1000): Promise<MoveOutcome> {
   return new Promise((resolve) => {
     const petWindow = getPetWindow();
     if (!petWindow) {
-      resolve();
+      resolve('cancelled');
       return;
     }
-    cancelActiveMoveAnimation();
+    stopMoveAnimation('cancelled');
+    moveAnimationResolve = resolve;
 
     const [startX, startY] = getPetWindow()?.getPosition() ?? [0, 0];
 
@@ -106,20 +110,11 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     // native setPosition throw from inside the timer (CLA-56).
     if (!areUsableCoords(startX, startY, targetX, targetY)) {
       console.warn('[animateMoveTo] Refusing to move: unusable coordinates', { startX, startY, targetX, targetY });
-      resolve();
+      stopMoveAnimation();
       return;
     }
 
     const startTime = Date.now();
-    resolveMoveAnimation = resolve;
-    const finish = () => {
-      if (moveAnimation) {
-        clearInterval(moveAnimation);
-        moveAnimation = null;
-      }
-      resolveMoveAnimation = null;
-      resolve();
-    };
 
     // Notify renderer that movement started
     getPetWindow()?.webContents.send('pet-moving', { moving: true });
@@ -127,7 +122,7 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
     moveAnimation = setInterval(() => {
       const win = getPetWindow();
       if (!win) {
-        finish();
+        stopMoveAnimation('cancelled');
         return;
       }
 
@@ -146,7 +141,7 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
       if (!areUsableCoords(currentX, currentY)) {
         console.warn('[animateMoveTo] Aborting move: computed unusable position', { currentX, currentY });
         getPetWindow()?.webContents.send('pet-moving', { moving: false });
-        finish();
+        stopMoveAnimation();
         return;
       }
 
@@ -156,8 +151,8 @@ export function animateMoveTo(targetX: number, targetY: number, duration: number
 
       if (progress >= 1) {
         getStore().set('pet.position', { x: targetX, y: targetY });
-        getPetWindow()?.webContents.send('pet-moving', { moving: false });
-        finish();
+        win.webContents.send('pet-moving', { moving: false });
+        stopMoveAnimation('completed');
       }
     }, 16);
   });
@@ -191,7 +186,7 @@ function seekAttention() {
     console.log(`[AttentionSeeker] Moving to (${targetX}, ${targetY})`);
     getPetWindow()?.webContents.send('clawbot-mood', { state: 'excited', reason: 'wants attention' });
     // Deliberately not awaited: a newer seek cancels the in-flight animation via
-    // cancelActiveMoveAnimation, which also resolves the superseded promise.
+    // stopMoveAnimation, which also resolves the superseded promise.
     void animateMoveTo(targetX, targetY, 1500);
   } else {
     console.log('[AttentionSeeker] Too close, not moving');
@@ -243,6 +238,7 @@ async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
   if (!petWindow || isPerformingIdleBehavior || isSleepingState) return;
 
   isPerformingIdleBehavior = true;
+  let cancelled = false;
 
   try {
     switch (behavior) {
@@ -284,13 +280,19 @@ async function performIdleBehavior(behavior: IdleBehavior): Promise<void> {
         ));
 
         getPetWindow()?.webContents.send('idle-behavior', { type: 'wander', direction: wanderX > currentX ? 'right' : 'left' });
-        await animateMoveTo(wanderX, wanderY, 2000);
+        cancelled = (await animateMoveTo(wanderX, wanderY, 2000)) === 'cancelled';
         break;
     }
   } finally {
-    setTimeout(() => {
+    // A wander the user out-dragged never reached its target, so there is no
+    // tail of movement left to protect from the next idle behavior.
+    if (cancelled) {
       isPerformingIdleBehavior = false;
-    }, 2000);
+    } else {
+      setTimeout(() => {
+        isPerformingIdleBehavior = false;
+      }, 2000);
+    }
   }
 }
 
@@ -383,13 +385,14 @@ export function forceSleep(): void {
   fallAsleep();
 }
 
-// Execute a pet action from ClawBot
-export async function executePetAction(action: PetAction): Promise<void> {
+// Execute a pet action from ClawBot. Reports whether the action ran to
+// completion: a move the user out-dragged resolves as 'cancelled'.
+export async function executePetAction(action: PetAction): Promise<MoveOutcome> {
   const petWindow = getPetWindow();
-  if (!petWindow) return;
+  if (!petWindow) return 'cancelled';
   if (isSleepingState) {
     console.log(`[Sleep] Ignoring pet action while sleeping: ${action.type}`);
-    return;
+    return 'cancelled';
   }
 
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -409,7 +412,7 @@ export async function executePetAction(action: PetAction): Promise<void> {
       if (typeof action.x === 'number' && typeof action.y === 'number') {
         const targetX = Math.max(0, Math.min(action.x, screenWidth - 300));
         const targetY = Math.max(0, Math.min(action.y, screenHeight - 300));
-        await animateMoveTo(targetX, targetY, action.duration || 1000);
+        return await animateMoveTo(targetX, targetY, action.duration || 1000);
       }
       break;
 
@@ -420,8 +423,7 @@ export async function executePetAction(action: PetAction): Promise<void> {
       let targetY = cursor.y - 150;
       targetX = Math.max(0, Math.min(targetX, screenWidth - 300));
       targetY = Math.max(0, Math.min(targetY, screenHeight - 300));
-      await animateMoveTo(targetX, targetY, action.duration || 1500);
-      break;
+      return await animateMoveTo(targetX, targetY, action.duration || 1500);
     }
 
     case 'snip':
@@ -443,16 +445,29 @@ export async function executePetAction(action: PetAction): Promise<void> {
         const lookX = Math.max(0, Math.min(action.x - 150, screenWidth - 300));
         const lookY = Math.max(0, Math.min(action.y - 150, screenHeight - 300));
         getPetWindow()?.webContents.send('clawbot-mood', { state: 'curious' });
-        await animateMoveTo(lookX, lookY, action.duration || 1200);
+        return await animateMoveTo(lookX, lookY, action.duration || 1200);
       }
       break;
   }
+
+  return 'completed';
 }
 
 export function getMoveAnimation(): NodeJS.Timeout | null {
   return moveAnimation;
 }
 
-export function clearMoveAnimation(): void {
-  cancelActiveMoveAnimation();
+// The user out-dragged an autonomous move: stop overwriting the window
+// position, keep where the pet actually ended up, and tell the renderer it is
+// no longer walking.
+export function cancelMoveAnimation(): void {
+  if (!moveAnimation) return;
+
+  const petWindow = getPetWindow();
+  stopMoveAnimation();
+  if (!petWindow) return;
+
+  const [x, y] = petWindow.getPosition();
+  getStore().set('pet.position', { x, y });
+  petWindow.webContents.send('pet-moving', { moving: false });
 }

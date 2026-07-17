@@ -59,6 +59,11 @@ describe('pickEmoteMessage (CLA-13)', () => {
     expect(pickEmoteMessage({ kind: 'drag' }, () => 0.99)).toBe('!');
   });
 
+  it('returns irritation phrases for rapid repeated clicks', () => {
+    expect(pickEmoteMessage({ kind: 'irritation', level: 'mildly-annoyed', escalated: true }, () => 0)).toBe('Hmph!');
+    expect(pickEmoteMessage({ kind: 'irritation', level: 'very-annoyed', escalated: true }, () => 0)).toBe('Hey!');
+  });
+
   it('returns null for moods and behaviors with no phrases', () => {
     expect(pickEmoteMessage({ kind: 'mood', mood: 'thinking' }, () => 0)).toBeNull();
     expect(pickEmoteMessage({ kind: 'mood', mood: 'idle' }, () => 0)).toBeNull();
@@ -212,6 +217,48 @@ describe('shouldShowEmoteBubble rate limiting (CLA-13)', () => {
         random: () => 0.99,
       })
     ).toBe(true);
+  });
+
+  it('lets direct irritation escalations through the generic rate limit', () => {
+    expect(
+      shouldShowEmoteBubble({
+        trigger: { kind: 'irritation', level: 'very-annoyed', escalated: true },
+        suppression: noSuppression,
+        lastBubbleAt: NOW - 100,
+        now: NOW,
+      })
+    ).toBe(true);
+  });
+
+  it('rate-limits repeated annoyed clicks that did not escalate the level', () => {
+    expect(
+      shouldShowEmoteBubble({
+        trigger: { kind: 'irritation', level: 'very-annoyed', escalated: false },
+        suppression: noSuppression,
+        lastBubbleAt: NOW - 100,
+        now: NOW,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldShowEmoteBubble({
+        trigger: { kind: 'irritation', level: 'very-annoyed', escalated: false },
+        suppression: noSuppression,
+        lastBubbleAt: NOW - MIN_BUBBLE_GAP_MS,
+        now: NOW,
+      })
+    ).toBe(true);
+  });
+
+  it('still suppresses an escalation bubble while chat UI is open', () => {
+    expect(
+      shouldShowEmoteBubble({
+        trigger: { kind: 'irritation', level: 'mildly-annoyed', escalated: true },
+        suppression: { ...noSuppression, chatbarOpen: true },
+        lastBubbleAt: null,
+        now: NOW,
+      })
+    ).toBe(false);
   });
 });
 

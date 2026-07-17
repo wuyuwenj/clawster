@@ -650,6 +650,127 @@ html[data-theme="light"] .chat-popup-arrow {
   }
 }
 
+@keyframes carriedFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes carriedBodyTilt {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes resistTug {
+  0%,
+  100% {
+    transform: translateX(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateX(-3px) rotate(5deg);
+  }
+}
+
+@keyframes dragRealizationTilt {
+  0% {
+    transform: rotate(-8deg) translateY(0);
+  }
+  44% {
+    transform: rotate(10deg) translateY(1px);
+  }
+  100% {
+    transform: rotate(2deg) translateY(-1px);
+  }
+}
+
+@keyframes dragRealizationBlink {
+  0%,
+  18% {
+    transform: scaleY(1);
+  }
+  28% {
+    transform: scaleY(0.12);
+  }
+  44%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes questionWobble {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(2px, -2px) rotate(10deg);
+  }
+  44% {
+    opacity: 1;
+    transform: translate(-1px, -3px) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(2px, -7px) rotate(0deg);
+  }
+}
+
+@keyframes acceptSmile {
+  0%,
+  44% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes startledCarryPop {
+  0% {
+    transform: scaleX(1.14) scaleY(0.86) translateY(4px);
+  }
+  28% {
+    transform: scaleX(0.9) scaleY(1.16) translateY(-8px);
+  }
+  100% {
+    transform: scale(1) translateY(-1px) rotate(2deg);
+  }
+}
+
+@keyframes startledFlailLeft {
+  0% {
+    transform: translateY(-3px) rotate(-12deg);
+  }
+  35% {
+    transform: translateY(-22px) rotate(-55deg);
+  }
+  100% {
+    transform: translateY(-8px) rotate(-16deg);
+  }
+}
+
+@keyframes startledFlailRight {
+  0% {
+    transform: translateY(-3px) rotate(12deg);
+  }
+  35% {
+    transform: translateY(-22px) rotate(55deg);
+  }
+  100% {
+    transform: translateY(-8px) rotate(16deg);
+  }
+}
+
 @keyframes floatUp {
   0% {
     transform: translate(0, 0) scale(0.5);
@@ -682,7 +803,8 @@ html[data-theme="light"] .chat-popup-arrow {
 .lobster-container .eye-squint,
 .lobster-container .eye-wide,
 .lobster-container .fx-steam,
-.lobster-container .fx-alert {
+.lobster-container .fx-alert,
+.lobster-container .fx-question {
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -1378,4 +1500,79 @@ html[data-theme="light"] .chat-popup-arrow {
   100% {
     transform: translateY(0) rotate(0deg);
   }
+}
+
+/* DRAGGING STATE - shared carried body motion for all drag reactions.
+   INVARIANT: these rules must stay last in this file. state-dragging is applied
+   alongside the mood (.state-*), idle-behavior (.idle-*), and action (.action-*)
+   classes at equal specificity, and main can push a new mood or action at any
+   moment mid-drag, so the carried pose only wins by being declared after all of
+   them. Append new claw-transform rules above this block, never below it. */
+.lobster-container.state-dragging {
+  animation: carriedFloat 1.6s ease-in-out infinite;
+}
+
+.lobster-container.state-dragging .body-group {
+  animation: carriedBodyTilt 1.6s ease-in-out infinite;
+}
+
+.lobster-container.state-dragging .left-claw {
+  animation: none;
+  transform: translateY(-8px) rotate(-16deg);
+}
+
+.lobster-container.state-dragging .right-claw {
+  animation: none;
+  transform: translateY(-8px) rotate(16deg);
+}
+
+.lobster-container.state-drag-resisting .body-group {
+  animation: resistTug 0.22s ease-in-out infinite;
+}
+
+/* CLA-6 default: confused, then accepts being carried */
+.lobster-container.drag-reaction-confused-accepts .body-group {
+  animation: dragRealizationTilt 0.45s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-confused-accepts .eye-open {
+  animation: dragRealizationBlink 0.45s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-confused-accepts .fx-question {
+  animation: questionWobble 0.45s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-confused-accepts .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.drag-reaction-confused-accepts .mouth-happy {
+  animation: acceptSmile 0.45s ease-out forwards;
+}
+
+/* CLA-6 fast-drag variant: startled, then carried */
+.lobster-container.drag-reaction-startled .body-group {
+  animation: startledCarryPop 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.lobster-container.drag-reaction-startled .eye-open {
+  animation: none;
+  transform: scale(1.24);
+}
+
+.lobster-container.drag-reaction-startled .mouth-neutral {
+  opacity: 0;
+}
+
+.lobster-container.drag-reaction-startled .mouth-worried {
+  opacity: 1;
+}
+
+.lobster-container.drag-reaction-startled .left-claw {
+  animation: startledFlailLeft 0.5s ease-out forwards;
+}
+
+.lobster-container.drag-reaction-startled .right-claw {
+  animation: startledFlailRight 0.5s ease-out forwards;
 }

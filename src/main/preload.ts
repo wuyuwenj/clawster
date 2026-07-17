@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('clawster', {
 
   // Pet dragging
   dragPet: (deltaX: number, deltaY: number) => ipcRenderer.send('pet-drag', deltaX, deltaY),
+  // Cancels an in-flight autonomous move so it stops overwriting the dragged
+  // position. Sent once, on the event a drag begins during a walk.
+  petDragTakeOver: () => ipcRenderer.send('pet-drag-take-over'),
   // Pet chat popup
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) =>
     ipcRenderer.send('show-pet-chat', message),
@@ -331,6 +334,7 @@ export interface ClawsterAPI {
   closeScreenshotQuestion: () => void;
   askAboutScreen: (question: string, imageDataUrl: string) => Promise<unknown>;
   dragPet: (deltaX: number, deltaY: number) => void;
+  petDragTakeOver: () => void;
   showPetChat: (message: { id: string; text: string; quickReplies?: string[] }) => void;
   hidePetChat: () => void;
   resizePetChat: (width: number, height: number) => void;
@@ -373,9 +377,9 @@ export interface ClawsterAPI {
   onSpeechResult: (callback: (data: { type: 'partial' | 'final'; text: string }) => void) => ListenerCleanup;
   onSpeechError: (callback: (data: { type: 'error'; message: string }) => void) => ListenerCleanup;
   copyToClipboard: (text: string) => Promise<boolean>;
-  executePetAction: (action: PetAction) => Promise<void>;
-  movePetTo: (x: number, y: number, duration?: number) => Promise<void>;
-  movePetToCursor: () => Promise<void>;
+  executePetAction: (action: PetAction) => Promise<{ completed: boolean }>;
+  movePetTo: (x: number, y: number, duration?: number) => Promise<{ completed: boolean }>;
+  movePetToCursor: () => Promise<{ completed: boolean }>;
   getCursorPosition: () => Promise<{ x: number; y: number }>;
   getPetPosition: () => Promise<[number, number]>;
   onActivityEvent: (callback: (event: unknown) => void) => void;
