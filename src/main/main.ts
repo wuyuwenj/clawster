@@ -103,6 +103,7 @@ import {
   updateAssistantPosition,
   createChatbarWindow,
   toggleChatbarWindow,
+  hideChatbarWindow,
   createScreenshotQuestionWindow,
   toggleScreenshotQuestionWindow,
   createOnboardingWindow,
@@ -586,7 +587,7 @@ function setupIPC() {
 
   // Close chatbar window
   ipcMain.on('close-chatbar', () => {
-    getChatbarWindow()?.hide();
+    hideChatbarWindow();
   });
 
   // Control mouse events for chatbar (for click-through on transparent areas)

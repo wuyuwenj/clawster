@@ -19,6 +19,15 @@ function prodExecutable(): string {
   return exe;
 }
 
+// Audio-safety flags for every Electron/e2e launch (this runs on the captain's
+// live machine): mute all output, and hand Chromium a FAKE media device so a
+// test that reaches getUserMedia never opens the real microphone.
+const AUDIO_SAFE_ARGS = [
+  '--mute-audio',
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
+];
+
 export function launchApp(opts?: { dataDir?: string }): Promise<ElectronApplication> {
   // Audio safety: NODE_ENV=test also mutes Animalese in the renderer (animalese.ts
   // reads window.clawster.audioMuted), and `--mute-audio` mutes all Chromium audio
@@ -29,9 +38,9 @@ export function launchApp(opts?: { dataDir?: string }): Promise<ElectronApplicat
   if (opts?.dataDir) env.CLAWSTER_DATA_DIR = opts.dataDir;
 
   if (isProd()) {
-    return electron.launch({ executablePath: prodExecutable(), args: ['--mute-audio'], env });
+    return electron.launch({ executablePath: prodExecutable(), args: AUDIO_SAFE_ARGS, env });
   }
-  return electron.launch({ args: [PROJECT_ROOT, '--mute-audio'], env });
+  return electron.launch({ args: [PROJECT_ROOT, ...AUDIO_SAFE_ARGS], env });
 }
 
 export async function sendChat(page: Page, msg: string): Promise<any> {
