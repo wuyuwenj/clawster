@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { REPLY_THANKS, REPLY_NOT_NOW, REPLY_GOT_IT } from '../pet-chat/quick-replies';
 import { STREAM_PLACEHOLDER } from '../pet-chat/response-state';
+import { replayCapsuleEntrance } from './capsule-entrance';
 
 interface Message {
   id: string;
@@ -32,6 +33,16 @@ export const ChatBar: React.FC = () => {
   const activePetPopupIdRef = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const speechAutoSubmitTimeoutRef = useRef<number | null>(null);
+  const capsuleRef = useRef<HTMLDivElement>(null);
+
+  // Replay the springy entrance on every summon (CLA-59). The window is reused
+  // across summons, so the mount-time capsuleIn run only plays once; main
+  // re-notifies on each show. Light-only — dark keeps its first-mount fade.
+  useEffect(() => {
+    return window.clawster.onChatbarShown(() => {
+      replayCapsuleEntrance(document.documentElement.dataset.theme, capsuleRef.current);
+    });
+  }, []);
 
   // Check connection status on mount and listen for changes
   useEffect(() => {
@@ -415,10 +426,12 @@ export const ChatBar: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col tp-surface p-1.5 pb-3">
-      {/* Shell capsule: warm cream, 2px ink outline, 24px radius, sticker
-          shadow resting on the cream mat below. Fully opaque. */}
+    <div className="w-full h-full flex flex-col tp-surface chatbar-mat">
+      {/* Shell capsule: flat full-bleed slab in dark; in light a warm cream
+          capsule — 2px ink outline, 24px radius, sticker shadow — resting on
+          the cream mat below. Fully opaque either way. */}
       <div
+        ref={capsuleRef}
         data-tidepool="capsule"
         className="tp-capsule h-full flex flex-col overflow-hidden"
       >
@@ -428,20 +441,20 @@ export const ChatBar: React.FC = () => {
           className="h-5 flex items-center justify-center cursor-grab active:cursor-grabbing shrink-0"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
-          <div className="w-8 h-1 rounded-full bg-[var(--tp-coral-tint)]" />
+          <div className="w-8 h-1 rounded-full chatbar-drag-pill" />
         </div>
 
         {/* Input Area */}
-        <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-3 px-3 pb-3 pt-1">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-3 chatbar-form">
           {/* Abstract Clawster Icon */}
-          <div className="w-10 h-10 rounded-2xl bg-[var(--tp-coral-tint)] flex items-center justify-center border-2 border-[var(--tp-ink)] shrink-0">
+          <div className="w-10 h-10 chatbar-icon-tile flex items-center justify-center shrink-0">
             <ClawsterIcon size={24} />
           </div>
 
           {/* Screenshot Thumbnail Pill (teal = utility) */}
           {screenshot && (
-            <div className="flex items-center gap-1.5 bg-[var(--tp-shell-deep)] border-2 border-[var(--tp-teal)] p-1 rounded-xl shrink-0 group animate-fade-in">
-              <div className="w-10 h-8 bg-[var(--tp-shell)] rounded-lg overflow-hidden border border-[var(--tp-teal)] flex-shrink-0">
+            <div className="flex items-center gap-1.5 chatbar-shot-pill p-1 shrink-0 group animate-fade-in">
+              <div className="w-10 h-8 chatbar-shot-frame overflow-hidden flex-shrink-0">
                 <img
                   src={screenshot.image}
                   alt="Screenshot preview"
@@ -451,7 +464,7 @@ export const ChatBar: React.FC = () => {
               <button
                 type="button"
                 onClick={handleClearScreenshot}
-                className="text-[var(--tp-teal)] hover:text-[var(--tp-teal-deep)] transition-colors"
+                className="chatbar-shot-close transition-colors"
                 title="Remove screenshot"
               >
                 <Icon icon="solar:close-circle-linear" className="text-sm" />
@@ -464,7 +477,7 @@ export const ChatBar: React.FC = () => {
             type="button"
             onClick={handleCapture}
             disabled={isCapturing || isLoading}
-            className="tp-chip w-9 h-9 flex items-center justify-center rounded-xl shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="tp-chip chatbar-ctl flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Capture screenshot"
           >
             {isCapturing ? (
@@ -479,9 +492,9 @@ export const ChatBar: React.FC = () => {
             type="button"
             onClick={handleMicToggle}
             disabled={isLoading}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`chatbar-ctl flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
               isRecording
-                ? 'bg-[var(--tp-coral)] border-2 border-[var(--tp-ink)] text-[var(--tp-text-ink)] animate-pulse'
+                ? 'chatbar-mic-recording animate-pulse'
                 : 'tp-chip'
             }`}
             title={isRecording ? 'Stop recording' : 'Voice input'}
@@ -489,7 +502,8 @@ export const ChatBar: React.FC = () => {
             <Icon icon={isRecording ? 'solar:stop-bold' : 'solar:microphone-linear'} className="text-lg" />
           </button>
 
-          {/* Input — 17px warm ink in the rounded UI face */}
+          {/* Input — 17px warm ink in the rounded UI face (light);
+              pre-Tidepool 16px white (dark) */}
           <input
             ref={inputRef}
             type="text"
@@ -497,7 +511,7 @@ export const ChatBar: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             placeholder={screenshot ? "Ask about this screenshot..." : "Ask Clawster anything..."}
             disabled={isLoading}
-            className="flex-1 bg-transparent tp-font-round text-[17px] text-[var(--tp-text-ink)] placeholder:text-[var(--tp-driftwood)] outline-none font-semibold h-full min-w-0 disabled:opacity-50"
+            className="flex-1 bg-transparent chatbar-input outline-none h-full min-w-0 disabled:opacity-50"
           />
 
           {/* Loading indicator */}
@@ -505,20 +519,20 @@ export const ChatBar: React.FC = () => {
             <div className="w-4 h-4 border-2 border-[var(--tp-coral)] border-t-transparent rounded-full animate-spin shrink-0" />
           )}
 
-          {/* Esc hint — outlined chip */}
-          <div className="tp-chip shrink-0 items-center justify-center px-2 py-1 rounded-lg text-xs tp-font-round font-bold !text-[var(--tp-driftwood)] select-none hidden sm:flex">
+          {/* Esc hint — mono pill in dark, outlined chip in light */}
+          <div className="chatbar-esc-hint shrink-0 items-center justify-center px-2 py-1 select-none hidden sm:flex">
             esc
           </div>
         </form>
 
         {/* Response Area — recessed shell, long bodies in the system face */}
         {response && (
-          <div className="border-t-2 border-[var(--tp-ink)] bg-[var(--tp-shell-deep)] p-4 flex gap-3 items-start animate-fade-in max-h-[200px] overflow-y-auto">
-            <div className={`w-7 h-7 rounded-lg border-2 border-[var(--tp-ink)] flex items-center justify-center shrink-0 mt-0.5 ${!isConnected ? 'bg-[var(--tp-coral-tint)]' : 'bg-[var(--tp-coral)]'}`}>
-              <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className={`text-xs ${!isConnected ? 'text-[var(--tp-ink)]' : 'text-[var(--tp-text-ink)]'}`} />
+          <div className={`chatbar-response p-4 flex items-start animate-fade-in max-h-[200px] overflow-y-auto ${!isConnected ? 'chatbar-response-offline' : ''}`}>
+            <div className={`chatbar-response-badge flex items-center justify-center shrink-0 mt-0.5 ${!isConnected ? 'chatbar-response-badge-warn' : 'chatbar-response-badge-ok'}`}>
+              <Icon icon={!isConnected ? "solar:danger-triangle-linear" : "solar:magic-stick-3-linear"} className="text-xs" />
             </div>
             <div className="flex-1">
-              <div className="tp-font-body text-[15px] leading-[1.55] text-[var(--tp-text-ink)] select-text cursor-text">
+              <div className="chatbar-response-body select-text cursor-text">
                 <MarkdownMessage content={response} />
               </div>
             </div>

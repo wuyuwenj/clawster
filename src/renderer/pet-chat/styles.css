@@ -2,25 +2,151 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Comic speech bubble: solid cream, chunky ink outline, sticker shadow
- * (hard ink offset + soft warm ambient). Fully opaque. */
+/* Comic speech bubble. Dark keeps the pre-Tidepool flat panel — 16px radius,
+ * no drop shadow; light is the Tidepool comic bubble: solid cream, chunky ink
+ * outline, sticker shadow (hard ink offset + soft warm ambient). Fully
+ * opaque either way. */
 .tp-bubble {
   background: var(--tp-shell);
   border: var(--tp-outline);
+  border-radius: 1rem;
+}
+
+:root[data-theme="light"] .tp-bubble {
   border-radius: 20px;
   box-shadow: var(--tp-sticker-shadow), var(--tp-ambient-shadow);
 }
 
-/* Squash-and-stretch entrance from the pet: transform origin sits at the
- * tail tip so the bubble springs out of Clawster, squashes wide, then settles.
- * Plays once per message — idle chrome never loops.
+/* Frame + content + body copy — dark keeps the pre-Tidepool spacing and type;
+ * light reserves room for the outlined tail and sets Nunito semibold. */
+.tp-bubble-frame {
+  padding-bottom: 0.75rem;
+}
+
+:root[data-theme="light"] .tp-bubble-frame {
+  padding: 0.25rem 0.5rem 26px;
+}
+
+.tp-bubble-content {
+  padding: 0.75rem;
+}
+
+:root[data-theme="light"] .tp-bubble-content {
+  padding: 0.875rem 0.875rem 0.75rem;
+}
+
+.tp-bubble-copy {
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: #e5e5e5;
+}
+
+:root[data-theme="light"] .tp-bubble-copy {
+  font-family: var(--tp-font-round);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--tp-text-ink);
+}
+
+/* Feedback modal interior — dark keeps the pre-Tidepool quiet grays and thin
+ * translucent input; light wears the Tidepool ink outline + teal focus. */
+.tp-feedback-heading {
+  color: #a3a3a3;
+}
+
+:root[data-theme="light"] .tp-feedback-heading {
+  font-family: var(--tp-font-round);
+  font-weight: 700;
+  color: var(--tp-text-ink);
+}
+
+.tp-feedback-label {
+  color: #d4d4d4;
+}
+
+:root[data-theme="light"] .tp-feedback-label {
+  color: var(--tp-text-ink);
+}
+
+.tp-feedback-radio {
+  accent-color: #FF8C69;
+}
+
+:root[data-theme="light"] .tp-feedback-radio {
+  accent-color: var(--tp-coral-deep);
+}
+
+.tp-feedback-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.25rem;
+  color: #e5e5e5;
+}
+
+.tp-feedback-input::placeholder {
+  color: #737373;
+}
+
+.tp-feedback-input:focus {
+  border-color: rgba(255, 140, 105, 0.4);
+}
+
+:root[data-theme="light"] .tp-feedback-input {
+  background: var(--tp-shell-deep);
+  border: 2px solid var(--tp-ink);
+  border-radius: 0.5rem;
+  color: var(--tp-text-ink);
+}
+
+:root[data-theme="light"] .tp-feedback-input::placeholder {
+  color: var(--tp-driftwood);
+}
+
+:root[data-theme="light"] .tp-feedback-input:focus {
+  border-color: var(--tp-teal);
+}
+
+/* Tail — both tails are always in the DOM; the theme picks one. Dark shows
+ * the pre-Tidepool plain triangle, light the outlined comic SVG. */
+.tp-tail-svg {
+  display: none;
+}
+
+:root[data-theme="light"] .tp-tail-svg {
+  display: block;
+}
+
+:root[data-theme="light"] .tp-tail-triangle {
+  display: none;
+}
+
+/* Entrance — dark keeps the pre-Tidepool fade-up */
+@keyframes popupIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-popup-in {
+  animation: popupIn 0.25s ease-out;
+}
+
+/* Light-only squash-and-stretch entrance from the pet: transform origin sits
+ * at the tail tip so the bubble springs out of Clawster, squashes wide, then
+ * settles. Plays once per message — idle chrome never loops.
  *
  * The window is sized to the content box, so only `pt-1` (4px) sits above the
  * bubble. Any scaleY over 1 lifts the top edge by (scaleY - 1) * (h + 13) and
  * the ink outline clips, so the bounce stays wide-and-short. `--tp-spring` is
  * a back-out curve (peaks ~1.098) and CSS runs it per keyframe segment, hence
  * the plain ease on the growth leg. */
-@keyframes popupIn {
+@keyframes popupInSpring {
   0% {
     opacity: 0;
     transform: scale(0.45, 0.3) translateY(4px);
@@ -37,8 +163,8 @@
   }
 }
 
-.animate-popup-in {
-  animation: popupIn 320ms var(--tp-spring);
+:root[data-theme="light"] .animate-popup-in {
+  animation: popupInSpring 320ms var(--tp-spring);
   transform-origin: 50% calc(100% + 13px);
 }
 
@@ -70,10 +196,11 @@
   }
 }
 
-/* The bubble sets its body copy in semibold, so bold has to push past it.
+/* In light the bubble sets its body copy in semibold, so bold has to push
+ * past it (dark body copy is regular, so the shared 600 already reads bold).
  * Scoped to .tp-bubble to outrank the shared 600 in tidepool.css by
  * specificity — the bundler is free to order the two sheets either way.
  * Everything else about .markdown-message comes from tidepool.css. */
-.tp-bubble .markdown-message strong {
+:root[data-theme="light"] .tp-bubble .markdown-message strong {
   font-weight: 700;
 }

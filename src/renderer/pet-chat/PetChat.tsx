@@ -24,9 +24,9 @@ interface ChatMessage {
 }
 
 const CHIP_CLASSES: Record<ChipVariant, string> = {
-  primary: 'bg-[var(--tp-coral)] text-[var(--tp-text-ink)]',
-  secondary: 'bg-[var(--tp-coral-tint)] text-[var(--tp-text-ink)]',
-  muted: 'bg-[var(--tp-shell-deep)] text-[var(--tp-driftwood)]',
+  primary: 'tp-candy-primary',
+  secondary: 'tp-candy-secondary',
+  muted: 'tp-candy-muted',
 };
 
 export const PetChat: React.FC = () => {
@@ -238,8 +238,8 @@ export const PetChat: React.FC = () => {
 
   return (
     <div className="w-full h-full flex items-end justify-center tp-surface">
-      {/* Bottom padding reserves room for the outlined tail + sticker shadow */}
-      <div ref={contentRef} className="flex flex-col max-h-full px-2 pt-1 pb-[26px]">
+      {/* Bottom padding reserves room for the tail (+ sticker shadow in light) */}
+      <div ref={contentRef} className="tp-bubble-frame flex flex-col max-h-full">
         {/* Squash-and-stretch in from the pet — transform origin at the tail */}
         <div className="relative flex flex-col min-h-0 animate-popup-in">
           <div
@@ -252,7 +252,7 @@ export const PetChat: React.FC = () => {
             onWheel={notifyInteraction}
           >
             {/* Content — Clawster speaks in the rounded face */}
-            <div ref={scrollRef} className="p-3.5 pb-3 min-h-0 overflow-y-auto">
+            <div ref={scrollRef} className="tp-bubble-content min-h-0 overflow-y-auto">
               {isLoading ? (
                 <div className="flex gap-1 justify-center py-2">
                   <span className="w-2 h-2 rounded-full bg-[var(--tp-coral)] loading-dot"></span>
@@ -260,7 +260,7 @@ export const PetChat: React.FC = () => {
                   <span className="w-2 h-2 rounded-full bg-[var(--tp-coral)] loading-dot"></span>
                 </div>
               ) : (
-                <div className="tp-font-round text-[15px] font-semibold leading-[1.55] text-[var(--tp-text-ink)] break-words select-text cursor-text">
+                <div className="tp-bubble-copy break-words select-text cursor-text">
                   <MarkdownMessage content={message.text} />
                 </div>
               )}
@@ -276,7 +276,7 @@ export const PetChat: React.FC = () => {
                       <button
                         key={reply}
                         onClick={() => handleQuickReply(reply)}
-                        className={`tp-candy px-3.5 py-1.5 rounded-full text-[13px] tp-font-round font-bold ${
+                        className={`tp-candy tp-candy-reply py-1.5 rounded-full ${
                           CHIP_CLASSES[chipVariant(message.quickReplies!, reply)]
                         }`}
                       >
@@ -289,21 +289,21 @@ export const PetChat: React.FC = () => {
                 {/* Feedback modal */}
                 {showFeedbackModal && (
                   <div className="space-y-2 pt-1">
-                    <p className="text-[11px] tp-font-round font-bold text-[var(--tp-text-ink)]">What went wrong?</p>
+                    <p className="tp-feedback-heading text-[11px]">What went wrong?</p>
                     <div className="flex flex-col gap-1">
                       {[
                         ['wrong_tool', 'Wrong action'],
                         ['bad_response', 'Bad response'],
                         ['other', 'Other'],
                       ].map(([val, label]) => (
-                        <label key={val} className="flex items-center gap-2 text-[11px] text-[var(--tp-text-ink)] cursor-pointer">
+                        <label key={val} className="tp-feedback-label flex items-center gap-2 text-[11px] cursor-pointer">
                           <input
                             type="radio"
                             name="feedbackType"
                             value={val}
                             checked={feedbackType === val}
                             onChange={() => setFeedbackType(val)}
-                            className="accent-[var(--tp-coral-deep)] w-3 h-3"
+                            className="tp-feedback-radio w-3 h-3"
                           />
                           {label}
                         </label>
@@ -314,16 +314,16 @@ export const PetChat: React.FC = () => {
                       placeholder="What should it have done?"
                       value={feedbackNote}
                       onChange={(e) => setFeedbackNote(e.target.value)}
-                      className="w-full px-2 py-1 bg-[var(--tp-shell-deep)] border-2 border-[var(--tp-ink)] rounded-lg text-[11px] text-[var(--tp-text-ink)] placeholder:text-[var(--tp-driftwood)] outline-none focus:border-[var(--tp-teal)]"
+                      className="tp-feedback-input w-full px-2 py-1 text-[11px] outline-none"
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={submitFeedback}
-                        className="tp-candy flex-1 px-2 py-1 bg-[var(--tp-coral)] rounded-lg text-[11px] tp-font-round font-bold text-[var(--tp-text-ink)]"
+                        className="tp-candy tp-candy-modal tp-candy-send flex-1 px-2 py-1 text-[11px]"
                       >Send</button>
                       <button
                         onClick={() => setShowFeedbackModal(false)}
-                        className="tp-candy px-2 py-1 bg-[var(--tp-shell-deep)] rounded-lg text-[11px] tp-font-round font-bold text-[var(--tp-driftwood)]"
+                        className="tp-candy tp-candy-modal tp-candy-muted px-2 py-1 text-[11px]"
                       >Cancel</button>
                     </div>
                   </div>
@@ -363,11 +363,13 @@ export const PetChat: React.FC = () => {
             )}
           </div>
 
-          {/* Chunky outlined comic tail pointing down to Clawster. The open
+          {/* Tail pointing down to Clawster. Both variants stay in the DOM;
+              the theme shows one. Light: chunky outlined comic tail — the open
               path strokes only the two sides; its fill covers the bubble's
-              bottom border so bubble and tail read as one shape. */}
+              bottom border so bubble and tail read as one shape. Dark: the
+              pre-Tidepool plain triangle. */}
           <svg
-            className="absolute left-1/2 -translate-x-1/2 -bottom-[13px] pointer-events-none"
+            className="tp-tail-svg absolute left-1/2 -translate-x-1/2 -bottom-[13px] pointer-events-none"
             width="36"
             height="16"
             viewBox="0 0 36 16"
@@ -382,6 +384,7 @@ export const PetChat: React.FC = () => {
               strokeLinecap="round"
             />
           </svg>
+          <div className="tp-tail-triangle absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-[#0f0f0f] pointer-events-none" />
         </div>
       </div>
     </div>

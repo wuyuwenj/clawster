@@ -17,36 +17,134 @@
   font-family: var(--tp-font-body);
 }
 
-/* Outlined chip: the shared shape for small controls (camera / mic / esc).
- * Cream surface, 2px ink outline, springy squish on press. Hover/press states
- * are scoped to `button` so inert chips (the `esc` hint) wear the shape without
- * advertising an affordance they don't have. */
+/* Chip: the shared shape for small controls (camera / mic / esc). In dark it
+ * stays the pre-Tidepool ghost button — neutral-400, no outline, white/5 hover
+ * fill. Light swaps in the Tidepool treatment: cream surface, 2px ink outline,
+ * teal icon, springy squish on press. Hover/press states are scoped to
+ * `button` so inert chips (the `esc` hint) wear the shape without advertising
+ * an affordance they don't have. */
 .tp-chip {
+  background: transparent;
+  border: none;
+  color: #a3a3a3;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+button.tp-chip:hover:not(:disabled) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="light"] .tp-chip {
   background: var(--tp-shell);
   border: var(--tp-outline);
   color: var(--tp-teal);
   transition: transform 150ms var(--tp-spring), background-color 150ms ease;
 }
 
-button.tp-chip:hover:not(:disabled) {
+:root[data-theme="light"] button.tp-chip:hover:not(:disabled) {
+  color: var(--tp-teal);
   background: var(--tp-coral-tint);
 }
 
-button.tp-chip:active:not(:disabled) {
+:root[data-theme="light"] button.tp-chip:active:not(:disabled) {
   transform: scale(0.93);
 }
 
-/* Candy chip: solid quick-reply buttons with a sticker edge that squishes
- * 2.5px on press (the shadow collapses as the chip sits down). */
+/* Candy chip: the pet-chat quick-reply / feedback buttons. In dark they stay
+ * the pre-Tidepool ghost pills — translucent coral or neutral fills, coral or
+ * neutral-400 text, hover brightens, no press-translate. Light swaps in the
+ * Tidepool candy treatment: solid fills, ink outline, bold rounded type, and
+ * a sticker edge that squishes 2.5px on press (the shadow collapses as the
+ * chip sits down). */
 .tp-candy {
+  transition: all 150ms ease;
+}
+
+.tp-candy-reply {
+  font-size: 12px;
+  font-weight: 500;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.tp-candy-modal {
+  border-radius: 0.25rem;
+}
+
+.tp-candy-primary,
+.tp-candy-secondary {
+  background: rgba(255, 140, 105, 0.10);
+  border: 1px solid rgba(255, 140, 105, 0.20);
+  color: #FF8C69;
+}
+
+.tp-candy-primary:hover,
+.tp-candy-secondary:hover {
+  background: rgba(255, 140, 105, 0.20);
+  border-color: rgba(255, 140, 105, 0.40);
+}
+
+.tp-candy-muted {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #a3a3a3;
+}
+
+.tp-candy-muted:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #d4d4d4;
+}
+
+.tp-candy-send {
+  background: rgba(255, 140, 105, 0.20);
+  border: 1px solid rgba(255, 140, 105, 0.30);
+  color: #FF8C69;
+}
+
+.tp-candy-send:hover {
+  background: rgba(255, 140, 105, 0.30);
+}
+
+:root[data-theme="light"] .tp-candy {
   border: var(--tp-outline);
   box-shadow: var(--tp-candy-shadow);
   transition: transform 150ms var(--tp-spring), box-shadow 150ms var(--tp-spring), background-color 150ms ease;
 }
 
-.tp-candy:active {
+:root[data-theme="light"] .tp-candy:active {
   transform: translateY(2.5px);
   box-shadow: 0 0 0 var(--tp-ink);
+}
+
+:root[data-theme="light"] .tp-candy-reply {
+  font-family: var(--tp-font-round);
+  font-size: 13px;
+  font-weight: 700;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+}
+
+:root[data-theme="light"] .tp-candy-modal {
+  border-radius: 0.5rem;
+  font-family: var(--tp-font-round);
+  font-weight: 700;
+}
+
+:root[data-theme="light"] .tp-candy-primary,
+:root[data-theme="light"] .tp-candy-send {
+  background: var(--tp-coral);
+  color: var(--tp-text-ink);
+}
+
+:root[data-theme="light"] .tp-candy-secondary {
+  background: var(--tp-coral-tint);
+  color: var(--tp-text-ink);
+}
+
+:root[data-theme="light"] .tp-candy-muted {
+  background: var(--tp-shell-deep);
+  color: var(--tp-driftwood);
 }
 
 /* Warm selection + thin scrollbar, shared by both shell surfaces */

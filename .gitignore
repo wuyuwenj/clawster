@@ -13,3 +13,4 @@ models/
 native/speech-helper/speech-helper
 proxy/.wrangler/
 .claude/settings.local.json
+*.tsbuildinfo
