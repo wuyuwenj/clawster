@@ -4,7 +4,7 @@ export const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 // (Mac Mini over LAN or a Cloudflare Tunnel). Env var only — deliberately no
 // electron-store setting and no Settings UI.
 export function resolveOllamaUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return env.CLAWSTER_OLLAMA_URL || DEFAULT_OLLAMA_URL;
+  return (env.CLAWSTER_OLLAMA_URL || DEFAULT_OLLAMA_URL).replace(/\/+$/, '');
 }
 
 // Base URL for the tool-classifier model. Dev always talks to Ollama; prod
