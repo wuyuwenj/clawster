@@ -2,6 +2,9 @@ import { _electron as electron, ElectronApplication, Page } from 'playwright';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import { AUDIO_SAFE_ARGS, findWindow } from './electron-launch.mjs';
+
+export { findWindow };
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 
@@ -18,15 +21,6 @@ function prodExecutable(): string {
   }
   return exe;
 }
-
-// Audio-safety flags for every Electron/e2e launch (this runs on the captain's
-// live machine): mute all output, and hand Chromium a FAKE media device so a
-// test that reaches getUserMedia never opens the real microphone.
-const AUDIO_SAFE_ARGS = [
-  '--mute-audio',
-  '--use-fake-device-for-media-stream',
-  '--use-fake-ui-for-media-stream',
-];
 
 export function launchApp(opts?: { dataDir?: string }): Promise<ElectronApplication> {
   // Audio safety: NODE_ENV=test also mutes Animalese in the renderer (animalese.ts
@@ -48,22 +42,6 @@ export async function sendChat(page: Page, msg: string): Promise<any> {
     const r = await (window as any).clawster.sendToClawbot(m);
     return JSON.parse(JSON.stringify(r));
   }, msg);
-}
-
-export async function findWindow(app: ElectronApplication, substr: string, timeout = 25000): Promise<Page> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    for (const w of app.windows()) {
-      let url = '';
-      try { url = w.url(); } catch { /* window mid-navigation */ }
-      if (url.includes(substr)) {
-        await w.waitForLoadState('domcontentloaded').catch(() => {});
-        return w;
-      }
-    }
-    await new Promise(r => setTimeout(r, 150));
-  }
-  throw new Error(`Window matching "${substr}" not found within ${timeout}ms`);
 }
 
 export async function hasWindow(app: ElectronApplication, substr: string): Promise<boolean> {

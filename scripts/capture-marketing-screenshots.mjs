@@ -29,6 +29,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { AUDIO_SAFE_ARGS, findWindow } from '../e2e/electron-launch.mjs';
 
 const PROJECT_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = process.env.OUT_DIR || path.join(PROJECT_ROOT, 'assets', 'screenshots');
@@ -66,8 +67,6 @@ const CHATBAR_ANSWER = [
   'Want a 20-minute timer so the glitter doesn\'t eat your whole night? I\'ll nudge you when it\'s up.',
 ].join('\n');
 
-const AUDIO_SAFE_ARGS = ['--mute-audio', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'];
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // macOS overlay scrollbars fade out when nobody is scrolling, so a real user
@@ -76,22 +75,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // actually looks like at rest; it does not restyle anything.
 const hideScrollbars = (page) =>
   page.addStyleTag({ content: '::-webkit-scrollbar { width: 0 !important; height: 0 !important; }' });
-
-async function findWindow(app, substr, timeout = 25000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    for (const w of app.windows()) {
-      let url = '';
-      try { url = w.url(); } catch { /* mid-navigation */ }
-      if (url.includes(substr)) {
-        await w.waitForLoadState('domcontentloaded').catch(() => {});
-        return w;
-      }
-    }
-    await sleep(150);
-  }
-  throw new Error(`Window matching "${substr}" not found within ${timeout}ms`);
-}
 
 // Crops fully-transparent margins so a capture can be positioned by its visible
 // ink rather than by its window box. Partially-transparent pixels (the sticker
@@ -138,72 +121,95 @@ async function captureWindows() {
     env: { ...process.env, NODE_ENV: 'test', CLAWSTER_DATA_DIR: dataDir, VITE_DEV_PORT: DEV_PORT },
   });
 
-  const first = await app.firstWindow();
-  await first.waitForLoadState('domcontentloaded');
-  await first.waitForFunction(() => Boolean(window.clawster?.showPetChat));
+  try {
+    const first = await app.firstWindow();
+    await first.waitForLoadState('domcontentloaded');
+    await first.waitForFunction(() => Boolean(window.clawster?.showPetChat));
 
-  // ---- pet sprite (transparent window) ----
-  const pet = await findWindow(app, 'pet.html');
-  await sleep(1200); // let the idle pose settle
-  await pet.screenshot({ path: path.join(WORK_DIR, 'pet-raw.png'), omitBackground: true });
+    // ---- pet sprite (transparent window) ----
+    // The idle mood runs infinite breathe/blink/bob/dart keyframes that never
+    // settle, so `animations: 'disabled'` freezes them at their initial frame
+    // (neutral pose, eyes open); the sleep just lets the sprite finish its first
+    // paint. Together they make the trimmed bounding box deterministic run-to-run.
+    const pet = await findWindow(app, 'pet.html');
+    await sleep(1200);
+    await pet.screenshot({ path: path.join(WORK_DIR, 'pet-raw.png'), omitBackground: true, animations: 'disabled' });
 
-  // ---- pet-chat bubble ----
-  await first.evaluate(({ text, quickReplies }) => {
-    window.clawster.showPetChat({ id: 'marketing-popup', text, quickReplies });
-  }, { text: POPUP_TIP, quickReplies: POPUP_REPLIES });
-  const petChat = await findWindow(app, 'pet-chat');
-  await petChat.getByText(POPUP_TIP).waitFor({ state: 'visible' });
-  await petChat.evaluate(() => document.activeElement?.blur?.());
-  await hideScrollbars(petChat);
-  await sleep(700); // entrance springs top out at 450ms
-  await petChat.screenshot({ path: path.join(WORK_DIR, 'petchat-raw.png'), omitBackground: true });
+    // ---- pet-chat bubble ----
+    await first.evaluate(({ text, quickReplies }) => {
+      window.clawster.showPetChat({ id: 'marketing-popup', text, quickReplies });
+    }, { text: POPUP_TIP, quickReplies: POPUP_REPLIES });
+    const petChat = await findWindow(app, 'pet-chat');
+    await petChat.getByText(POPUP_TIP).waitFor({ state: 'visible' });
+    await petChat.evaluate(() => document.activeElement?.blur?.());
+    await hideScrollbars(petChat);
+    await sleep(700); // entrance springs top out at 450ms
+    await petChat.screenshot({ path: path.join(WORK_DIR, 'petchat-raw.png'), omitBackground: true, animations: 'disabled' });
 
-  // ---- chatbar with a rendered answer ----
-  await first.evaluate(() => window.clawster.toggleChatbar());
-  const chatbar = await findWindow(app, 'chatbar');
-  const input = chatbar.locator('form input[type="text"]');
-  await input.waitFor({ state: 'visible' });
-  await input.fill(CHATBAR_QUESTION);
+    // ---- chatbar with a rendered answer ----
+    await first.evaluate(() => window.clawster.toggleChatbar());
+    const chatbar = await findWindow(app, 'chatbar');
+    const input = chatbar.locator('form input[type="text"]');
+    await input.waitFor({ state: 'visible' });
+    await input.fill(CHATBAR_QUESTION);
 
-  // Render a real answer without a network round-trip: 'speech-error' is the
-  // one main→renderer channel that sets the ChatBar's response state directly,
-  // so the copy flows through the real MarkdownMessage + Tidepool response area.
-  await app.evaluate(({ BrowserWindow }, answer) => {
-    const win = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('chatbar'));
-    win?.webContents.send('speech-error', { type: 'error', message: answer });
-  }, CHATBAR_ANSWER);
+    // Render a real answer without a network round-trip: 'speech-error' is the
+    // one main→renderer channel that sets the ChatBar's response state directly,
+    // so the copy flows through the real MarkdownMessage + Tidepool response area.
+    await app.evaluate(({ BrowserWindow }, answer) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('chatbar'));
+      win?.webContents.send('speech-error', { type: 'error', message: answer });
+    }, CHATBAR_ANSWER);
 
-  await chatbar.locator('[data-tidepool="capsule"]').waitFor({ state: 'visible' });
-  await chatbar.getByText('One big title').waitFor({ state: 'visible' });
-  await chatbar.evaluate(() => document.activeElement?.blur?.());
-  await hideScrollbars(chatbar);
-  await sleep(700);
+    await chatbar.locator('[data-tidepool="capsule"]').waitFor({ state: 'visible' });
+    await chatbar.getByText('One big title').waitFor({ state: 'visible' });
+    await chatbar.evaluate(() => document.activeElement?.blur?.());
+    await hideScrollbars(chatbar);
+    await sleep(700);
 
-  // Guard against a silent regression to the dark theme: the capsule must be
-  // shell cream. A dark-theme capture would be exactly the bug CLA-60 fixes.
-  const capsuleBg = await chatbar
-    .locator('[data-tidepool="capsule"]')
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  if (capsuleBg !== 'rgb(255, 249, 242)') {
-    throw new Error(`Expected the Tidepool cream capsule, got ${capsuleBg} — is the Light theme applied?`);
+    // Guard against a silent regression to the dark theme: the capsule must be
+    // shell cream. A dark-theme capture would be exactly the bug CLA-60 fixes.
+    const capsuleBg = await chatbar
+      .locator('[data-tidepool="capsule"]')
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    if (capsuleBg !== 'rgb(255, 249, 242)') {
+      throw new Error(`Expected the Tidepool cream capsule, got ${capsuleBg} — is the Light theme applied?`);
+    }
+
+    // The response panel caps at 200px and scrolls. Scrollbars are hidden for the
+    // shot, so an over-long answer would be cut with nothing on screen to admit
+    // it — catch that here instead of shipping a truncated sentence. Fail closed
+    // if the panel selector ever stops matching (a restyle is exactly when this
+    // script runs): -1 means "not found", which must error, not pass as 0px.
+    const clipped = await chatbar.evaluate(() => {
+      const el = document.querySelector('.overflow-y-auto');
+      if (!el) return -1;
+      return el.scrollHeight - el.clientHeight;
+    });
+    if (clipped < 0) {
+      throw new Error('Response panel (.overflow-y-auto) not found — the ChatBar markup changed; update the selector.');
+    }
+    if (clipped > 2) {
+      throw new Error(`CHATBAR_ANSWER overflows the response panel by ${clipped}px — shorten it.`);
+    }
+
+    // pet/bubble are composited as raw PNG pixels ÷ 2 while chatbarBox is CSS px,
+    // so the two units only agree when the capture DPR is exactly 2. Assert it
+    // rather than silently half-scaling the pet on a non-Retina display.
+    const { chatbarBox, dpr } = await chatbar.evaluate(() => ({
+      chatbarBox: { w: window.innerWidth, h: window.innerHeight },
+      dpr: window.devicePixelRatio,
+    }));
+    if (dpr !== 2) {
+      throw new Error(`Captured at devicePixelRatio ${dpr}, but the composite assumes 2 — run on a Retina (2×) display.`);
+    }
+    await chatbar.screenshot({ path: path.join(WORK_DIR, 'chatbar-raw.png'), animations: 'disabled' });
+
+    return { chatbarBox };
+  } finally {
+    await app.close().catch(() => {});
+    fs.rmSync(dataDir, { recursive: true, force: true });
   }
-
-  // The response panel caps at 200px and scrolls. Scrollbars are hidden for the
-  // shot, so an over-long answer would be cut with nothing on screen to admit
-  // it — catch that here instead of shipping a truncated sentence.
-  const clipped = await chatbar.evaluate(() => {
-    const el = document.querySelector('.overflow-y-auto');
-    return el ? el.scrollHeight - el.clientHeight : 0;
-  });
-  if (clipped > 2) {
-    throw new Error(`CHATBAR_ANSWER overflows the response panel by ${clipped}px — shorten it.`);
-  }
-
-  const chatbarBox = await chatbar.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
-  await chatbar.screenshot({ path: path.join(WORK_DIR, 'chatbar-raw.png') });
-
-  await app.close();
-  return { chatbarBox };
 }
 
 async function composite({ chatbarBox }) {
@@ -219,89 +225,10 @@ async function composite({ chatbarBox }) {
   console.log(`1:1 layout — chatbar ${chatbarBox.w}×${chatbarBox.h}, ` +
     `bubble ${bubble.width}×${bubble.height}, pet ${pet.width}×${pet.height}`);
 
-  const petUrl = dataUrl(path.join(WORK_DIR, 'pet.png'));
-  const bubbleUrl = dataUrl(path.join(WORK_DIR, 'petchat.png'));
-  const chatbarUrl = dataUrl(path.join(WORK_DIR, 'chatbar-raw.png'));
-
-  const browser = await chromium.launch({ args: AUDIO_SAFE_ARGS });
-  const page = await browser.newPage({
-    viewport: { width: QUICK_CHAT.w, height: QUICK_CHAT.h },
-    deviceScaleFactor: 2,
-  });
-
-  // --- quick-chat: the summon bar over a desktop ---
-  // Set dressing only: a generic, unbranded document window and wallpaper, so
-  // the shot reads as "Clawster floats over whatever you're doing" without
-  // imitating anyone's product. Every Clawster pixel is a real window capture.
-  await page.setContent(`
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { width: ${QUICK_CHAT.w}px; height: ${QUICK_CHAT.h}px; overflow: hidden;
-             font-family: -apple-system, 'Helvetica Neue', sans-serif; }
-      .desk { position: absolute; inset: 0;
-              background:
-                radial-gradient(120% 90% at 12% 0%, #2f5d68 0%, transparent 55%),
-                radial-gradient(110% 90% at 92% 8%, #7a4a4f 0%, transparent 50%),
-                linear-gradient(160deg, #16323b 0%, #1d2a37 48%, #2a2330 100%); }
-      .doc { position: absolute; left: 44px; top: 34px; width: 560px; height: 400px;
-             background: #fffdf9; border-radius: 10px; overflow: hidden;
-             box-shadow: 0 26px 60px rgba(0,0,0,.46), 0 2px 8px rgba(0,0,0,.3); }
-      .bar { height: 34px; background: #f0ebe4; border-bottom: 1px solid #ddd5cb;
-             display: flex; align-items: center; padding: 0 12px; gap: 7px; }
-      .dot { width: 11px; height: 11px; border-radius: 50%; }
-      .doc-title { flex: 1; text-align: center; font-size: 11px; color: #8d8378;
-                   font-weight: 600; margin-right: 40px; }
-      .page { padding: 22px 26px; }
-      .page h1 { font-size: 17px; color: #2f2a26; margin-bottom: 14px; }
-      .line { height: 8px; border-radius: 4px; background: #e8e2d9; margin-bottom: 11px; }
-      .bullet { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
-      .bullet i { width: 7px; height: 7px; border-radius: 50%; background: #cfc6ba; flex: none; }
-      .bullet .line { flex: 1; margin: 0; }
-      /* The chatbar ships frameless + opaque with roundedCorners:true and a
-         macOS shadow — mirror that here rather than inventing a floating panel. */
-      .chatbar { position: absolute; left: ${Math.round((QUICK_CHAT.w - chatbarBox.w) / 2)}px; top: 126px;
-                 width: ${chatbarBox.w}px; height: ${chatbarBox.h}px;
-                 border-radius: 11px; overflow: hidden;
-                 box-shadow: 0 30px 70px rgba(0,0,0,.5), 0 4px 14px rgba(0,0,0,.34); }
-      .chatbar img { width: 100%; height: 100%; display: block; }
-      /* The pet is alwaysOnTop in the app, so it legitimately stands in front
-         of the chatbar's corner rather than being tucked behind it. */
-      .pet { position: absolute; right: 30px; bottom: 10px;
-             width: ${pet.width}px; height: ${pet.height}px; }
-      .pet img { width: 100%; height: 100%; display: block; }
-    </style>
-    <div class="desk"></div>
-    <div class="doc">
-      <div class="bar">
-        <span class="dot" style="background:#ff5f57"></span>
-        <span class="dot" style="background:#febc2e"></span>
-        <span class="dot" style="background:#28c840"></span>
-        <span class="doc-title">Science Fair — notes</span>
-      </div>
-      <div class="page">
-        <h1>Tide pools: why the water stays warm</h1>
-        <div class="line" style="width:96%"></div>
-        <div class="line" style="width:88%"></div>
-        <div class="line" style="width:63%"></div>
-        <div class="bullet"><i></i><div class="line" style="max-width:70%"></div></div>
-        <div class="bullet"><i></i><div class="line" style="max-width:56%"></div></div>
-        <div class="bullet"><i></i><div class="line" style="max-width:64%"></div></div>
-        <div class="line" style="width:92%"></div>
-        <div class="line" style="width:47%"></div>
-      </div>
-    </div>
-    <div class="chatbar"><img src="${chatbarUrl}"></div>
-    <div class="pet"><img src="${petUrl}"></div>
-  `);
-  await page.evaluate(() => Promise.all(Array.from(document.images).map((i) => i.decode())));
-  fs.mkdirSync(OUT_DIR, { recursive: true });
-  await page.screenshot({ path: path.join(OUT_DIR, 'quick-chat.png') });
-
-  // --- chat-popup: the tip bubble + pet on white (matches the original) ---
-  // Laid out 1:1 like the desktop shot: the bubble sits directly above the pet,
-  // exactly as the app stacks them. The frame is the original's, so fail loudly
-  // rather than silently squashing the art if the bubble outgrows it.
-  await page.setViewportSize({ width: CHAT_POPUP.w, height: CHAT_POPUP.h });
+  // Verify the chat-popup stack fits its frame BEFORE any PNG is written, so a
+  // bubble that outgrows the original 726×676 crop fails the whole run instead of
+  // leaving assets/screenshots/ half-updated (a fresh quick-chat.png beside a
+  // stale chat-popup.png). Both inputs are already known here.
   const GAP = 14;
   const stackTop = Math.round((CHAT_POPUP.h - (bubble.height + GAP + pet.height)) / 2);
   if (stackTop < 0) {
@@ -309,24 +236,110 @@ async function composite({ chatbarBox }) {
       `Bubble (${bubble.height}px) + pet (${pet.height}px) exceed the ${CHAT_POPUP.h}px frame — shorten POPUP_TIP.`,
     );
   }
-  await page.setContent(`
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { width: ${CHAT_POPUP.w}px; height: ${CHAT_POPUP.h}px; overflow: hidden; background: #fff; }
-      .bubble { position: absolute; left: 50%; transform: translateX(-50%); top: ${stackTop}px;
-                width: ${bubble.width}px; height: ${bubble.height}px; }
-      .pet { position: absolute; left: 50%; transform: translateX(-50%);
-             top: ${stackTop + bubble.height + GAP}px;
-             width: ${pet.width}px; height: ${pet.height}px; }
-      img { width: 100%; height: 100%; display: block; }
-    </style>
-    <div class="bubble"><img src="${bubbleUrl}"></div>
-    <div class="pet"><img src="${petUrl}"></div>
-  `);
-  await page.evaluate(() => Promise.all(Array.from(document.images).map((i) => i.decode())));
-  await page.screenshot({ path: path.join(OUT_DIR, 'chat-popup.png') });
 
-  await browser.close();
+  const petUrl = dataUrl(path.join(WORK_DIR, 'pet.png'));
+  const bubbleUrl = dataUrl(path.join(WORK_DIR, 'petchat.png'));
+  const chatbarUrl = dataUrl(path.join(WORK_DIR, 'chatbar-raw.png'));
+
+  const browser = await chromium.launch({ args: AUDIO_SAFE_ARGS });
+  try {
+    const page = await browser.newPage({
+      viewport: { width: QUICK_CHAT.w, height: QUICK_CHAT.h },
+      deviceScaleFactor: 2,
+    });
+
+    // --- quick-chat: the summon bar over a desktop ---
+    // Set dressing only: a generic, unbranded document window and wallpaper, so
+    // the shot reads as "Clawster floats over whatever you're doing" without
+    // imitating anyone's product. Every Clawster pixel is a real window capture.
+    await page.setContent(`
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { width: ${QUICK_CHAT.w}px; height: ${QUICK_CHAT.h}px; overflow: hidden;
+               font-family: -apple-system, 'Helvetica Neue', sans-serif; }
+        .desk { position: absolute; inset: 0;
+                background:
+                  radial-gradient(120% 90% at 12% 0%, #2f5d68 0%, transparent 55%),
+                  radial-gradient(110% 90% at 92% 8%, #7a4a4f 0%, transparent 50%),
+                  linear-gradient(160deg, #16323b 0%, #1d2a37 48%, #2a2330 100%); }
+        .doc { position: absolute; left: 44px; top: 34px; width: 560px; height: 400px;
+               background: #fffdf9; border-radius: 10px; overflow: hidden;
+               box-shadow: 0 26px 60px rgba(0,0,0,.46), 0 2px 8px rgba(0,0,0,.3); }
+        .bar { height: 34px; background: #f0ebe4; border-bottom: 1px solid #ddd5cb;
+               display: flex; align-items: center; padding: 0 12px; gap: 7px; }
+        .dot { width: 11px; height: 11px; border-radius: 50%; }
+        .doc-title { flex: 1; text-align: center; font-size: 11px; color: #8d8378;
+                     font-weight: 600; margin-right: 40px; }
+        .page { padding: 22px 26px; }
+        .page h1 { font-size: 17px; color: #2f2a26; margin-bottom: 14px; }
+        .line { height: 8px; border-radius: 4px; background: #e8e2d9; margin-bottom: 11px; }
+        .bullet { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+        .bullet i { width: 7px; height: 7px; border-radius: 50%; background: #cfc6ba; flex: none; }
+        .bullet .line { flex: 1; margin: 0; }
+        /* The chatbar ships frameless + opaque with roundedCorners:true and a
+           macOS shadow — mirror that here rather than inventing a floating panel. */
+        .chatbar { position: absolute; left: ${Math.round((QUICK_CHAT.w - chatbarBox.w) / 2)}px; top: 126px;
+                   width: ${chatbarBox.w}px; height: ${chatbarBox.h}px;
+                   border-radius: 11px; overflow: hidden;
+                   box-shadow: 0 30px 70px rgba(0,0,0,.5), 0 4px 14px rgba(0,0,0,.34); }
+        .chatbar img { width: 100%; height: 100%; display: block; }
+        /* The pet is alwaysOnTop in the app, so it legitimately stands in front
+           of the chatbar's corner rather than being tucked behind it. */
+        .pet { position: absolute; right: 30px; bottom: 10px;
+               width: ${pet.width}px; height: ${pet.height}px; }
+        .pet img { width: 100%; height: 100%; display: block; }
+      </style>
+      <div class="desk"></div>
+      <div class="doc">
+        <div class="bar">
+          <span class="dot" style="background:#ff5f57"></span>
+          <span class="dot" style="background:#febc2e"></span>
+          <span class="dot" style="background:#28c840"></span>
+          <span class="doc-title">Science Fair — notes</span>
+        </div>
+        <div class="page">
+          <h1>Tide pools: why the water stays warm</h1>
+          <div class="line" style="width:96%"></div>
+          <div class="line" style="width:88%"></div>
+          <div class="line" style="width:63%"></div>
+          <div class="bullet"><i></i><div class="line" style="max-width:70%"></div></div>
+          <div class="bullet"><i></i><div class="line" style="max-width:56%"></div></div>
+          <div class="bullet"><i></i><div class="line" style="max-width:64%"></div></div>
+          <div class="line" style="width:92%"></div>
+          <div class="line" style="width:47%"></div>
+        </div>
+      </div>
+      <div class="chatbar"><img src="${chatbarUrl}"></div>
+      <div class="pet"><img src="${petUrl}"></div>
+    `);
+    await page.evaluate(() => Promise.all(Array.from(document.images).map((i) => i.decode())));
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+    await page.screenshot({ path: path.join(OUT_DIR, 'quick-chat.png') });
+
+    // --- chat-popup: the tip bubble + pet on white (matches the original) ---
+    // Laid out 1:1 like the desktop shot: the bubble sits directly above the pet,
+    // exactly as the app stacks them. The frame fit was validated above (before
+    // any PNG was written), so this only positions the already-checked stack.
+    await page.setViewportSize({ width: CHAT_POPUP.w, height: CHAT_POPUP.h });
+    await page.setContent(`
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { width: ${CHAT_POPUP.w}px; height: ${CHAT_POPUP.h}px; overflow: hidden; background: #fff; }
+        .bubble { position: absolute; left: 50%; transform: translateX(-50%); top: ${stackTop}px;
+                  width: ${bubble.width}px; height: ${bubble.height}px; }
+        .pet { position: absolute; left: 50%; transform: translateX(-50%);
+               top: ${stackTop + bubble.height + GAP}px;
+               width: ${pet.width}px; height: ${pet.height}px; }
+        img { width: 100%; height: 100%; display: block; }
+      </style>
+      <div class="bubble"><img src="${bubbleUrl}"></div>
+      <div class="pet"><img src="${petUrl}"></div>
+    `);
+    await page.evaluate(() => Promise.all(Array.from(document.images).map((i) => i.decode())));
+    await page.screenshot({ path: path.join(OUT_DIR, 'chat-popup.png') });
+  } finally {
+    await browser.close().catch(() => {});
+  }
 }
 
 const meta = await captureWindows();
