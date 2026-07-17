@@ -1,0 +1,19 @@
+AGENTS.md
+  s_2e83f31a88a6de::t_8a648e9c9da316 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "18e90ddd24038991c21cc518621b17f9956fdd9d",
+  "prompts": {},
+  "sessions": {
+    "s_2e83f31a88a6de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "be0d016f-4230-4519-b1d0-f890bd3f1f66",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
