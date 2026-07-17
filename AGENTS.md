@@ -82,6 +82,7 @@ User message
 - E2E specs save screenshots when the `EVIDENCE_DIR` env var is set (skipped otherwise) — evidence for PR review is committed under `.no-mistakes/evidence/`
 - E2E specs that assert on a chat popup must seed `permissionDeclines: { hintShown: true }` into `clawster-config.json` alongside the `onboarding`/`tutorial` flags — otherwise the first-launch permissions hint fires ~5s in, pushes its own popup, and replaces the bubble under test (see `e2e/cla58-tidepool-restyle.spec.ts`)
 - E2E specs that compare screenshots diff them with `pixelmatch` + `pngjs` (dev dependencies). `e2e/cla58-tidepool-restyle.spec.ts` writes captures to `test-results/cla58/` by default; set `CAPTURE_BASELINE=1` (before-shots) or `CAPTURE_EVIDENCE=1` (after-shots) to redirect them to `.no-mistakes/evidence/cla58/` instead
+- `test/preserved-strengths.test.ts` locks in three QA-verified strengths (CLA-41): zalgo/unicode input still routes intent, `get_weather` never passes its location through a shell (execFile + encodeURIComponent), and distress-behind-bravado ("lowkey im stressed af") takes the emotional path before the tool classifier. If one of these fails, a strength regressed — fix the regression, don't loosen the test
 
 ### Model Conversion Pipeline
 When fine-tuning a new local model:
