@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { LocalToolProvider } from '../src/main/chat/local-tool-provider';
+import { resolveToolBaseUrl } from '../src/main/chat/ollama-url';
 
 describe('LocalToolProvider E2E', () => {
   let local: LocalToolProvider;
 
   beforeAll(async () => {
-    local = new LocalToolProvider();
+    local = new LocalToolProvider(undefined, resolveToolBaseUrl(true));
     await new Promise(r => setTimeout(r, 2000));
   });
 

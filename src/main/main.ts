@@ -21,6 +21,7 @@ import { autoUpdater } from 'electron-updater';
 import { Watchers } from './watchers';
 import { LocalToolProvider, ChatRouter, setNotifyCallback, setConfirmCallback, setMemoryDB, setMutedProvider, createProxyVision } from './chat';
 import { buildAuthHeaders } from './chat/hmac-auth';
+import { resolveToolBaseUrl } from './chat/ollama-url';
 import {
   migrateFlatHistory, resolveActiveId, newSession, withMessages, capSessions, toMeta,
   type ChatMessage, type ChatSession,
@@ -337,7 +338,7 @@ function startMainApp() {
 
   const toolModel = new LocalToolProvider(
     isDev ? 'clawster-qwen3-8b-q4:latest' : (process.env.FIREWORKS_MODEL || 'clawster-qwen3-8b-q4:latest'),
-    isDev ? 'http://127.0.0.1:11434' : (process.env.FIREWORKS_BASE_URL || 'http://127.0.0.1:11434'),
+    resolveToolBaseUrl(isDev),
     isDev ? 'ollama' : ((process.env.FIREWORKS_BASE_URL ? 'openai' : 'ollama') as 'ollama' | 'openai'),
     isDev ? undefined : process.env.FIREWORKS_API_KEY,
   );
