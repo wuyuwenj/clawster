@@ -31,7 +31,7 @@ AI desktop pet for macOS — an animated lobster that lives on your screen, watc
 | `assets/` | Icons, animations (SVG), screenshots |
 | `clawster-assets/` | Lobster sprite parts for animation |
 | `personality/` | Default personality files (IDENTITY.md, SOUL.md) and presets |
-| `scripts/` | Build helper scripts (icon builder, speech helper) |
+| `scripts/` | Build helper scripts (icon builder, speech helper) + marketing screenshot capture (`capture-marketing-screenshots.mjs`) |
 | `.github/workflows/` | CI: `ci.yml` (test + safety checks for staging), `release.yml` (build + notarize), `update-landing.yml` |
 | `.no-mistakes/evidence/` | Committed E2E evidence screenshots for PR review, grouped per issue (e.g. `cla50/`) |
 
