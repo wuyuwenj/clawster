@@ -1,0 +1,20 @@
+AGENTS.md
+  s_117acfc4a96af6::t_0e0f0946e9287a 61
+  s_117acfc4a96af6::t_a9b4b894f6561f 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "51441ea585c8ea17785adefa08e3bed4df4fd980",
+  "prompts": {},
+  "sessions": {
+    "s_117acfc4a96af6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "68345264-9cec-4754-ad81-168a91d9011d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
