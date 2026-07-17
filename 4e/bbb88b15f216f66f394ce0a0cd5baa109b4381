@@ -1,0 +1,28 @@
+73/974539ef0163c024b74c6743ce720296ad282b
+  s_3e6c5d17e74cec::t_484bb0aaa18f7d 43
+  s_72cb5fc62f8ad6::t_526e65258f25c1 4,6-9,13-16,26-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "4ebbb88b15f216f66f394ce0a0cd5baa109b4381",
+  "prompts": {},
+  "sessions": {
+    "s_3e6c5d17e74cec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2b69c34-b7c3-46d5-b6e7-1d0abbabcdd0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_72cb5fc62f8ad6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43aab711-c777-4271-a3de-1891ee62c8af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

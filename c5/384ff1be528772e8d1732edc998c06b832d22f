@@ -1,0 +1,24 @@
+test/e2e-local-model.test.ts
+  s_e8ef25deab96ae::t_fe45eea4cff436 3
+  s_e8ef25deab96ae::t_e0db3b9de06267 9
+src/main/chat/ollama-url.ts
+  s_e8ef25deab96ae::t_c14c3082cf0c87 7
+AGENTS.md
+  s_e8ef25deab96ae::t_950e1a5254eb77 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c5384ff1be528772e8d1732edc998c06b832d22f",
+  "prompts": {},
+  "sessions": {
+    "s_e8ef25deab96ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "72be1e33-82d0-4685-90ea-5ee4928a6398",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
