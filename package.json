@@ -18,6 +18,7 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "build:icons": "node scripts/build-icons.mjs && npx electron-icon-builder --input=assets/icon.png --output=assets",
+    "capture:screenshots": "node scripts/capture-marketing-screenshots.mjs",
     "start": "electron .",
     "test": "vitest run",
     "test:watch": "vitest",

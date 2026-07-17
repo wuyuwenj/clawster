@@ -71,6 +71,8 @@ This AI desktop pet expresses itself through 14 animated moods:
 | ![Clawster AI desktop pet chat popup](assets/screenshots/chat-popup.png) | ![Clawster AI pet quick chat bar](assets/screenshots/quick-chat.png) | ![Clawster desktop pet assistant panel](assets/screenshots/assistant.png) |
 | Clawster pops up with contextual tips | Press `Cmd+Shift+Space` to chat anywhere | Right-click the pet for the full assistant |
 
+The chat shots show the Light ("Tidepool") theme; the assistant panel shows Dark, which is the default. Switch anytime in Settings → Appearance.
+
 ## Download
 
 **For most users:** Download the app directly — no terminal needed.
