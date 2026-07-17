@@ -1,0 +1,30 @@
+e2e/electron-launch.d.mts
+  s_4a6a126cd348b6::t_0cef61f138cacd 1-9
+e2e/helpers.ts
+  s_4a6a126cd348b6::t_84cdd0d327d904 5-7
+e2e/electron-launch.mjs
+  s_4a6a126cd348b6::t_d0ae5719097564 1-31
+scripts/capture-marketing-screenshots.mjs
+  s_4a6a126cd348b6::t_c473d2741ee648 124-127,129-136,138-147,149-154,156-162,164-168,170-177,179-194,196-206,208-211
+  s_4a6a126cd348b6::t_16a1feb1626e66 32
+  s_4a6a126cd348b6::t_d655d798fd3591 212,228-239,245-249,251
+  s_4a6a126cd348b6::t_796042c5ea0ffe 252-310,312-317,319-341
+AGENTS.md
+  s_4a6a126cd348b6::t_169b8b1f67c730 79-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b2dfdf780663191a983fbb2dc61f4739d9a5f45d",
+  "prompts": {},
+  "sessions": {
+    "s_4a6a126cd348b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9686d085-e7ab-46a6-b8cd-702735f7339f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
