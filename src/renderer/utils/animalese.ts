@@ -1,60 +1,46 @@
 /**
- * Animalese-style voice synthesizer for Clawster
+ * Animalese-style voice synthesizer for Clawster (v2 — sampled + prosody + mood)
  *
- * Generates gibberish speech sounds that play as text appears,
- * similar to Animal Crossing's "Animalese" dialogue.
+ * v1 synthesized every character with a square-wave oscillator, which sounded
+ * robotic and digital. v2 plays back short *sampled* voice clips (one per
+ * letter) and pitch-shifts them per character with `AudioBufferSourceNode`'s
+ * `playbackRate` — the classic Animal-Crossing "Animalese" technique — for a
+ * real vocal timbre. The expressive layer (sentence pitch contour, mood →
+ * pitch/speed, punctuation prosody, trail-off) lives in the pure
+ * `./animalese-prosody` module so it can be unit-tested without audio.
  *
- * Uses Web Audio API to synthesize short vocal blips per character
- * with pitch variation based on the letter.
+ * The clips are private, licensed assets bundled at build time and gitignored
+ * (see `src/renderer/assets/voice/README.md`). When they are absent — public
+ * checkout, CI, unit tests — the engine degrades **silently**: the mouth
+ * animation still runs, there is just no audio. Muting (`pet.muted`, CLA-52) is
+ * always honored and never bypassed.
  */
 
-// Base frequencies for vowels (more resonant, longer)
-const VOWEL_FREQS: Record<string, number> = {
-  a: 420,
-  e: 480,
-  i: 520,
-  o: 390,
-  u: 360,
-};
+import {
+  planUtterance,
+  inferVoiceMood,
+  type MouthShape,
+  type VoiceMood,
+  type VoiceStep,
+} from './animalese-prosody';
 
-// Consonants get a mid-range buzz
-const CONSONANT_BASE = 440;
-
-// Character to relative pitch offset (gives each letter a unique sound)
-const LETTER_OFFSETS: Record<string, number> = {
-  a: 0, b: 15, c: 30, d: -10, e: 5, f: 25, g: -15, h: 35,
-  i: 10, j: -20, k: 40, l: -5, m: 20, n: -25, o: -8, p: 45,
-  q: -30, r: 12, s: 50, t: -12, u: -3, v: 28, w: -18, x: 55,
-  y: 8, z: -35,
-};
-
-/** Mouth shape visemes matching Clawster's SVG mouths */
-export type MouthShape = 'neutral' | 'happy' | 'o' | 'worried' | 'mad' | 'closed';
-
-/** Map characters to mouth shapes */
-const CHAR_TO_MOUTH: Record<string, MouthShape> = {
-  // Vowels
-  a: 'happy', e: 'neutral', i: 'neutral', o: 'o', u: 'worried',
-  // Closed-lip consonants
-  b: 'mad', f: 'mad', m: 'mad', p: 'mad', v: 'mad', n: 'mad',
-  // Open consonants
-  c: 'neutral', d: 'neutral', g: 'neutral', k: 'neutral',
-  j: 'neutral', l: 'neutral', r: 'neutral', s: 'neutral',
-  t: 'neutral', z: 'neutral', y: 'neutral', x: 'neutral',
-  // Rounded consonants
-  h: 'happy', q: 'worried', w: 'o',
-};
+// Re-export the pure prosody API so existing importers of this module (and
+// tests) keep a single entry point.
+export {
+  planUtterance,
+  moodToVoice,
+  inferVoiceMood,
+} from './animalese-prosody';
+export type { MouthShape, VoiceMood, VoiceStep } from './animalese-prosody';
 
 interface AnimaleseOptions {
-  /** Pitch multiplier (1.0 = normal, 1.3 = higher/cuter) */
+  /** Base pitch multiplier (1.0 = normal, higher = cuter). */
   pitch?: number;
-  /** Speed in ms per character */
+  /** Base speed in ms per character. */
   speed?: number;
-  /** Volume 0-1 */
+  /** Master volume 0-1. */
   volume?: number;
 }
-
-const isLetter = (lower: string): boolean => /[a-z]/.test(lower);
 
 type VisemeCallback = (mouth: MouthShape | null) => void;
 
@@ -64,6 +50,37 @@ type RendererSettings = {
   };
 };
 
+/** Discover bundled voice clips at build time (empty when none are present). */
+function defaultClipUrls(): Record<string, string> {
+  // Eager URL glob: Vite resolves this to `{}` when the folder holds no audio,
+  // which is exactly the public/CI/test case → silent degradation. In tests the
+  // glob also resolves to `{}`, and a bank can be injected via the constructor.
+  const modules = import.meta.glob('../assets/voice/*.{wav,mp3,ogg,aiff,m4a,flac}', {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  }) as Record<string, string>;
+
+  const urls: Record<string, string> = {};
+  for (const [path, url] of Object.entries(modules)) {
+    const name = path.split('/').pop() ?? '';
+    const key = name.replace(/\.[^.]+$/, '').toLowerCase();
+    if (key) urls[key] = url;
+  }
+  return urls;
+}
+
+interface EngineDeps {
+  /** grapheme → clip URL. Defaults to the bundled glob. */
+  clipUrls?: Record<string, string>;
+  /** Pre-decoded bank, bypassing fetch/decode (used by tests). */
+  voiceBank?: Map<string, AudioBuffer>;
+}
+
+// Fallback preference order when a specific letter clip is missing but the bank
+// is non-empty, so partial banks still render every input.
+const FALLBACK_KEYS = ['a', 'e', 'o', 'u', 'i', 'm', 'n'];
+
 export class AnimaleseEngine {
   private audioCtx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
@@ -71,11 +88,23 @@ export class AnimaleseEngine {
   private playbackToken = 0;
   private pendingTimeout: number | null = null;
   private volume = 0.15;
-  private pitch = 1.25; // Slightly pitched up for Clawster's cute digital vibe
+  private pitch = 1.2; // Cute baseline; mood profiles multiply on top.
   private speed = 60; // ms per character
   private visemeCallback: VisemeCallback | null = null;
   private muted = false;
   private mutedInitialized = false;
+
+  private readonly clipUrls: Record<string, string>;
+  private voiceBank: Map<string, AudioBuffer>;
+  private bankLoaded: boolean;
+  private bankLoadPromise: Promise<void> | null = null;
+
+  constructor(deps: EngineDeps = {}) {
+    this.clipUrls = deps.clipUrls ?? defaultClipUrls();
+    this.voiceBank = deps.voiceBank ?? new Map();
+    // A pre-supplied bank (tests) or an empty clip list (public/CI) needs no load.
+    this.bankLoaded = deps.voiceBank !== undefined || Object.keys(this.clipUrls).length === 0;
+  }
 
   /** True when audio output must be suppressed (automated tests / CLAWSTER_MUTE_AUDIO).
    *  Read lazily so the preload bridge is available; the engine is constructed at
@@ -110,61 +139,84 @@ export class AnimaleseEngine {
     }
   }
 
-  private getCharDelay(lower: string): number {
-    // Skip non-letter characters (silence)
-    if (!isLetter(lower)) {
-      return lower === ' ' ? this.speed * 0.5 : this.speed * 0.3;
-    }
-
-    return this.speed;
+  /** True when at least one voice clip is available to play. */
+  get hasVoiceBank(): boolean {
+    return this.voiceBank.size > 0;
   }
 
-  private playCharSound(lower: string): void {
-    if (!isLetter(lower)) return;
+  /**
+   * Decode the bundled clips once. Resolves immediately (no-op) when there are
+   * no clips — the silent degradation path — so callers never block on it.
+   */
+  private ensureBankLoaded(): Promise<void> {
+    if (this.bankLoaded) return Promise.resolve();
+    if (this.bankLoadPromise) return this.bankLoadPromise;
+    this.bankLoadPromise = this.loadBank();
+    return this.bankLoadPromise;
+  }
+
+  private async loadBank(): Promise<void> {
+    const entries = Object.entries(this.clipUrls);
+    if (entries.length === 0 || typeof fetch === 'undefined') {
+      this.bankLoaded = true;
+      return;
+    }
+    try {
+      const ctx = this.getAudioContext();
+      await Promise.all(
+        entries.map(async ([key, url]) => {
+          try {
+            const res = await fetch(url);
+            const arr = await res.arrayBuffer();
+            const buf = await ctx.decodeAudioData(arr);
+            this.voiceBank.set(key, buf);
+          } catch {
+            // A clip that fails to load just stays silent.
+          }
+        }),
+      );
+    } catch {
+      // No AudioContext (audio init failure) → whole bank stays silent.
+    }
+    this.bankLoaded = true;
+  }
+
+  private resolveBuffer(grapheme: string): AudioBuffer | null {
+    const direct = this.voiceBank.get(grapheme);
+    if (direct) return direct;
+    if (this.voiceBank.size === 0) return null;
+    for (const key of FALLBACK_KEYS) {
+      const buf = this.voiceBank.get(key);
+      if (buf) return buf;
+    }
+    // Any clip is better than silence for coverage.
+    const first = this.voiceBank.values().next();
+    return first.done ? null : first.value;
+  }
+
+  private playStep(step: VoiceStep): void {
+    if (!step.voiced) return;
+    const buffer = this.resolveBuffer(step.grapheme);
+    if (!buffer) return; // No clip → silent (graceful degradation).
 
     const ctx = this.getAudioContext();
     if (!this.gainNode) return;
 
-    const isVowel = 'aeiou'.includes(lower);
-    const baseFreq = isVowel ? VOWEL_FREQS[lower] : CONSONANT_BASE;
-    const offset = LETTER_OFFSETS[lower] || 0;
-
-    // Add slight randomization for natural feel
-    const randomPitch = 1 + (Math.random() - 0.5) * 0.1;
-    const freq = (baseFreq + offset) * this.pitch * randomPitch;
-
-    const duration = isVowel ? this.speed / 1000 * 1.2 : this.speed / 1000 * 0.8;
     const time = ctx.currentTime + 0.01;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(step.playbackRate, time);
 
-    // Main oscillator (square wave for that digital/retro feel)
-    const osc = ctx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, time);
+    // Per-step gain for emphasis / trail-off, with a tiny attack to avoid clicks
+    // at clip boundaries.
+    const env = ctx.createGain();
+    const peak = Math.max(0.0001, step.gain);
+    env.gain.setValueAtTime(0.0001, time);
+    env.gain.linearRampToValueAtTime(peak, time + 0.006);
 
-    // Slight pitch slide for natural feel
-    const slideTarget = freq * (0.95 + Math.random() * 0.1);
-    osc.frequency.linearRampToValueAtTime(slideTarget, time + duration * 0.7);
-
-    // Envelope for each blip
-    const envelope = ctx.createGain();
-    envelope.gain.setValueAtTime(0, time);
-    envelope.gain.linearRampToValueAtTime(1, time + 0.008); // Quick attack
-    envelope.gain.setValueAtTime(1, time + duration * 0.4);
-    envelope.gain.exponentialRampToValueAtTime(0.01, time + duration); // Decay
-
-    // Low-pass filter for softer, more vocal sound
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(isVowel ? 2000 : 3000, time);
-    filter.Q.setValueAtTime(2, time);
-
-    // Connect: osc → filter → envelope → master gain → output
-    osc.connect(filter);
-    filter.connect(envelope);
-    envelope.connect(this.gainNode);
-
-    osc.start(time);
-    osc.stop(time + duration + 0.01);
+    source.connect(env);
+    env.connect(this.gainNode);
+    source.start(time);
   }
 
   /**
@@ -181,7 +233,7 @@ export class AnimaleseEngine {
     if (this.mutedInitialized) return;
     try {
       if (typeof window === 'undefined' || !window.clawster?.getSettings) return;
-      const settings = await window.clawster.getSettings() as RendererSettings;
+      const settings = (await window.clawster.getSettings()) as RendererSettings;
       if (this.mutedInitialized) return;
       this.muted = Boolean(settings.pet?.muted);
       this.mutedInitialized = true;
@@ -192,9 +244,12 @@ export class AnimaleseEngine {
 
   /**
    * Play Animalese sounds for a string of text.
+   *
+   * @param text  The text to voice.
+   * @param mood  Optional voice mood; when omitted it is inferred from the text.
    * Returns a promise that resolves when playback completes or is cancelled.
    */
-  async speak(text: string): Promise<void> {
+  async speak(text: string, mood?: VoiceMood): Promise<void> {
     // Cancel any ongoing speech
     this.stop();
 
@@ -207,9 +262,18 @@ export class AnimaleseEngine {
     this.isPlaying = true;
     const playbackToken = ++this.playbackToken;
     await this.syncMutedFromSettings();
+    // Load clips (no-op when absent) before scheduling so audio and mouth stay
+    // in sync from the first character.
+    await this.ensureBankLoaded();
+    if (this.playbackToken !== playbackToken) return;
 
-    const chars = Array.from(text);
-    let charIndex = 0;
+    const resolvedMood = mood ?? inferVoiceMood(text);
+    const steps = planUtterance(text, resolvedMood, {
+      baseSpeedMs: this.speed,
+      basePitch: this.pitch,
+    });
+
+    let stepIndex = 0;
 
     return new Promise<void>((resolve) => {
       const playNext = () => {
@@ -218,7 +282,7 @@ export class AnimaleseEngine {
           return;
         }
 
-        if (charIndex >= chars.length) {
+        if (stepIndex >= steps.length) {
           this.clearPendingTimeout();
           this.isPlaying = false;
           this.visemeCallback?.(null);
@@ -226,27 +290,19 @@ export class AnimaleseEngine {
           return;
         }
 
-        const char = chars[charIndex];
-        const lower = char.toLowerCase();
-        charIndex++;
+        const step = steps[stepIndex];
+        stepIndex++;
 
-        // Emit viseme for this character
-        const mouth = CHAR_TO_MOUTH[lower] || null;
-        if (mouth) {
-          this.visemeCallback?.(mouth);
-        } else {
-          // Space/punctuation = close mouth briefly
-          this.visemeCallback?.('closed');
-        }
+        // Emit viseme for this step (drives the mouth animation).
+        this.visemeCallback?.(step.viseme);
 
-        // Play audio for this character
-        const delay = this.getCharDelay(lower);
+        // Play audio for this step unless muted.
         if (!this.muted) {
-          this.playCharSound(lower);
+          this.playStep(step);
         }
 
-        // Schedule next character
-        this.pendingTimeout = window.setTimeout(playNext, delay);
+        // Schedule next step.
+        this.pendingTimeout = window.setTimeout(playNext, step.delayMs);
       };
 
       playNext();
@@ -280,3 +336,11 @@ export class AnimaleseEngine {
 
 // Singleton instance
 export const animalese = new AnimaleseEngine();
+
+// E2E hook: a public checkout bundles no voice clips, so the mute e2e
+// (e2e/mute-toggle.spec.ts) reaches the live engine here to seed a silent
+// voice bank and observe playback attempts. The e2e suite runs against the
+// Vite dev server, so the hook is dev-only and never ships in the packaged app.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as any).__clawsterVoice = animalese;
+}

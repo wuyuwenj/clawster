@@ -122,6 +122,8 @@ npm start
 
 On first launch, the onboarding wizard walks you through setup.
 
+> **Note:** Clawster's Animalese voice clips are private licensed assets and are not included in the repository, so builds from source run without voice audio (the mouth animation still plays). To hear the voice, drop your own per-letter clips into `src/renderer/assets/voice/` — see the README in that folder.
+
 ## Customization
 
 ### Personality
