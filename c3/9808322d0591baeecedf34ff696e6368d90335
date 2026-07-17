@@ -1,0 +1,30 @@
+src/renderer/pet-chat/PetChat.tsx
+  s_6ceec3a836383e::t_1317fb1787f81e 299
+  s_6ceec3a836383e::t_7c0b606d8aaec7 263
+  s_6ceec3a836383e::t_7330bc4515a191 241-242
+  s_6ceec3a836383e::t_bc4a862f799821 366-367,369-370,372
+  s_6ceec3a836383e::t_73b4277bfaf8ff 387
+  s_6ceec3a836383e::t_baf9ef0b6e175a 317
+  s_6ceec3a836383e::t_98497528ad5aa1 292
+  s_6ceec3a836383e::t_258714005a38bc 306
+  s_6ceec3a836383e::t_013acfd6278545 255
+src/renderer/pet-chat/styles.css
+  s_6ceec3a836383e::t_e921d8d94f3595 20-123
+  s_6ceec3a836383e::t_5e9da15b1550b1 199-200,204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "c39808322d0591baeecedf34ff696e6368d90335",
+  "prompts": {},
+  "sessions": {
+    "s_6ceec3a836383e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4e9e1b6c-1824-4dfc-b83f-8efc36a5328d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

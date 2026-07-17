@@ -1,0 +1,21 @@
+test/preserved-strengths.test.ts
+  s_b840f70e87fd96::t_5792402d1bb74a 1-144
+AGENTS.md
+  s_b840f70e87fd96::t_9b8c1914dca55e 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "29e7c8d6d1896b764f07ef468df5dfc25b3437d3",
+  "prompts": {},
+  "sessions": {
+    "s_b840f70e87fd96": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "938bd0cd-185f-4403-9504-f50dedd13637",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

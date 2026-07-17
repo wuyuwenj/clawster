@@ -1,0 +1,21 @@
+test/mute-toggle.test.ts
+  s_800cb10daecfa8::t_6cda05c4da589a 177-205
+src/renderer/utils/animalese.ts
+  s_800cb10daecfa8::t_feb90ed16e295b 164-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "a5926adbb2f309bc383cc44a6e4579d66ae36936",
+  "prompts": {},
+  "sessions": {
+    "s_800cb10daecfa8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04e96edd-9ddb-4169-b08f-cd37e01f344b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

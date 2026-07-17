@@ -1,0 +1,20 @@
+e2e/mute-toggle.spec.ts
+  s_7e7fd26ba689c6::t_2f01cd09bdffca 5
+  s_7e7fd26ba689c6::t_83e3187a8bcfca 20-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "18fd145d7449c0e9e9cfb138824042b21c8499a9",
+  "prompts": {},
+  "sessions": {
+    "s_7e7fd26ba689c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "249afdc3-4116-4adb-b4f6-da7b40eb5251",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
