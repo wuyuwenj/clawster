@@ -1,0 +1,33 @@
+src/renderer/styles/theme.css
+  s_50ef41d565f53e::t_2d08b6153222ed 129
+  s_50ef41d565f53e::t_543ba0228443c9 74
+src/renderer/styles/tidepool.css
+  s_50ef41d565f53e::t_ce51532427ffcf 20-25,27-38,45-46,50
+src/renderer/pet-chat/styles.css
+  s_50ef41d565f53e::t_5d82b1b74f458c 14-32,39,56-57
+src/renderer/theme.ts
+  s_50ef41d565f53e::t_c816bd8255c355 22-26,29-31
+.gitignore
+  s_50ef41d565f53e::t_c63db7966952f9 16
+src/renderer/components/HotkeyInput.tsx
+  s_50ef41d565f53e::t_e6363948e3bde7 67
+src/renderer/chatbar/styles.css
+  s_50ef41d565f53e::t_39c90acd94009d 23-26,30-41
+  s_50ef41d565f53e::t_6e8b1194754074 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "f0cd8f46eab7e2611db72bd5efdaeab26d96f20f",
+  "prompts": {},
+  "sessions": {
+    "s_50ef41d565f53e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "832a29f0-a440-415a-acbd-4f82ce0ebf79",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}

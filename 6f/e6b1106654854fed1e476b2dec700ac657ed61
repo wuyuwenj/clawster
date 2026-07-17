@@ -1,0 +1,358 @@
+src/renderer/pet-chat/PetChat.tsx
+  s_8c27d2f9197133::t_28a339e8432a1d 169-171
+  s_8c27d2f9197133::t_27861917c4f239 157
+  s_8c27d2f9197133::t_0d0a3bd7359901 234-238
+  s_2cefa318f1af27::t_bd8097a8768707 240-287,289-331,333-338,342,344,353,355,363-364,366-384
+  s_2cefa318f1af27::t_85d562c86fa337 26-31
+  s_8282b7c7239370::t_c38c0b885735ae 4-8,10-14,16
+  s_8282b7c7239370::t_b4ee7e84052d50 15
+  s_8282b7c7239370::t_1effa3b0716605 91
+  s_c15ea94af52618::t_0e3526c375b101 9
+  s_c15ea94af52618::t_7d120d7c608d48 178,195-202,206-208,212-229
+  s_51d49afc03465d::t_a960406e12a632 180-181,186-190,209-211
+  s_8d3ab092c17681::t_4b54f3b3db7f1e 332
+  s_8d3ab092c17681::t_acf06d8581c52f 345-346
+  s_8d3ab092c17681::t_8c7402ddd518df 356-357
+e2e/cla50-feedback-thumbs-timing.spec.ts
+  s_8c27d2f9197133::t_3025ae09bfdc36 1-44,49-97,100-101,103-104
+  s_8c27d2f9197133::t_32672c84162286 98-99,102
+  s_c1c7df093aac19::t_2503a81396456a 45-48
+test/pet-chat-feedback.test.ts
+  s_8c27d2f9197133::t_5b1d3b906e8ebd 1,4-84
+  s_8282b7c7239370::t_abbbdcdbdd44d6 2-3
+src/renderer/styles/tidepool.css
+  s_2cefa318f1af27::t_1f16af8067358c 1-7,11-20,24-25,27-30,32-34,36-41,44-51,53-54,56-57
+  s_8282b7c7239370::t_9c38af81cf3532 21-23,31,35
+  s_8282b7c7239370::t_1dfaf0212d2e8d 52,58-67,69-72,74-119,122-136,138-185,187-197,199-200
+  s_fce907df439bb4::t_fba1a2ebe75939 42-43
+  s_fce907df439bb4::t_7786ba3b7d85d9 26
+  s_fce907df439bb4::t_373e35acef55f3 8-10
+  s_fce907df439bb4::t_5c2b868cb3f1a4 55,68,73,120-121,137,186,198
+src/renderer/pet-chat/main.tsx
+  s_2cefa318f1af27::t_ffe51eec842497 10
+  s_8282b7c7239370::t_9e283247005552 5-9
+  s_fce907df439bb4::t_8e5ae6bd102be0 3-4,14-15
+  s_fce907df439bb4::t_e86fd191b87d40 16
+src/renderer/chatbar/ChatBar.tsx
+  s_2cefa318f1af27::t_adde993f7d4624 429-432,434-450,453-470,472,474-485,487-495,497-518,520-524,526-529,532-534,537-538
+  s_af125f8401c4f1::t_983ea718ce633b 4
+  s_af125f8401c4f1::t_53658b3c1ebe8c 129,400
+  s_af125f8401c4f1::t_be19b54bb78486 105,374
+  s_f5174f4cea5f04::t_ab22a5744a2cdb 496
+  s_f5174f4cea5f04::t_e75961eff7b948 5
+  s_f5174f4cea5f04::t_f3388fb2ccdb9a 346
+  s_1c11e951226eda::t_a88c27dc3321af 530
+  s_521aa2fe097d40::t_798ea012483de7 433
+  s_521aa2fe097d40::t_b496af5cd30360 6
+  s_521aa2fe097d40::t_ddbb170518548c 36-45
+src/renderer/pet-chat.html
+  s_2cefa318f1af27::t_e5170011b6a662 17-18,21
+src/renderer/chatbar/styles.css
+  s_2cefa318f1af27::t_95b95913d120b0 15-19,21-25,27,30,50
+  s_fce907df439bb4::t_dde9cf914aa69c 20
+src/renderer/chatbar/main.tsx
+  s_2cefa318f1af27::t_f4ba45179c42db 10
+  s_8282b7c7239370::t_2268c294c4d10e 5-9
+  s_fce907df439bb4::t_8e5ae6bd102be0 3-4,14-15
+  s_fce907df439bb4::t_6a96652c72831d 16
+src/renderer/chatbar.html
+  s_2cefa318f1af27::t_8cd33b29d24e3e 23
+  s_fce907df439bb4::t_43ccbf33f21aae 17-21
+src/renderer/pet-chat/styles.css
+  s_2cefa318f1af27::t_c8786b48ad1c80 5-8,10-14,24,26,33-36,41-42
+  s_8282b7c7239370::t_b4f384a9345526 73,76
+  s_8282b7c7239370::t_62ea5e09eba729 74-75,77
+  s_8d3ab092c17681::t_9e2cecbc8b425f 15-17,27,29,31-32
+  s_8d3ab092c17681::t_5d28e4bf4218bd 18-22
+  s_fce907df439bb4::t_bc80f9bd0503bc 9
+e2e/cla58-tidepool-restyle.spec.ts
+  s_2cefa318f1af27::t_66ed78c3e76e83 1-18,21,29-34,40-81,83-89,96-115,117-136,139-142,149-167,169-172,176,178,180-189,192-195
+  s_2cefa318f1af27::t_9f020109e6d6d6 143-145,147-148
+  s_8282b7c7239370::t_cafb627f603fdf 173-175,177,179
+  s_f5174f4cea5f04::t_b13a4f817fc0be 82
+  s_f5174f4cea5f04::t_3d7f35721990bd 116
+  s_f5174f4cea5f04::t_7531b6ffe971b4 190-191
+  s_f5174f4cea5f04::t_541e489017fcd3 137-138,146
+  s_f5174f4cea5f04::t_d992021a8e0f34 19-20,22-28,35-39
+  s_f5174f4cea5f04::t_1e0c8fed0bcc36 168
+  s_c1c7df093aac19::t_678cbc85083503 90-92
+  s_fce907df439bb4::t_8a7b5e2be5650a 93-95
+test/pet-chat-chip-variant.test.ts
+  s_2cefa318f1af27::t_a3e3c5fdc35633 1,8,14,16,19-21,24,26,31-32,34-37,116
+  s_8282b7c7239370::t_461ffbd6c4a4cd 9,15,17-18,25,27-30,33,38-43
+  s_8282b7c7239370::t_86b8e31be1a98a 44
+  s_c15ea94af52618::t_a84a14eeeb8e79 45,49-89,94,96-97,99-101,103-104,106,109-111,112,114-115
+  s_c15ea94af52618::t_3f58093b9b1fa3 2-4,5-7
+  s_51d49afc03465d::t_e0151c8682d56a 46-48
+  s_51d49afc03465d::t_29b9d8b0b468f6 10-13
+  s_51d49afc03465d::t_0214c30f1b3ec7 22-23
+  s_51d49afc03465d::t_b60566c18b8f15 90-93,95,98,102,105,107-108,113
+package-lock.json
+  s_2cefa318f1af27::t_3f22b23581729f 1122-1125,1127-1131
+  s_8282b7c7239370::t_15fb41e06016d2 14106-14519,14547-14590
+  s_c15ea94af52618::t_b142cba4f46646 38-39
+  s_af125f8401c4f1::t_68c409adccef55 25,1126
+src/renderer/pet-chat/response-state.ts
+  s_8282b7c7239370::t_e2c5d6363b0370 1-16
+src/renderer/pet-chat/feedback-payload.ts
+  s_8282b7c7239370::t_da802b79c9e856 1-35
+src/renderer/pet-chat/quick-replies.ts
+  s_8282b7c7239370::t_06ebd6825fa4a5 1-4,9-17,45-46,50,52-54,61-63,69-72,74,76-77
+  s_c15ea94af52618::t_8a7dc54c21774c 20-43,48,51,55-58,59-60,75
+  s_51d49afc03465d::t_b3e372fbb6560c 5-8
+  s_51d49afc03465d::t_7b24c743170cb8 18-19
+  s_51d49afc03465d::t_dc3d7ded6f7163 44,47,49,64-68,73
+package.json
+  s_c15ea94af52618::t_c05fa15c83a076 58-59
+  s_af125f8401c4f1::t_36e1265c9ddc44 45
+README.md
+  s_9df8f1d9f7aa8f::t_9ce3b9a47968ac 184,186
+  s_0af872df65d64e::t_823b626bafee0d 45
+  s_0af872df65d64e::t_9055ffb6760802 136
+  s_0af872df65d64e::t_2c844494c30c47 187
+AGENTS.md
+  s_9df8f1d9f7aa8f::t_5780b87f109237 94
+  s_9df8f1d9f7aa8f::t_2caee96fbb1153 93
+  s_fce907df439bb4::t_ca313f5c955255 61-64
+  s_521aa2fe097d40::t_dec787756d5c7a 95-96
+  s_521aa2fe097d40::t_8c2a71f2fd0e3c 65
+src/renderer/pet/main.tsx
+  s_fce907df439bb4::t_8e5ae6bd102be0 3-4,8-9
+  s_fce907df439bb4::t_a9a7a666e0a16a 10
+e2e/helpers.ts
+  s_fce907df439bb4::t_41e8faff132596 32-36
+  s_521aa2fe097d40::t_10278469bdbff7 37-40
+src/main/store.ts
+  s_fce907df439bb4::t_aa0f0985fe63d0 67-70
+  s_fce907df439bb4::t_2a57e9f06f680d 125-127
+src/renderer/assistant/main.tsx
+  s_fce907df439bb4::t_8e5ae6bd102be0 3-4,8-9
+  s_fce907df439bb4::t_70352f2fbcd176 10
+src/renderer/pet/styles.css
+  s_fce907df439bb4::t_0a4073ecfa2b2c 231-247
+src/renderer/styles/theme.css
+  s_fce907df439bb4::t_3587a94e1f04b2 130-132
+  s_fce907df439bb4::t_eff30eacae38ac 1-75,82-129,133
+  s_fce907df439bb4::t_d8fec627c81480 76-81
+src/renderer/onboarding/Onboarding.tsx
+  s_fce907df439bb4::t_2732bb22768194 153
+  s_fce907df439bb4::t_285ec6b03326b7 113,117,125,135,156
+src/renderer/onboarding/steps/WelcomeStep.tsx
+  s_fce907df439bb4::t_90643dfd23141e 75,78,84-85,94-95,97-99
+src/renderer/theme.ts
+  s_fce907df439bb4::t_4bea169fbcba24 1-29
+src/renderer/components/UpdateBanner.tsx
+  s_fce907df439bb4::t_8d457a39f0ccdf 62
+src/renderer/components/HotkeyInput.tsx
+  s_fce907df439bb4::t_2d46b631fd238c 57-58,67
+src/renderer/assistant/Assistant.tsx
+  s_fce907df439bb4::t_4f84f8b68a3c90 1056,1059-1063,1065-1066,1068-1077,1079-1084
+  s_fce907df439bb4::t_3121cad3311a5f 714,779,807,820,828,836,844,860,869,929,964,966,985,1049,1078,1107,1127,1203,1236,1258,1293,1306,1320,1334,1348
+  s_fce907df439bb4::t_57d0e2257cc6e0 641,643,646,655,665,671,681,691,702,705,709,722,724,730,733-734,743,763-764,772,786,795,822,830,838,852,881,889,892,895,899,915,933,942,949-950,958,993,995,997,1012,1025-1026,1033,1057-1058,1064,1067,1086-1087,1093,1096,1113,1116,1155-1156,1159,1182-1183,1189,1192,1207,1214-1215,1222,1225,1244,1247,1266,1269,1309-1310,1312,1323-1324,1326,1337-1338,1340,1351-1352,1354
+src/main/preload.ts
+  s_fce907df439bb4::t_fcf61030e09ce1 29-33,36-38
+  s_fce907df439bb4::t_d9644ba32a6e24 196-198
+  s_521aa2fe097d40::t_6ddecdf618b0f9 333
+  s_521aa2fe097d40::t_f802275d1266fb 47
+src/main/main.ts
+  s_fce907df439bb4::t_af6ff1deb26a73 121
+  s_fce907df439bb4::t_7c7321fa392ec8 690-699
+src/renderer/screenshot-question/styles.css
+  s_fce907df439bb4::t_dbc9debbd28269 11-20
+src/renderer/pet-context-menu/main.tsx
+  s_fce907df439bb4::t_8e5ae6bd102be0 3-4,8-9
+  s_fce907df439bb4::t_d3e8b1b01176ac 10
+src/renderer/onboarding/onboarding-theme.css
+  s_fce907df439bb4::t_0205f00c4ae305 1-49,54-106,111-121
+  s_fce907df439bb4::t_ff980ac4fe625d 107-110
+  s_fce907df439bb4::t_a18d95f1161a33 50-53
+src/renderer/assistant/styles.css
+  s_fce907df439bb4::t_e2055143478a34 235-272
+e2e/cla58-themes.spec.ts
+  s_fce907df439bb4::t_784b336233ca16 149-191
+  s_fce907df439bb4::t_e6e9ef7cc1a406 1-148
+src/renderer/onboarding/steps/ReadyStep.tsx
+  s_fce907df439bb4::t_b44abd29dd2c07 59-60,63-64,72,75-77,82-83
+  s_fce907df439bb4::t_0f7d1991e7126b 88
+src/renderer/onboarding/steps/VibeStep.tsx
+  s_fce907df439bb4::t_b00ae514787926 17-18,30,32-33,45
+  s_fce907df439bb4::t_ae2c1a856c042c 42
+test/animalese-mute.test.ts
+  s_fce907df439bb4::t_c02782b206b95d 1-25
+src/main/windows.ts
+  s_fce907df439bb4::t_f8f915446e29f1 707
+  s_fce907df439bb4::t_e05838189351f7 118-146
+  s_fce907df439bb4::t_993402b72a245c 566
+  s_fce907df439bb4::t_276f04fd835baa 867
+  s_521aa2fe097d40::t_85dea06361029c 673-683,692
+  s_521aa2fe097d40::t_56d04b7eb74bfc 737
+src/renderer/utils/animalese.ts
+  s_fce907df439bb4::t_faa229ec8d80a8 203-206
+  s_fce907df439bb4::t_a0707640910158 80-86
+src/renderer/onboarding/main.tsx
+  s_fce907df439bb4::t_8e5ae6bd102be0 3,5,8-9
+  s_fce907df439bb4::t_e84a0358815b0f 4
+  s_fce907df439bb4::t_52d0198abda730 10
+src/renderer/pet/TutorialOverlay.css
+  s_fce907df439bb4::t_cdcb3e57f78336 343-383
+src/renderer/screenshot-question/main.tsx
+  s_fce907df439bb4::t_8e5ae6bd102be0 3-4,8-9
+  s_fce907df439bb4::t_605579bbc6b35c 10
+src/renderer/onboarding/steps/PermissionsStep.tsx
+  s_fce907df439bb4::t_8916323062ce91 68
+  s_fce907df439bb4::t_882ff01edb38f8 71-72,84-85,89,96-97,99-100,105,111,122
+src/renderer/onboarding.html
+  s_fce907df439bb4::t_71fe46a8170f5b 26
+src/renderer/pet-context-menu/styles.css
+  s_fce907df439bb4::t_69919d00f62068 58-77
+tsconfig.node.tsbuildinfo
+  s_92d1d805333e0b::t_bc7108dc8ff7a7 1
+test/capsule-entrance.test.ts
+  s_521aa2fe097d40::t_324d513d1fd278 1-54
+src/renderer/vite-env.d.ts
+  s_521aa2fe097d40::t_bb9238a839588f 56
+e2e/cla59-capsule-entrance.spec.ts
+  s_521aa2fe097d40::t_6d72fd146cf71c 112-116
+  s_521aa2fe097d40::t_1710864bc9f335 174-190
+  s_521aa2fe097d40::t_29f8af1cb433f6 1-2,16-21,26,31,34-36,57-84,88-89,100,107,109,123-133
+  s_521aa2fe097d40::t_334383f16fb557 3-15,22-25,27-30,32-33,37-56,85-87,90-99,101-106,108,110-111,117-122,134-140,145-173,191-222
+  s_521aa2fe097d40::t_b5e005d501f253 141-144
+src/renderer/chatbar/capsule-entrance.ts
+  s_521aa2fe097d40::t_7e87096e35cc29 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6fe6b1106654854fed1e476b2dec700ac657ed61",
+  "prompts": {},
+  "sessions": {
+    "s_0af872df65d64e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eee67d08-6b0f-45f7-9448-2692e342e8f8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_1c11e951226eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce4b4b63-d8f9-43c0-a6ab-8ce8cae7df4f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_2cefa318f1af27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ca7aa57-2edb-4bec-b24b-cc30bbc7a64d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_4e542942e90a84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0126d620-2d8e-42c5-b8f4-5e2a22587ad3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_51d49afc03465d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "72a9be43-aba5-41cf-9efd-f9a8c18bc6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_521aa2fe097d40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "56cddcc9-813b-453a-aa00-af55416f9995",
+        "model": "claude-fable-5"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_8282b7c7239370": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6223aac-31a3-4937-9750-a62e5ca201ed",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_8c27d2f9197133": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b90c5488-4ef9-4e23-818a-a6248bd81123",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_8d3ab092c17681": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e602e6ae-b69f-4288-b87e-0a1d1140dbdb",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_92d1d805333e0b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "671f6395-5226-4ced-80a0-16c2c26a9934",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_9df8f1d9f7aa8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd000223-637f-427e-bd91-e15007996f47",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_af125f8401c4f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "657e1f35-1b22-462e-ab53-dbe4348a9928",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_c15ea94af52618": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9be6da95-95f6-42c0-89cf-7c5c5f71cd43",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_c1c7df093aac19": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54e276f7-b034-4bf3-97c3-073a48300bdc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_f5174f4cea5f04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47fe7952-4a84-41e9-9382-ec9a40bb940f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    },
+    "s_fce907df439bb4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "60024d8e-6a10-4ffa-ab17-8fae8fa922e4",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JamesWU <wuyuwen0@gmail.com>"
+    }
+  }
+}
